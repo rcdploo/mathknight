@@ -1,0 +1,295 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Home, Volume2, VolumeX } from "lucide-react";
+import { allLevels, levelLabels, makeLevelConfig, stageLabels, stages, unitLabels, units } from "./game/levels";
+import { generatePuzzle } from "./game/puzzleGenerator";
+import { blankPuzzleProgress, loadProgress, recordLevelResult, setMuted } from "./game/progressStore";
+import { calculateCoins, calculateStars } from "./game/scoring";
+import { findNextUnlocked, isLevelUnlocked } from "./game/unlockRules";
+import type { LevelConfig, LevelResult, PlayerProgress, PuzzleCard } from "./game/types";
+
+type Screen = "map" | "game" | "result";
+
+const bossMemorizeSeconds = 30;
+const bossMatchSeconds = 15;
+
+function playTone(muted: boolean, frequency: number, duration = 0.08) {
+  if (muted) return;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  const context = new AudioContextClass();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.frequency.value = frequency;
+  oscillator.type = "sine";
+  gain.gain.value = 0.045;
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start();
+  oscillator.stop(context.currentTime + duration);
+}
+
+function formatStageDescription(stage: string) {
+  const descriptions: Record<string, string> = {
+    "1": "1 digit with 1 digit",
+    "2": "1 digit with 10-19",
+    "3a": "10-19 with 10-19",
+    "3b": "1 digit with 20-99",
+    "4": "10-19 with 20-99",
+  };
+  return descriptions[stage];
+}
+
+function formatStars(stars: number) {
+  return `${"★".repeat(stars)}${"☆".repeat(5 - stars)}`;
+}
+
+export default function App() {
+  const [progress, setProgress] = useState<PlayerProgress>(() => loadProgress());
+  const [screen, setScreen] = useState<Screen>("map");
+  const [selectedLevel, setSelectedLevel] = useState<LevelConfig>(() => makeLevelConfig("addition", "1", "level1"));
+  const [cards, setCards] = useState<PuzzleCard[]>([]);
+  const [flippedIds, setFlippedIds] = useState<string[]>([]);
+  const [isResolving, setIsResolving] = useState(false);
+  const [turnsRemaining, setTurnsRemaining] = useState(15);
+  const [turnsUsed, setTurnsUsed] = useState(0);
+  const [result, setResult] = useState<LevelResult | null>(null);
+  const [bossPhase, setBossPhase] = useState<"memorize" | "match">("memorize");
+  const [bossSeconds, setBossSeconds] = useState(bossMemorizeSeconds);
+  const hasEndedRef = useRef(false);
+
+  const allLevelConfigs = useMemo(() => allLevels(), []);
+  const matchedPairs = useMemo(() => new Set(cards.filter((card) => card.matched).map((card) => card.pairId)).size, [cards]);
+  const pairsRemaining = selectedLevel.pairs - matchedPairs;
+  const currentProgress = progress.puzzles[selectedLevel.id] ?? blankPuzzleProgress();
+
+  function startLevel(level: LevelConfig) {
+    hasEndedRef.current = false;
+    setSelectedLevel(level);
+    setCards(generatePuzzle(level));
+    setFlippedIds([]);
+    setIsResolving(false);
+    setTurnsRemaining(level.maxTurns ?? 0);
+    setTurnsUsed(0);
+    setResult(null);
+    setBossPhase(level.isBoss ? "memorize" : "match");
+    setBossSeconds(level.isBoss ? bossMemorizeSeconds : 0);
+    setScreen("game");
+  }
+
+  function finishLevel(completed: boolean, finalTurnsUsed = turnsUsed) {
+    if (hasEndedRef.current) return;
+    hasEndedRef.current = true;
+
+    const stars = completed ? calculateStars(selectedLevel.pairs, finalTurnsUsed) : 0;
+    const nextWinCount = currentProgress.wins + (completed ? 1 : 0);
+    const coinsEarned = completed ? calculateCoins(selectedLevel, stars, nextWinCount) : 0;
+    const finalResult = { completed, stars, turnsUsed: finalTurnsUsed, coinsEarned };
+    const nextProgress = recordLevelResult(progress, selectedLevel, finalResult);
+    setProgress(nextProgress);
+    setResult(finalResult);
+    playTone(progress.settings.muted, completed ? 660 : 180, completed ? 0.35 : 0.2);
+    setTimeout(() => setScreen("result"), completed ? 650 : 1200);
+  }
+
+  function handleCardClick(card: PuzzleCard) {
+    if (isResolving || card.matched || flippedIds.includes(card.id)) return;
+    if (selectedLevel.isBoss && bossPhase !== "match") return;
+    if (flippedIds.length >= 2) return;
+
+    playTone(progress.settings.muted, 330);
+    const nextFlipped = [...flippedIds, card.id];
+    setFlippedIds(nextFlipped);
+
+    if (nextFlipped.length !== 2) return;
+
+    const first = cards.find((item) => item.id === nextFlipped[0]);
+    if (!first) return;
+    const isMatch = first.pairId === card.pairId && first.kind !== card.kind;
+    const nextTurnsUsed = turnsUsed + 1;
+    setTurnsUsed(nextTurnsUsed);
+    setIsResolving(true);
+
+    if (isMatch) {
+      playTone(progress.settings.muted, 560, 0.12);
+      setTimeout(() => {
+        const nextCards = cards.map((item) => (item.pairId === card.pairId ? { ...item, matched: true } : item));
+        setCards(nextCards);
+        setFlippedIds([]);
+        setIsResolving(false);
+        const nextMatchedPairs = new Set(nextCards.filter((item) => item.matched).map((item) => item.pairId)).size;
+        if (nextMatchedPairs === selectedLevel.pairs) finishLevel(true, nextTurnsUsed);
+      }, 350);
+      return;
+    }
+
+    playTone(progress.settings.muted, 180, 0.12);
+    const nextTurnsRemaining = selectedLevel.isBoss ? turnsRemaining : turnsRemaining - 1;
+    setTurnsRemaining(nextTurnsRemaining);
+    setTimeout(
+      () => {
+        setFlippedIds([]);
+        setIsResolving(false);
+        if (!selectedLevel.isBoss && nextTurnsRemaining <= 0) finishLevel(false, nextTurnsUsed);
+      },
+      selectedLevel.isBoss ? 500 : 1000,
+    );
+  }
+
+  useEffect(() => {
+    if (!selectedLevel.isBoss || screen !== "game" || hasEndedRef.current) return;
+
+    const timer = window.setInterval(() => {
+      setBossSeconds((seconds) => {
+        if (seconds > 1) return seconds - 1;
+        if (bossPhase === "memorize") {
+          setBossPhase("match");
+          return bossMatchSeconds;
+        }
+        finishLevel(false, turnsUsed);
+        return 0;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [bossPhase, screen, selectedLevel.isBoss, turnsUsed]);
+
+  const nextLevel = result?.completed ? findNextUnlocked(progress, selectedLevel) : undefined;
+
+  return (
+    <main className="app">
+      <header className="topbar">
+        <button className="brand" onClick={() => setScreen("map")}>
+          Mathknight
+        </button>
+        <div className="topbar-actions">
+          <span className="coin-pill">${progress.coins} coins</span>
+          <button
+            className="icon-button"
+            aria-label={progress.settings.muted ? "Unmute sounds" : "Mute sounds"}
+            onClick={() => setProgress(setMuted(progress, !progress.settings.muted))}
+          >
+            {progress.settings.muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </button>
+          <button className="icon-button" aria-label="Back to menu" onClick={() => setScreen("map")}>
+            <Home size={20} />
+          </button>
+        </div>
+      </header>
+
+      {screen === "map" && (
+        <section className="map-screen">
+          <div className="page-heading">
+            <p>Training Grounds</p>
+            <h1>Arithmetic Memory Trials</h1>
+          </div>
+          <div className="unit-grid">
+            {units.map((unit) => (
+              <section className="unit-panel" key={unit}>
+                <h2>{unitLabels[unit]}</h2>
+                {stages.map((stage) => (
+                  <div className="stage-row" key={`${unit}_${stage}`}>
+                    <div className="stage-label">
+                      <strong>{stageLabels[stage]}</strong>
+                      <span>{formatStageDescription(stage)}</span>
+                    </div>
+                    <div className="lesson-row">
+                      {allLevelConfigs
+                        .filter((level) => level.unit === unit && level.stage === stage)
+                        .map((level) => {
+                          const unlocked = isLevelUnlocked(progress, level);
+                          const entry = progress.puzzles[level.id];
+                          return (
+                            <button
+                              data-testid={`level-${level.id}`}
+                              className={`lesson-button ${unlocked ? "" : "locked"} ${entry?.completed ? "complete" : ""}`}
+                              key={level.id}
+                              disabled={!unlocked}
+                              onClick={() => startLevel(level)}
+                            >
+                              <span>{levelLabels[level.kind]}</span>
+                              <small>{entry?.completed ? `${entry.bestStars} stars` : unlocked ? "Ready" : "Locked"}</small>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                ))}
+              </section>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {screen === "game" && (
+        <section className="game-screen">
+          <div className="hud">
+            <div>
+              <p>{`${unitLabels[selectedLevel.unit]} / ${stageLabels[selectedLevel.stage]}`}</p>
+              <h1>{levelLabels[selectedLevel.kind]}</h1>
+            </div>
+            {selectedLevel.isBoss ? (
+              <div className={`timer ${bossSeconds <= 5 ? "danger" : ""}`}>
+                <span>{bossPhase === "memorize" ? "Study" : "Match"}</span>
+                <strong>{bossSeconds}s</strong>
+              </div>
+            ) : (
+              <div className={`turns ${turnsRemaining <= 5 ? "danger" : turnsRemaining <= 10 ? "warning" : ""}`}>
+                <span>Turns Remaining</span>
+                <strong>{turnsRemaining}</strong>
+              </div>
+            )}
+            <div className="pairs-pill">{pairsRemaining} pairs left</div>
+          </div>
+
+          <div className="board-wrap">
+            <div className="board" style={{ gridTemplateColumns: `repeat(${selectedLevel.columns}, minmax(64px, 1fr))` }}>
+              {cards.map((card) => {
+                const visible = card.matched || flippedIds.includes(card.id) || (selectedLevel.isBoss && bossPhase === "memorize");
+                return (
+                  <button
+                    data-testid={`card-${card.id}`}
+                    data-pair-id={card.pairId}
+                    data-card-kind={card.kind}
+                    className={`card ${visible ? "flipped" : ""} ${card.matched ? "matched" : ""} ${card.kind}`}
+                    key={card.id}
+                    onClick={() => handleCardClick(card)}
+                  >
+                    <span className="card-front">{card.label}</span>
+                    <span className="card-back">?</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {screen === "result" && result && (
+        <section className="result-screen">
+          <div className="result-panel">
+            <p>{result.completed ? "Trial Complete" : "Trial Failed"}</p>
+            <h1>{result.completed ? "Victory Recorded" : "Return to Training"}</h1>
+            <div className="result-stats">
+              <span className="star-rating" aria-label={`${result.stars} out of 5 stars`}>
+                {formatStars(result.stars)}
+              </span>
+              <span>{result.turnsUsed} turns used</span>
+              <span>${result.coinsEarned} coins earned</span>
+              <span>Best: {Math.max(currentProgress.bestStars, result.stars)} stars</span>
+            </div>
+            <div className="result-actions">
+              <button onClick={() => startLevel(selectedLevel)}>Retry</button>
+              {nextLevel && <button onClick={() => startLevel(nextLevel as LevelConfig)}>Next Trial</button>}
+              <button onClick={() => setScreen("map")}>Training Grounds</button>
+            </div>
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
