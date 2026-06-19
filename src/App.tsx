@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Home, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, Home, KeyRound, Settings, ShoppingBag, Swords, Volume2, VolumeX, X } from "lucide-react";
+import BattleGame from "./battle/BattleGame";
 import { allLevels, levelLabels, makeLevelConfig, stageLabels, stages, unitLabels, units } from "./game/levels";
 import { generatePuzzle } from "./game/puzzleGenerator";
-import { blankPuzzleProgress, loadProgress, recordLevelResult, setMuted } from "./game/progressStore";
+import {
+  blankPuzzleProgress,
+  exportProgressCode,
+  importProgressCode,
+  loadProgress,
+  localStorageAvailable,
+  recordLevelResult,
+  setMuted,
+} from "./game/progressStore";
 import { calculateCoins, calculateStars } from "./game/scoring";
 import { findNextUnlocked, isLevelUnlocked } from "./game/unlockRules";
 import type { LevelConfig, LevelResult, PlayerProgress, PuzzleCard } from "./game/types";
@@ -42,7 +51,7 @@ function formatStars(stars: number) {
   return `${"★".repeat(stars)}${"☆".repeat(5 - stars)}`;
 }
 
-export default function App() {
+function MemoryMatchGame({ onExit }: { onExit: () => void }) {
   const [progress, setProgress] = useState<PlayerProgress>(() => loadProgress());
   const [screen, setScreen] = useState<Screen>("map");
   const [selectedLevel, setSelectedLevel] = useState<LevelConfig>(() => makeLevelConfig("addition", "1", "level1"));
@@ -54,6 +63,10 @@ export default function App() {
   const [result, setResult] = useState<LevelResult | null>(null);
   const [bossPhase, setBossPhase] = useState<"memorize" | "match">("memorize");
   const [bossSeconds, setBossSeconds] = useState(bossMemorizeSeconds);
+  const [savePanelOpen, setSavePanelOpen] = useState(false);
+  const [saveCodeInput, setSaveCodeInput] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [canAutoSave] = useState(() => localStorageAvailable());
   const hasEndedRef = useRef(false);
 
   const allLevelConfigs = useMemo(() => allLevels(), []);
@@ -134,6 +147,28 @@ export default function App() {
     );
   }
 
+  async function copySaveCode() {
+    const code = exportProgressCode(progress);
+    setSaveCodeInput(code);
+    try {
+      await navigator.clipboard.writeText(code);
+      setSaveMessage("Knight Code copied.");
+    } catch {
+      setSaveMessage("Knight Code ready to copy.");
+    }
+  }
+
+  function restoreSaveCode() {
+    try {
+      const nextProgress = importProgressCode(saveCodeInput);
+      setProgress(nextProgress);
+      setScreen("map");
+      setSaveMessage("Progress restored.");
+    } catch {
+      setSaveMessage("That Knight Code did not work.");
+    }
+  }
+
   useEffect(() => {
     if (!selectedLevel.isBoss || screen !== "game" || hasEndedRef.current) return;
 
@@ -157,6 +192,9 @@ export default function App() {
   return (
     <main className="app">
       <header className="topbar">
+        <button className="icon-button" aria-label="Return to game hall" onClick={onExit}>
+          <ArrowLeft size={20} />
+        </button>
         <button className="brand" onClick={() => setScreen("map")}>
           Mathknight
         </button>
@@ -169,11 +207,62 @@ export default function App() {
           >
             {progress.settings.muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
+          <button
+            className="icon-button"
+            aria-label="Open Knight Code saves"
+            onClick={() => {
+              setSavePanelOpen(true);
+              setSaveMessage("");
+            }}
+          >
+            <KeyRound size={20} />
+          </button>
           <button className="icon-button" aria-label="Back to menu" onClick={() => setScreen("map")}>
             <Home size={20} />
           </button>
         </div>
       </header>
+
+      {!canAutoSave && (
+        <div className="storage-warning">Local auto-save is blocked here. Use a Knight Code to back up progress.</div>
+      )}
+
+      {savePanelOpen && (
+        <div className="modal-backdrop">
+          <section className="save-panel" role="dialog" aria-modal="true" aria-labelledby="save-panel-title">
+            <div className="save-panel-heading">
+              <div>
+                <p>Backup & Restore</p>
+                <h2 id="save-panel-title">Knight Code</h2>
+              </div>
+              <button className="icon-button" aria-label="Close Knight Code saves" onClick={() => setSavePanelOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <p className="save-panel-copy">
+              Progress saves automatically on this device. Keep a Knight Code as a backup or use it on another device.
+            </p>
+            <textarea
+              aria-label="Knight Code"
+              value={saveCodeInput}
+              onChange={(event) => {
+                setSaveCodeInput(event.target.value);
+                setSaveMessage("");
+              }}
+              placeholder="Your Knight Code appears here"
+              spellCheck={false}
+            />
+            {saveMessage && <div className="save-message" role="status">{saveMessage}</div>}
+            <div className="save-actions">
+              <button onClick={copySaveCode}>Show & Copy Code</button>
+              <button onClick={restoreSaveCode} disabled={!saveCodeInput.trim()}>
+                Load Code
+              </button>
+              <button onClick={() => setSavePanelOpen(false)}>Done</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {screen === "map" && (
         <section className="map-screen">
@@ -284,6 +373,42 @@ export default function App() {
           </div>
         </section>
       )}
+    </main>
+  );
+}
+
+type GameDestination = "hub" | "memory" | "battle";
+
+export default function App() {
+  const [destination, setDestination] = useState<GameDestination>("hub");
+
+  if (destination === "memory") return <MemoryMatchGame onExit={() => setDestination("hub")} />;
+  if (destination === "battle") return <BattleGame onExit={() => setDestination("hub")} />;
+
+  return (
+    <main className="game-hub">
+      <header className="hub-header">
+        <p>Mathknight</p>
+        <h1>Choose Your Path</h1>
+      </header>
+      <section className="hub-destinations" aria-label="Game destinations">
+        <button className="hub-destination battle-destination" onClick={() => setDestination("battle")}>
+          <Swords size={30} />
+          <span><strong>Dungeon Battle</strong><small>Build expressions. Counter monsters.</small></span>
+        </button>
+        <button className="hub-destination memory-destination" onClick={() => setDestination("memory")}>
+          <span className="hub-grid-icon" aria-hidden="true">2+3</span>
+          <span><strong>Memory Trials</strong><small>Match arithmetic pairs. Earn coins.</small></span>
+        </button>
+        <button className="hub-destination" disabled>
+          <ShoppingBag size={30} />
+          <span><strong>Quartermaster</strong><small>Coming later</small></span>
+        </button>
+        <button className="hub-destination" disabled>
+          <Settings size={30} />
+          <span><strong>Settings</strong><small>Coming later</small></span>
+        </button>
+      </section>
     </main>
   );
 }
