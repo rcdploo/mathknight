@@ -824,14 +824,43 @@ button {
 .bottle-slot { display: grid; gap: 5px; padding: 6px; border: 1px solid #65a6aa; background: rgba(28, 71, 76, .48); text-align: center; }
 .bottle-slot > span { color: #a6dde0; font-size: .68rem; font-weight: 900; text-transform: uppercase; }
 .hand-cards { display: flex; justify-content: center; gap: clamp(6px, 1.5vw, 14px); }
-.battle-card { position: relative; display: grid; grid-template-rows: auto 1fr auto; width: clamp(82px, 11vw, 112px); aspect-ratio: 4 / 5; padding: 8px; border: 2px solid #4b9bb1; border-radius: 8px; background: #244e61; color: #f7f2e8; cursor: pointer; box-shadow: 0 8px 0 rgba(0,0,0,.22); }
-.battle-card.operator { border-color: #d1a958; background: #604c25; }
+.hand-card-slot { display: grid; justify-items: center; align-content: end; gap: 8px; }
+.card-upgrade-action { min-height: 28px; padding: 0 8px; border: 1px solid #55b879; border-radius: 5px; background: #214a32; color: #dff5e6; cursor: pointer; font-size: .64rem; font-weight: 900; }
+.battle-card { position: relative; display: grid; grid-template-rows: auto 1fr auto; width: clamp(82px, 11vw, 112px); aspect-ratio: 4 / 5; padding: 8px; border: 4px solid #858b88; border-radius: 8px; background: #28677a; color: #f7f2e8; cursor: pointer; box-shadow: 0 8px 0 rgba(0,0,0,.22); }
+.battle-card.type-operator { background: #675328; }
+.battle-card.type-combo { background: #743f3b; }
+.battle-card.type-variable { background: #594271; }
+.battle-card[class*="type-upgrade"] { background: #326445; }
+.battle-card.rarity-starter { border-color: #858b88; }
+.battle-card.rarity-common { border-color: #f2f0e8; }
+.battle-card.rarity-uncommon { border-color: #55aee6; }
+.battle-card.rarity-rare { border-color: #e1b84e; }
+.battle-card.upgrades-1 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 2px #55b879; }
+.battle-card.upgrades-2 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 3px #55b879; }
+.battle-card.upgrades-3 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 4px #55b879; }
+.battle-card.upgrades-4 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 5px #55b879; }
+.battle-card.upgrades-5 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 6px #55b879; }
 .battle-card:disabled { opacity: .34; cursor: not-allowed; transform: translateY(5px); }
+.battle-card.preview { width: 104px; cursor: default; }
 .battle-card small { justify-self: start; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #73c8dc; color: #102b31; font-weight: 900; }
 .battle-card.operator small { background: #f0ca73; color: #33270f; }
 .battle-card strong { align-self: center; font-size: clamp(2rem, 5vw, 3.5rem); }
-.battle-card em { font-size: .68rem; font-style: normal; text-transform: uppercase; }
-.pile-counts { display: grid; gap: 8px; color: #bdb8ad; font-size: .74rem; font-weight: 800; }
+.battle-card em { font-size: .58rem; font-style: normal; line-height: 1.2; text-transform: uppercase; }
+.card-upgrade-icons { display: flex; flex-wrap: wrap; align-content: end; gap: 2px; min-height: 14px; }
+.card-upgrade-icons span { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #55b879; color: #102d1b; font-size: .55rem; font-weight: 900; }
+.card-explainer { position: absolute; left: 50%; bottom: calc(100% + 10px); z-index: 30; display: none; width: 260px; padding: 12px; border: 1px solid #8f977f; border-radius: 6px; background: #171916; color: #ddd8cc; font-size: .72rem; font-weight: 400; line-height: 1.4; text-align: left; transform: translateX(-50%); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.card-explainer > strong, .card-explainer > span { display: block; }
+.card-explainer > strong { margin-bottom: 5px; color: #fff4d5; font-size: .9rem; }
+.card-explainer > span { margin-top: 7px; color: #bfe5ca; }
+.battle-card:hover .card-explainer, .battle-card:focus .card-explainer { display: block; }
+.pile-counts { display: grid; gap: 8px; }
+.pile-counts button { min-width: 84px; min-height: 34px; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; background: #292923; color: #d7d1c5; cursor: pointer; font-size: .72rem; font-weight: 800; }
+.pile-panel { width: min(760px, 100%); max-height: min(82vh, 720px); overflow: auto; padding: 22px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: #211f1b; }
+.pile-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.pile-panel-heading p { margin: 0; color: #f0ca73; font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+.pile-panel-heading h2 { margin: 3px 0 0; font-family: Georgia, serif; font-size: 2rem; }
+.pile-panel > p { color: #bdb8ad; }
+.pile-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); justify-items: center; gap: 18px 12px; padding-top: 10px; }
 .battle-result, .reward-panel { width: min(720px, calc(100% - 32px)); margin: 32px auto; padding: 28px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: #211f1b; }
 .battle-result.victory { border-color: rgba(240,202,115,.65); animation: result-arrive 480ms ease-out; box-shadow: 0 0 36px rgba(240,202,115,.16); }
 .battle-result.defeat { border-color: rgba(196,92,77,.65); animation: result-arrive 480ms ease-out; box-shadow: 0 0 36px rgba(196,92,77,.14); }
@@ -849,6 +878,14 @@ button {
 .reward-cards button { display: grid; place-items: center; min-height: 180px; border: 2px solid #4b9bb1; border-radius: 8px; background: #244e61; color: white; cursor: pointer; }
 .reward-cards button.chosen { border-color: #f0ca73; box-shadow: 0 0 0 3px rgba(240,202,115,.25); }
 .reward-cards strong { font-size: 3rem; }
+.reward-cards .reward-option { align-content: center; gap: 9px; padding: 14px; border-width: 4px; }
+.reward-cards .reward-option.rarity-common { border-color: #f2f0e8; }
+.reward-cards .reward-option.rarity-uncommon { border-color: #55aee6; }
+.reward-cards .reward-option.rarity-rare { border-color: #e1b84e; }
+.reward-cards .reward-option.upgrade { background: #326445; }
+.reward-cards .reward-option span { font-size: .68rem; font-weight: 900; text-transform: uppercase; }
+.reward-cards .reward-option small { color: #d7d1c5; font-size: .7rem; line-height: 1.35; }
+.upgrade-target-panel { width: min(900px, calc(100% - 32px)); max-height: 88vh; overflow: auto; }
 
 @media (max-width: 720px) {
   .hub-destinations { grid-template-columns: 1fr; }
