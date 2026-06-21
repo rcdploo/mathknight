@@ -1,4 +1,4 @@
-import { ArrowLeft, HeartPulse, RotateCcw, Shield, Swords, Volume2, VolumeX, Zap } from "lucide-react";
+import { ArrowLeft, HeartPulse, Shield, Swords, Volume2, VolumeX, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { playBattleSound, startBattleMusic, stopBattleMusic } from "./battleAudio";
 import {
@@ -7,6 +7,20 @@ import {
 } from "./battleEngine";
 
 type BattlePhase = "playing" | "resolving" | "victory" | "defeat" | "reward";
+type BattleState = ReturnType<typeof createBattle>;
+type BattleSession = {
+  battle: BattleState;
+  selectedCards: BattleCard[];
+  bottleUsed: boolean;
+  phase: BattlePhase;
+  message: string;
+  error: string;
+  turn: number;
+  chosenReward: BattleCard | null;
+  rewards: BattleCard[];
+};
+
+const battleSessionKey = "mathknight.battle.session.v1";
 const playerMaxHealth = 40;
 const enemyMaxHealth = 30;
 const maxEnergy = 3;
@@ -23,20 +37,57 @@ function createBattle() {
   };
 }
 
-export default function BattleGame({ onExit }: { onExit: () => void }) {
-  const [battle, setBattle] = useState(createBattle);
-  const [selectedCards, setSelectedCards] = useState<BattleCard[]>([]);
-  const [bottleUsed, setBottleUsed] = useState(false);
-  const [phase, setPhase] = useState<BattlePhase>("playing");
-  const [message, setMessage] = useState("The moss brute raises its club.");
-  const [error, setError] = useState("");
-  const [turn, setTurn] = useState(1);
-  const [chosenReward, setChosenReward] = useState<BattleCard | null>(null);
+function createBattleSession(): BattleSession {
+  return {
+    battle: createBattle(),
+    selectedCards: [],
+    bottleUsed: false,
+    phase: "playing",
+    message: "The moss brute raises its club.",
+    error: "",
+    turn: 1,
+    chosenReward: null,
+    rewards: [makeCard("3", "number", 1), makeCard("4", "number", 1), makeCard("+", "operator", 1)],
+  };
+}
+
+function loadBattleSession() {
+  try {
+    const raw = window.localStorage.getItem(battleSessionKey);
+    if (!raw) return createBattleSession();
+    const parsed = JSON.parse(raw) as BattleSession;
+    if (!parsed.battle?.hand || !parsed.rewards || typeof parsed.turn !== "number") return createBattleSession();
+    return { ...parsed, phase: parsed.phase === "resolving" ? "playing" : parsed.phase };
+  } catch {
+    return createBattleSession();
+  }
+}
+
+function clearBattleSession() {
+  window.localStorage.removeItem(battleSessionKey);
+}
+
+export default function BattleGame({ onExit, onComplete }: { onExit: () => void; onComplete: (won: boolean) => void }) {
+  const restoredSession = useMemo(loadBattleSession, []);
+  const [battle, setBattle] = useState(restoredSession.battle);
+  const [selectedCards, setSelectedCards] = useState<BattleCard[]>(restoredSession.selectedCards);
+  const [bottleUsed, setBottleUsed] = useState(restoredSession.bottleUsed);
+  const [phase, setPhase] = useState<BattlePhase>(restoredSession.phase);
+  const [message, setMessage] = useState(restoredSession.message);
+  const [error, setError] = useState(restoredSession.error);
+  const [turn, setTurn] = useState(restoredSession.turn);
+  const [chosenReward, setChosenReward] = useState<BattleCard | null>(restoredSession.chosenReward);
+  const [rewards] = useState<BattleCard[]>(restoredSession.rewards);
   const [musicOn, setMusicOn] = useState(true);
-  const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | null>(null);
+  const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | "victory" | "defeat" | null>(null);
   const energyUsed = useMemo(() => expressionEnergy(selectedCards), [selectedCards]);
 
   useEffect(() => () => stopBattleMusic(), []);
+
+  useEffect(() => {
+    const session: BattleSession = { battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards };
+    window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
+  }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards]);
 
   function wakeAudio() {
     if (musicOn) startBattleMusic();
@@ -104,6 +155,9 @@ export default function BattleGame({ onExit }: { onExit: () => void }) {
         const healedHealth = Math.min(playerMaxHealth, playerHit.health + postBattleHealing);
         const healingReceived = healedHealth - playerHit.health;
         setBattle((current) => ({ ...current, playerHealth: healedHealth }));
+        stopBattleMusic();
+        playBattleSound("victory");
+        setImpact("victory");
         setPhase("victory");
         setMessage(
           healingReceived > 0
@@ -113,6 +167,9 @@ export default function BattleGame({ onExit }: { onExit: () => void }) {
         return;
       }
       if (playerHit.health === 0) {
+        stopBattleMusic();
+        playBattleSound("defeat");
+        setImpact("defeat");
         setPhase("defeat");
         setMessage("The dungeon returns you to its entrance.");
         return;
@@ -127,19 +184,10 @@ export default function BattleGame({ onExit }: { onExit: () => void }) {
     }, 900);
   }
 
-  function restartBattle() {
-    setBattle(createBattle());
-    setSelectedCards([]);
-    setBottleUsed(false);
-    setPhase("playing");
-    setMessage("The moss brute raises its club.");
-    setError("");
-    setTurn(1);
-    setChosenReward(null);
+  function finishRoom(won: boolean) {
+    clearBattleSession();
+    onComplete(won);
   }
-
-  const rewards = useMemo(
-    () => [makeCard("3", "number", 1), makeCard("4", "number", 1), makeCard("+", "operator", 1)], []);
 
   if (phase === "reward") {
     return (
@@ -153,14 +201,17 @@ export default function BattleGame({ onExit }: { onExit: () => void }) {
               </button>
             ))}
           </div>
-          <div className="battle-actions"><button onClick={onExit}>{chosenReward ? `Keep ${chosenReward.label}` : "Skip Reward"}</button></div>
+          <div className="battle-actions">
+            <button onClick={() => finishRoom(true)}>{chosenReward ? `Continue with ${chosenReward.label}` : "Continue without a card"}</button>
+            <button onClick={onExit}>Game Hall</button>
+          </div>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="battle-game">
+    <main className={`battle-game ${phase === "victory" ? "battle-victory" : phase === "defeat" ? "battle-defeat" : ""}`}>
       <header className="battle-topbar">
         <button className="icon-button" aria-label="Return to game hall" onClick={onExit} disabled={phase === "resolving"}><ArrowLeft size={20} /></button>
         <div><p>Dungeon Level 1 · Room 1</p><strong>Overgrown Gate</strong></div>
@@ -186,7 +237,7 @@ export default function BattleGame({ onExit }: { onExit: () => void }) {
         </div>
       </div>
 
-      <section className={`battlefield ${impact === "counter" ? "counter-flash" : ""}`}>
+      <section className={`battlefield ${impact === "counter" ? "counter-flash" : ""} ${impact === "victory" ? "victory-flash" : ""} ${impact === "defeat" ? "defeat-flash" : ""}`}>
         <Combatant name="Mathknight" sprite="♞" health={battle.playerHealth} maxHealth={playerMaxHealth} hit={impact === "hero"} />
         <div className="combat-center">
           <div className="enemy-intent"><span>Enemy intends to attack</span><strong><Swords size={22} /> {battle.enemyIntent}</strong></div>
@@ -196,11 +247,14 @@ export default function BattleGame({ onExit }: { onExit: () => void }) {
       </section>
 
       {phase === "victory" || phase === "defeat" ? (
-        <section className="battle-result">
+        <section className={`battle-result ${phase}`}>
           <p>{phase === "victory" ? "Victory" : "Defeated"}</p><h1>{message}</h1>
           <div className="battle-actions">
-            {phase === "victory" && <button onClick={() => setPhase("reward")}>Claim Card Reward</button>}
-            <button onClick={restartBattle}><RotateCcw size={18} /> Fight Again</button>
+            {phase === "victory" ? (
+              <button onClick={() => setPhase("reward")}>Continue</button>
+            ) : (
+              <button onClick={() => finishRoom(false)}>Continue</button>
+            )}
             <button onClick={onExit}>Game Hall</button>
           </div>
         </section>

@@ -1,4 +1,4 @@
-export type BattleSound = "card" | "hero-hit" | "enemy-hit" | "counter";
+export type BattleSound = "card" | "hero-hit" | "enemy-hit" | "counter" | "victory" | "defeat";
 
 let context: AudioContext | null = null;
 let musicTimer: number | null = null;
@@ -39,8 +39,12 @@ export function playBattleSound(sound: BattleSound) {
   } else if (sound === "hero-hit") {
     tone(90, now, 0.22, 0.055, "sawtooth");
     tone(62, now + 0.08, 0.18, 0.035, "square");
-  } else {
+  } else if (sound === "counter") {
     [392, 523, 659, 784].forEach((frequency, index) => tone(frequency, now + index * 0.055, 0.24, 0.035, "triangle"));
+  } else if (sound === "victory") {
+    [261.63, 329.63, 392, 523.25].forEach((frequency, index) => tone(frequency, now + index * 0.14, 0.55, 0.05, "triangle"));
+  } else {
+    [196, 164.81, 130.81, 98].forEach((frequency, index) => tone(frequency, now + index * 0.17, 0.6, 0.045, "sawtooth"));
   }
 }
 

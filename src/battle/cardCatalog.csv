@@ -1,0 +1,37 @@
+Card Name,Type,Rarity,Energy Cost,Effect,Median Purchase Cost at Shop
+1,Digit,Starter,0,1,$40
+2,Digit,Starter,0,2,$45
+3,Digit,Starter,1,3,$50
+4,Digit,Starter,1,4,$55
+5,Digit,Common,1,5,$60
+6,Digit,Common,1,6,$70
+7,Digit,Common,2,7,$80
+8,Digit,Common,2,8,$90
+9,Digit,Uncommon,2,9,$120
+1_,Combo,Uncommon,3,Combines with another digit card in hand to make a two digit number (10+ that digit),$150
+2_,Combo,Rare,4,Combines with another digit card in hand to make a two digit number (20+ that digit),$200
++,Operator,Starter,1,<addition operator>,$75
+-,Operator,Uncommon,0,<subtraction operator>,
+x,Operator,Uncommon,2,<multiplication operator>,$125
+/,Operator,Uncommon,-1,"<division operator> [if you divide by 0 you deal infinite damage and auto win, but this card is removed from your deck and lost forever. warn the player first]",$115
+^X,Variable,Rare,X,"Exponeniates the prior digit (or parenthetical expression) to the power of X, where X is your remaining energy (it is all spent to play this card). [You get the energy back if you unplay it before submitting. If you get more energy from other effects later you can use it separately,it's not spent on this card.]",$250
+(),Operator,Rare,1,"You play an open right parenthesis ""("", then a closing left parentesis "")"" is generated in your hand <no additional energy cost, its not a separate card just an indicator>. You must play the closing parenthesis to make a valid expression, or if you remove the open parenthesis the closed one disappears from your hand",$175
+T,Variable,Uncommon,0,Value is equal to the turn number of the current fight,$135
+2o,Variable,Uncommon,1,Value is equal to twice the number of operators in your expression,$145
+o^2,Variable,Rare,2,Value is equal to the square of the number of operators in your expression,$195
+3p,Variable,Rare,2,"Value is equal to three times the number of prime other numbers in your expression. [For 2 digit combos, count the resulting two digit number not the individual digit card]",$185
+2e,Variable,Uncommon,1,Value is equal to twice the number of even numbers in your expression,$140
+2U,Variable,Uncommon,1,Value is equal to twice the number of upgraded cards in your expression,$165
+U^2,Variable,Rare,2,Value is equal to the square of the number of upgraded cards in your expression,$225
+Armor,Upgrade (Digit),Common,n/a,"When used in an expression, increase your armor by this amount. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$95
++1,Upgrade (Digit),Common,n/a,"Change the value of a 1-8 digit card by 1. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$65
+Card Removal,Upgrade,Rare,n/a,"When acquired, immediately remove a card from your deck forever","$100, increasing in cost by $100 for each card you've removed"
+L,Variable,Rare,?,"Value is equal to the level you are currently on. (1st run has levels 1-10. After than 11-20, then 21-30 etc.). The energy cost is the Level / 10 rouded up.",$240
++3,Upgrade (Variable),Uncommon,n/a,"Change the resulting value of any variable card by +3. [When purchased, permanently enhance a variable card in the deck that doesn't have this upgrade]",$155
+Cycling,Upgrade (any),Uncommon,n/a,"When this card is in hand, you may discard it to draw a replacement card at no cost (cannot be undone). [When purchased, permanently enhance a card in the deck that doesn't have this upgrade]",$180
+Consumable,Upgrade (any),Rare,n/a,"When this card is in hand, you may discard it to gain 1 energy this turn (can be undone). [When purchased, permanently enhance a card in the deck that doesn't have this upgrade]",$210
+Efficiency,Upgrade (any),Rare,n/a,"When acquired, immediately and permanently reduce the cost of a card in your deck by 1 (can go negative, ie you get energy when you play it)",$220
+Bash,Upgrade (any),Rare,n/a,"When used in an expression, 10% chance the moster is stunned next round and makes no attack [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade] <multiple instances on different cards trigger separately but the monster can only be stunned for up to one turn>",$205
+Weaken,Upgrade (any),Uncommon,n/a,"When used in an expression, monster's current and next turn attack is reduced 10%  [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade] <multiple instances on different cards stack additively>",$160
+Crit,Upgrade (any),Uncommon,n/a,"When used in an expression, 20% change to do 1.5x damage [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade] <multiple instances on different cards trigger separately but it can only happen once, multiplier is to damage done not number produced>",$170
+Reflecting,Upgrade (any),Rare,n/a,"When used in an expression, 50% of the damage you suffer this turn is dealt back to the monster [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade] <can only occur once each turn>",$230

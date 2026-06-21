@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Home, KeyRound, Settings, ShoppingBag, Swords, Volume2, VolumeX, X } from "lucide-react";
-import BattleGame from "./battle/BattleGame";
+import DungeonGame from "./dungeon/DungeonGame";
 import { allLevels, levelLabels, makeLevelConfig, stageLabels, stages, unitLabels, units } from "./game/levels";
 import { generatePuzzle } from "./game/puzzleGenerator";
 import {
@@ -286,6 +286,9 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
                         .map((level) => {
                           const unlocked = isLevelUnlocked(progress, level);
                           const entry = progress.puzzles[level.id];
+                          const nextWinCount = (entry?.wins ?? 0) + 1;
+                          const minimumReward = calculateCoins(level, 1, nextWinCount);
+                          const maximumReward = calculateCoins(level, 5, nextWinCount);
                           return (
                             <button
                               data-testid={`level-${level.id}`}
@@ -294,8 +297,23 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
                               disabled={!unlocked}
                               onClick={() => startLevel(level)}
                             >
-                              <span>{levelLabels[level.kind]}</span>
-                              <small>{entry?.completed ? `${entry.bestStars} stars` : unlocked ? "Ready" : "Locked"}</small>
+                              <span className="lesson-title-row">
+                                <span>{levelLabels[level.kind]}</span>
+                                {entry?.completed && (
+                                  <span className="lesson-stars" aria-label={`${entry.bestStars} out of 5 stars`}>
+                                    {Array.from({ length: 5 }, (_, index) => (
+                                      <span
+                                        className={`lesson-star ${index < entry.bestStars ? "filled" : "empty"}`}
+                                        aria-hidden="true"
+                                        key={index}
+                                      >
+                                        {index < entry.bestStars ? "\u2605" : "\u2606"}
+                                      </span>
+                                    ))}
+                                  </span>
+                                )}
+                              </span>
+                              <small>{unlocked ? `$${minimumReward}-$${maximumReward}` : "Locked"}</small>
                             </button>
                           );
                         })}
@@ -383,7 +401,7 @@ export default function App() {
   const [destination, setDestination] = useState<GameDestination>("hub");
 
   if (destination === "memory") return <MemoryMatchGame onExit={() => setDestination("hub")} />;
-  if (destination === "battle") return <BattleGame onExit={() => setDestination("hub")} />;
+  if (destination === "battle") return <DungeonGame onExit={() => setDestination("hub")} />;
 
   return (
     <main className="game-hub">
@@ -398,7 +416,7 @@ export default function App() {
         </button>
         <button className="hub-destination memory-destination" onClick={() => setDestination("memory")}>
           <span className="hub-grid-icon" aria-hidden="true">2+3</span>
-          <span><strong>Memory Trials</strong><small>Match arithmetic pairs. Earn coins.</small></span>
+          <span><strong>Training Grounds</strong><small>Match arithmetic pairs. Earn coins.</small></span>
         </button>
         <button className="hub-destination" disabled>
           <ShoppingBag size={30} />

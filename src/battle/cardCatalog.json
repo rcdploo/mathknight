@@ -1,0 +1,290 @@
+﻿[
+    {
+        "Card Name":  "1",
+        "Type":  "Digit",
+        "Rarity":  "Starter",
+        "Energy Cost":  "0",
+        "Effect":  "1",
+        "Median Purchase Cost at Shop":  "$40"
+    },
+    {
+        "Card Name":  "2",
+        "Type":  "Digit",
+        "Rarity":  "Starter",
+        "Energy Cost":  "0",
+        "Effect":  "2",
+        "Median Purchase Cost at Shop":  "$45"
+    },
+    {
+        "Card Name":  "3",
+        "Type":  "Digit",
+        "Rarity":  "Starter",
+        "Energy Cost":  "1",
+        "Effect":  "3",
+        "Median Purchase Cost at Shop":  "$50"
+    },
+    {
+        "Card Name":  "4",
+        "Type":  "Digit",
+        "Rarity":  "Starter",
+        "Energy Cost":  "1",
+        "Effect":  "4",
+        "Median Purchase Cost at Shop":  "$55"
+    },
+    {
+        "Card Name":  "5",
+        "Type":  "Digit",
+        "Rarity":  "Common",
+        "Energy Cost":  "1",
+        "Effect":  "5",
+        "Median Purchase Cost at Shop":  "$60"
+    },
+    {
+        "Card Name":  "6",
+        "Type":  "Digit",
+        "Rarity":  "Common",
+        "Energy Cost":  "1",
+        "Effect":  "6",
+        "Median Purchase Cost at Shop":  "$70"
+    },
+    {
+        "Card Name":  "7",
+        "Type":  "Digit",
+        "Rarity":  "Common",
+        "Energy Cost":  "2",
+        "Effect":  "7",
+        "Median Purchase Cost at Shop":  "$80"
+    },
+    {
+        "Card Name":  "8",
+        "Type":  "Digit",
+        "Rarity":  "Common",
+        "Energy Cost":  "2",
+        "Effect":  "8",
+        "Median Purchase Cost at Shop":  "$90"
+    },
+    {
+        "Card Name":  "9",
+        "Type":  "Digit",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "2",
+        "Effect":  "9",
+        "Median Purchase Cost at Shop":  "$120"
+    },
+    {
+        "Card Name":  "1_",
+        "Type":  "Combo",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "3",
+        "Effect":  "Combines with another digit card in hand to make a two digit number (10+ that digit)",
+        "Median Purchase Cost at Shop":  "$150"
+    },
+    {
+        "Card Name":  "2_",
+        "Type":  "Combo",
+        "Rarity":  "Rare",
+        "Energy Cost":  "4",
+        "Effect":  "Combines with another digit card in hand to make a two digit number (20+ that digit)",
+        "Median Purchase Cost at Shop":  "$200"
+    },
+    {
+        "Card Name":  "+",
+        "Type":  "Operator",
+        "Rarity":  "Starter",
+        "Energy Cost":  "1",
+        "Effect":  "\u003caddition operator\u003e",
+        "Median Purchase Cost at Shop":  "$75"
+    },
+    {
+        "Card Name":  "-",
+        "Type":  "Operator",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "0",
+        "Effect":  "\u003csubtraction operator\u003e",
+        "Median Purchase Cost at Shop":  ""
+    },
+    {
+        "Card Name":  "x",
+        "Type":  "Operator",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "2",
+        "Effect":  "\u003cmultiplication operator\u003e",
+        "Median Purchase Cost at Shop":  "$125"
+    },
+    {
+        "Card Name":  "/",
+        "Type":  "Operator",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "-1",
+        "Effect":  "\u003cdivision operator\u003e [if you divide by 0 you deal infinite damage and auto win, but this card is removed from your deck and lost forever. warn the player first]",
+        "Median Purchase Cost at Shop":  "$115"
+    },
+    {
+        "Card Name":  "^X",
+        "Type":  "Variable",
+        "Rarity":  "Rare",
+        "Energy Cost":  "X",
+        "Effect":  "Exponeniates the prior digit (or parenthetical expression) to the power of X, where X is your remaining energy (it is all spent to play this card). [You get the energy back if you unplay it before submitting. If you get more energy from other effects later you can use it separately,it\u0027s not spent on this card.]",
+        "Median Purchase Cost at Shop":  "$250"
+    },
+    {
+        "Card Name":  "()",
+        "Type":  "Operator",
+        "Rarity":  "Rare",
+        "Energy Cost":  "1",
+        "Effect":  "You play an open right parenthesis \"(\", then a closing left parentesis \")\" is generated in your hand \u003cno additional energy cost, its not a separate card just an indicator\u003e. You must play the closing parenthesis to make a valid expression, or if you remove the open parenthesis the closed one disappears from your hand",
+        "Median Purchase Cost at Shop":  "$175"
+    },
+    {
+        "Card Name":  "T",
+        "Type":  "Variable",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "0",
+        "Effect":  "Value is equal to the turn number of the current fight",
+        "Median Purchase Cost at Shop":  "$135"
+    },
+    {
+        "Card Name":  "2o",
+        "Type":  "Variable",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "1",
+        "Effect":  "Value is equal to twice the number of operators in your expression",
+        "Median Purchase Cost at Shop":  "$145"
+    },
+    {
+        "Card Name":  "o^2",
+        "Type":  "Variable",
+        "Rarity":  "Rare",
+        "Energy Cost":  "2",
+        "Effect":  "Value is equal to the square of the number of operators in your expression",
+        "Median Purchase Cost at Shop":  "$195"
+    },
+    {
+        "Card Name":  "3p",
+        "Type":  "Variable",
+        "Rarity":  "Rare",
+        "Energy Cost":  "2",
+        "Effect":  "Value is equal to three times the number of prime other numbers in your expression. [For 2 digit combos, count the resulting two digit number not the individual digit card]",
+        "Median Purchase Cost at Shop":  "$185"
+    },
+    {
+        "Card Name":  "2e",
+        "Type":  "Variable",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "1",
+        "Effect":  "Value is equal to twice the number of even numbers in your expression",
+        "Median Purchase Cost at Shop":  "$140"
+    },
+    {
+        "Card Name":  "2U",
+        "Type":  "Variable",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "1",
+        "Effect":  "Value is equal to twice the number of upgraded cards in your expression",
+        "Median Purchase Cost at Shop":  "$165"
+    },
+    {
+        "Card Name":  "U^2",
+        "Type":  "Variable",
+        "Rarity":  "Rare",
+        "Energy Cost":  "2",
+        "Effect":  "Value is equal to the square of the number of upgraded cards in your expression",
+        "Median Purchase Cost at Shop":  "$225"
+    },
+    {
+        "Card Name":  "Armor",
+        "Type":  "Upgrade (Digit)",
+        "Rarity":  "Common",
+        "Energy Cost":  "n/a",
+        "Effect":  "When used in an expression, increase your armor by this amount. [When purchased, permanently enhance a digit card in the deck that doesn\u0027t have this upgrade]",
+        "Median Purchase Cost at Shop":  "$95"
+    },
+    {
+        "Card Name":  "+1",
+        "Type":  "Upgrade (Digit)",
+        "Rarity":  "Common",
+        "Energy Cost":  "n/a",
+        "Effect":  "Change the value of a 1-8 digit card by 1. [When purchased, permanently enhance a digit card in the deck that doesn\u0027t have this upgrade]",
+        "Median Purchase Cost at Shop":  "$65"
+    },
+    {
+        "Card Name":  "Card Removal",
+        "Type":  "Upgrade",
+        "Rarity":  "Rare",
+        "Energy Cost":  "n/a",
+        "Effect":  "When acquired, immediately remove a card from your deck forever",
+        "Median Purchase Cost at Shop":  "$100, increasing in cost by $100 for each card you\u0027ve removed"
+    },
+    {
+        "Card Name":  "L",
+        "Type":  "Variable",
+        "Rarity":  "Rare",
+        "Energy Cost":  "?",
+        "Effect":  "Value is equal to the level you are currently on. (1st run has levels 1-10. After than 11-20, then 21-30 etc.). The energy cost is the Level / 10 rouded up.",
+        "Median Purchase Cost at Shop":  "$240"
+    },
+    {
+        "Card Name":  "+3",
+        "Type":  "Upgrade (Variable)",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "n/a",
+        "Effect":  "Change the resulting value of any variable card by +3. [When purchased, permanently enhance a variable card in the deck that doesn\u0027t have this upgrade]",
+        "Median Purchase Cost at Shop":  "$155"
+    },
+    {
+        "Card Name":  "Cycling",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "n/a",
+        "Effect":  "When this card is in hand, you may discard it to draw a replacement card at no cost (cannot be undone). [When purchased, permanently enhance a card in the deck that doesn\u0027t have this upgrade]",
+        "Median Purchase Cost at Shop":  "$180"
+    },
+    {
+        "Card Name":  "Consumable",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Rare",
+        "Energy Cost":  "n/a",
+        "Effect":  "When this card is in hand, you may discard it to gain 1 energy this turn (can be undone). [When purchased, permanently enhance a card in the deck that doesn\u0027t have this upgrade]",
+        "Median Purchase Cost at Shop":  "$210"
+    },
+    {
+        "Card Name":  "Efficiency",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Rare",
+        "Energy Cost":  "n/a",
+        "Effect":  "When acquired, immediately and permanently reduce the cost of a card in your deck by 1 (can go negative, ie you get energy when you play it)",
+        "Median Purchase Cost at Shop":  "$220"
+    },
+    {
+        "Card Name":  "Bash",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Rare",
+        "Energy Cost":  "n/a",
+        "Effect":  "When used in an expression, 10% chance the moster is stunned next round and makes no attack [When purchased, permanently enhance a digit card in the deck that doesn\u0027t have this upgrade] \u003cmultiple instances on different cards trigger separately but the monster can only be stunned for up to one turn\u003e",
+        "Median Purchase Cost at Shop":  "$205"
+    },
+    {
+        "Card Name":  "Weaken",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "n/a",
+        "Effect":  "When used in an expression, monster\u0027s current and next turn attack is reduced 10%  [When purchased, permanently enhance a digit card in the deck that doesn\u0027t have this upgrade] \u003cmultiple instances on different cards stack additively\u003e",
+        "Median Purchase Cost at Shop":  "$160"
+    },
+    {
+        "Card Name":  "Crit",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "n/a",
+        "Effect":  "When used in an expression, 20% change to do 1.5x damage [When purchased, permanently enhance a digit card in the deck that doesn\u0027t have this upgrade] \u003cmultiple instances on different cards trigger separately but it can only happen once, multiplier is to damage done not number produced\u003e",
+        "Median Purchase Cost at Shop":  "$170"
+    },
+    {
+        "Card Name":  "Reflecting",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Rare",
+        "Energy Cost":  "n/a",
+        "Effect":  "When used in an expression, 50% of the damage you suffer this turn is dealt back to the monster [When purchased, permanently enhance a digit card in the deck that doesn\u0027t have this upgrade] \u003ccan only occur once each turn\u003e",
+        "Median Purchase Cost at Shop":  "$230"
+    }
+]
