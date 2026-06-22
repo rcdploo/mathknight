@@ -1,6 +1,6 @@
 import type { LevelConfig, LevelKind, Stage, Unit } from "./types";
 
-export const units: Unit[] = ["addition", "subtraction", "multiplication"];
+export const units: Unit[] = ["addition", "subtraction", "multiplication", "division", "fractions"];
 export const stages: Stage[] = ["1", "2", "3a", "3b", "4"];
 export const levelKinds: LevelKind[] = ["level1", "level2", "level3", "boss"];
 
@@ -8,6 +8,8 @@ export const unitLabels: Record<Unit, string> = {
   addition: "Addition",
   subtraction: "Subtraction",
   multiplication: "Multiplication",
+  division: "Division",
+  fractions: "Fractions, Decimals & Percents",
 };
 
 export const stageLabels: Record<Stage, string> = {

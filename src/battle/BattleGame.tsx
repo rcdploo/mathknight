@@ -2,9 +2,10 @@ import { ArrowLeft, HeartPulse, Shield, Swords, Volume2, VolumeX, X, Zap } from 
 import { useEffect, useMemo, useState } from "react";
 import { playBattleSound, startBattleMusic, stopBattleMusic } from "./battleAudio";
 import { cardById, cardsEligibleForRewards } from "./cardCatalog";
+import { loadPermanentLoadout } from "../quartermaster/quartermasterStore";
 import {
   applyCardUpgrade, applyDamage, canApplyUpgrade, drawHand, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
-  makeBottledPlus, makeCatalogEntry, makeStartingDeck, migrateBattleCard, resolveExpressionTokens, rollAny, rollEnemyIntent, shuffle, type BattleCard,
+  makeCatalogEntry, migrateBattleCard, resolveExpressionTokens, rollAny, rollEnemyIntent, shuffle, type BattleCard,
 } from "./battleEngine";
 
 type BattlePhase = "playing" | "resolving" | "victory" | "defeat" | "reward" | "upgrade";
@@ -23,18 +24,17 @@ type BattleSession = {
 
 const battleSessionKey = "mathknight.battle.session.v1";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
-const playerMaxHealth = 40;
+const runHealthKey = "mathknight.dungeon.runHealth.v1";
 const enemyMaxHealth = 30;
 const maxEnergy = 3;
-const postBattleHealing = 10;
 
 function loadRunDeck() {
   try {
     const raw = window.localStorage.getItem(runDeckKey);
-    if (!raw) return makeStartingDeck();
+    if (!raw) return loadPermanentLoadout().deck;
     return (JSON.parse(raw) as BattleCard[]).map(migrateBattleCard);
   } catch {
-    return makeStartingDeck();
+    return loadPermanentLoadout().deck;
   }
 }
 
@@ -43,15 +43,27 @@ function saveRunDeck(deck: BattleCard[]) {
 }
 
 function resetRunDeck() {
-  saveRunDeck(makeStartingDeck());
+  saveRunDeck(loadPermanentLoadout().deck);
+}
+
+function loadRunHealth(maxHealth: number) {
+  const savedHealth = Number(window.localStorage.getItem(runHealthKey));
+  return savedHealth > 0 ? Math.min(maxHealth, savedHealth) : maxHealth;
+}
+
+function saveRunHealth(health: number) {
+  window.localStorage.setItem(runHealthKey, String(health));
 }
 
 function createBattle() {
+  const loadout = loadPermanentLoadout();
   const opening = drawHand(shuffle(loadRunDeck()), []);
   return {
     ...opening,
-    bottledCard: makeBottledPlus(),
-    playerHealth: playerMaxHealth,
+    bottledCard: loadPermanentLoadout().bottledCard,
+    playerHealth: loadRunHealth(loadout.maxHealth),
+    playerMaxHealth: loadout.maxHealth,
+    mendingHealing: loadout.mendingHealing,
     playerArmor: 0,
     enemyHealth: enemyMaxHealth,
     enemyArmor: 0,
@@ -94,6 +106,8 @@ function loadBattleSession() {
         enemyArmor: parsed.battle.enemyArmor ?? 0,
         enemyStunned: parsed.battle.enemyStunned ?? false,
         weakenNext: parsed.battle.weakenNext ?? 0,
+        playerMaxHealth: parsed.battle.playerMaxHealth ?? loadPermanentLoadout().maxHealth,
+        mendingHealing: parsed.battle.mendingHealing ?? loadPermanentLoadout().mendingHealing,
       },
       selectedCards: parsed.selectedCards.map(migrateBattleCard),
       rewards: parsed.rewards.map(migrateBattleCard),
@@ -128,9 +142,19 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
   const consumedEnergy = battle.hand.filter((card) => card.consumedThisTurn).length;
   const availableEnergy = maxEnergy + consumedEnergy;
   const upgradeEffects = useMemo(() => expressionUpgradeEffects(selectedCards), [selectedCards]);
+  const weakenStacks = battle.weakenNext + upgradeEffects.weaken;
+  const weakenPerStack = Math.max(1, Math.round(battle.enemyIntent * 0.1));
   const displayedIntent = battle.enemyStunned
     ? 0
-    : Math.max(0, Math.round(battle.enemyIntent * (1 - 0.1 * (battle.weakenNext + upgradeEffects.weaken))));
+    : Math.max(0, battle.enemyIntent - weakenPerStack * weakenStacks);
+  const previewResult = useMemo(() => {
+    try {
+      return evaluateExpression(selectedCards, { turn, level: 1 });
+    } catch {
+      return null;
+    }
+  }, [selectedCards, turn]);
+  const counterReady = previewResult !== null && previewResult === displayedIntent;
   const expressionItems = useMemo(() => {
     try {
       return resolveExpressionTokens(selectedCards, { turn, level: 1 }).map((token) => ({
@@ -272,8 +296,9 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
 
     window.setTimeout(() => {
       if (reflectedHit.health === 0) {
-        const healedHealth = Math.min(playerMaxHealth, playerHit.health + postBattleHealing);
+        const healedHealth = Math.min(battle.playerMaxHealth, playerHit.health + battle.mendingHealing);
         const healingReceived = healedHealth - playerHit.health;
+        saveRunHealth(healedHealth);
         setBattle((current) => ({ ...current, playerHealth: healedHealth }));
         stopBattleMusic();
         playBattleSound("victory");
@@ -312,7 +337,10 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
   }
 
   function finishRoom(won: boolean) {
-    if (!won) resetRunDeck();
+    if (!won) {
+      resetRunDeck();
+      saveRunHealth(loadPermanentLoadout().maxHealth);
+    }
     clearBattleSession();
     onComplete(won);
   }
@@ -368,7 +396,7 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
           <div className="reward-cards">
             {rewards.map((card) => (
               <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
-                <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{card.effect}</small>
+                <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
               </button>
             ))}
           </div>
@@ -402,9 +430,9 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
       </header>
 
       <div className="item-bar" aria-label="Equipped items">
-        <div className="item-icon" tabIndex={0} aria-label="Mending Charm: Restores up to 10 missing HP after each victorious fight">
+        <div className="item-icon" tabIndex={0} aria-label={`Mending Charm: Restores up to ${battle.mendingHealing} missing HP after each victorious fight`}>
           <HeartPulse size={21} />
-          <span className="item-tooltip"><strong>Mending Charm</strong>Restores up to 10 missing HP after each victorious fight.</span>
+          <span className="item-tooltip"><strong>Mending Charm</strong>Restores up to {battle.mendingHealing} missing HP after each victorious fight.</span>
         </div>
       </div>
 
@@ -424,7 +452,14 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
       )}
 
       <section className={`battlefield ${impact === "counter" ? "counter-flash" : ""} ${impact === "victory" ? "victory-flash" : ""} ${impact === "defeat" ? "defeat-flash" : ""}`}>
-        <Combatant name="Mathknight" sprite="♞" health={battle.playerHealth} maxHealth={playerMaxHealth} armor={battle.playerArmor + upgradeEffects.armor} hit={impact === "hero"} />
+        <Combatant
+          name="Mathknight"
+          sprite="♞"
+          health={battle.playerHealth}
+          maxHealth={battle.playerMaxHealth}
+          armor={battle.playerArmor + (phase === "playing" ? upgradeEffects.armor : 0)}
+          hit={impact === "hero"}
+        />
         <div className="combat-center">
           <div className="enemy-intent"><span>{battle.enemyStunned ? "Enemy is stunned" : "Enemy intends to attack"}</span><strong><Swords size={22} /> {displayedIntent}</strong></div>
           <p className="combat-message">{message}</p>
@@ -447,12 +482,17 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
       ) : (
         <section className="battle-controls">
           <div className="expression-builder">
-            <div><span>Your expression</span><strong>{expressionItems.map((item) => item.label).join(" ") || "Choose cards"}</strong></div>
+            <div className="expression-energy-panel">
+              <span>Energy</span>
+              <strong><Zap size={17} /> {availableEnergy - energyUsed} / {availableEnergy}</strong>
+            </div>
             <div className="expression-slots">
               {expressionItems.map((item, index) => <button key={`${item.sourceIds.join("-")}-${index}`} onClick={() => removeExpressionItem(item.sourceIds)} aria-label={`Remove ${item.label}`}>{item.label}</button>)}
             </div>
             <div className="expression-summary">
-              <span className="energy-readout"><Zap size={17} /> {availableEnergy - energyUsed} / {availableEnergy}</span>
+              <div className={`expression-result ${counterReady ? "counter-ready" : ""}`} aria-live="polite">
+                <span>=</span><strong>{previewResult ?? "?"}</strong>
+              </div>
               <button className="submit-attack" onClick={submitExpression} disabled={phase !== "playing"}>Submit Attack</button>
             </div>
             {error && <p className="battle-error" role="alert">{error}</p>}
@@ -502,15 +542,26 @@ function CardButton({ card, onClick, disabled, bottled = false, preview = false 
   >
     <small>{card.energy}</small><strong>{card.label}</strong>
     <div className="card-upgrade-icons">
-      {card.upgrades.map((upgradeId, index) => <span key={`${upgradeId}-${index}`} aria-label={cardById.get(upgradeId)?.name ?? upgradeId}>U</span>)}
+      {card.upgrades.map((upgradeId, index) => {
+        const visual = upgradeVisuals[upgradeId] ?? { label: "U", category: "special" };
+        return <span className={`upgrade-${visual.category}`} key={`${upgradeId}-${index}`} aria-label={cardById.get(upgradeId)?.name ?? upgradeId}>{visual.label}</span>;
+      })}
     </div>
     {bottled && <em>Every turn</em>}
     <span className="card-explainer">
-      <strong>{card.label}</strong>{card.effect}
+      <strong>{card.label}</strong>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}
       {card.upgrades.map((upgradeId) => {
         const upgrade = cardById.get(upgradeId);
-        return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {upgrade?.effect ?? "Card upgrade"}</span>;
+        return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {upgrade?.displayDescription ?? "Card upgrade"}</span>;
       })}
     </span>
   </button>;
 }
+
+const upgradeVisuals: Record<string, { label: string; category: "defense" | "offense" | "stats" | "energy" | "special" }> = {
+  armor: { label: "A", category: "defense" }, weaken: { label: "W", category: "defense" },
+  crit: { label: "C", category: "offense" }, bash: { label: "B", category: "offense" },
+  "1": { label: "1", category: "stats" }, "3": { label: "3", category: "stats" },
+  efficiency: { label: "E", category: "energy" }, consumable: { label: "C", category: "energy" },
+  cycling: { label: "C", category: "special" }, reflecting: { label: "R", category: "special" },
+};

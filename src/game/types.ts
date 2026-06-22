@@ -1,4 +1,4 @@
-export type Unit = "addition" | "subtraction" | "multiplication";
+export type Unit = "addition" | "subtraction" | "multiplication" | "division" | "fractions";
 export type Stage = "1" | "2" | "3a" | "3b" | "4";
 export type LevelKind = "level1" | "level2" | "level3" | "boss";
 export type CardKind = "expression" | "result";
@@ -27,6 +27,7 @@ export type PuzzlePair = {
   id: string;
   expression: string;
   result: number;
+  resultLabel?: string;
 };
 
 export type PuzzleProgress = {

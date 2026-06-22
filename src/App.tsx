@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Home, KeyRound, Settings, ShoppingBag, Swords, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, Home, KeyRound, RotateCcw, Settings, ShoppingBag, Swords, Volume2, VolumeX, X } from "lucide-react";
 import DungeonGame from "./dungeon/DungeonGame";
+import Quartermaster from "./quartermaster/Quartermaster";
 import { allLevels, levelLabels, makeLevelConfig, stageLabels, stages, unitLabels, units } from "./game/levels";
 import { generatePuzzle } from "./game/puzzleGenerator";
 import {
@@ -15,6 +16,7 @@ import {
 import { calculateCoins, calculateStars } from "./game/scoring";
 import { findNextUnlocked, isLevelUnlocked } from "./game/unlockRules";
 import type { LevelConfig, LevelResult, PlayerProgress, PuzzleCard } from "./game/types";
+import { resetAllGameProgress } from "./game/resetGame";
 
 type Screen = "map" | "game" | "result";
 
@@ -395,19 +397,34 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
   );
 }
 
-type GameDestination = "hub" | "memory" | "battle";
+type GameDestination = "hub" | "memory" | "battle" | "quartermaster";
 
 export default function App() {
   const [destination, setDestination] = useState<GameDestination>("hub");
 
+  function startNewGame() {
+    const confirmed = window.confirm(
+      "Start a new game? This will permanently reset the dungeon, deck, coins, and all Training Grounds progress.",
+    );
+    if (!confirmed) return;
+    resetAllGameProgress();
+    window.location.reload();
+  }
+
   if (destination === "memory") return <MemoryMatchGame onExit={() => setDestination("hub")} />;
   if (destination === "battle") return <DungeonGame onExit={() => setDestination("hub")} />;
+  if (destination === "quartermaster") return <Quartermaster onExit={() => setDestination("hub")} onTraining={() => setDestination("memory")} />;
 
   return (
     <main className="game-hub">
       <header className="hub-header">
-        <p>Mathknight</p>
-        <h1>Choose Your Path</h1>
+        <div>
+          <p>Mathknight</p>
+          <h1>Choose Your Path</h1>
+        </div>
+        <button className="new-game-button" onClick={startNewGame}>
+          <RotateCcw size={18} /> New Game
+        </button>
       </header>
       <section className="hub-destinations" aria-label="Game destinations">
         <button className="hub-destination battle-destination" onClick={() => setDestination("battle")}>
@@ -418,9 +435,9 @@ export default function App() {
           <span className="hub-grid-icon" aria-hidden="true">2+3</span>
           <span><strong>Training Grounds</strong><small>Match arithmetic pairs. Earn coins.</small></span>
         </button>
-        <button className="hub-destination" disabled>
+        <button className="hub-destination" onClick={() => setDestination("quartermaster")}>
           <ShoppingBag size={30} />
-          <span><strong>Quartermaster</strong><small>Coming later</small></span>
+          <span><strong>Quartermaster</strong><small>Spend coins on permanent upgrades.</small></span>
         </button>
         <button className="hub-destination" disabled>
           <Settings size={30} />

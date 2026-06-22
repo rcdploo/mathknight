@@ -13,8 +13,39 @@ export type CardDefinition = {
   energyCost: number | "X" | null;
   energyCostRaw: string;
   effect: string;
+  displayDescription: string;
   shopCostRaw: string;
   isUpgrade: boolean;
+};
+
+const descriptions: Record<string, string> = {
+  "1": "A digit worth 1.", "2": "A digit worth 2.", "3": "A digit worth 3.", "4": "A digit worth 4.",
+  "5": "A digit worth 5.", "6": "A digit worth 6.", "7": "A digit worth 7.", "8": "A digit worth 8.", "9": "A digit worth 9.",
+  "1_": "Combine with a digit to make a number from 10 to 19.",
+  "2_": "Combine with a digit to make a number from 20 to 29.",
+  "+": "Add two values.", "-": "Subtract the next value.", "x": "Multiply two values.",
+  "/": "Divide two values. Dividing by zero wins, but destroys this card.",
+  "^X": "Raise the previous value to your remaining Energy, then spend it all.",
+  "()": "Group part of an expression with parentheses.",
+  "T": "Equals the current turn number.",
+  "2o": "Equals twice the number of operators played.",
+  "o^2": "Equals the square of the number of operators played.",
+  "3p": "Equals three times the number of other prime values played.",
+  "2e": "Equals twice the number of other even values played.",
+  "2U": "Equals twice the number of upgraded cards played.",
+  "U^2": "Equals the square of the number of upgraded cards played.",
+  "L": "Equals your current dungeon level.",
+  "Armor": "Gain Armor equal to this digit when played.",
+  "+1": "Permanently increase a digit by 1.",
+  "Card Removal": "Permanently remove one card from your deck.",
+  "+3": "Permanently add 3 to a variable's value.",
+  "Cycling": "Discard this card to draw a replacement.",
+  "Consumable": "Discard this card for 1 Energy this turn.",
+  "Efficiency": "Permanently reduce this card's Energy cost by 1.",
+  "Bash": "10% chance to stun the monster next turn.",
+  "Weaken": "Reduce the monster's current and next attack by 10%.",
+  "Crit": "20% chance to deal 1.5x damage.",
+  "Reflecting": "Return half the damage you take this turn.",
 };
 
 type SourceRow = {
@@ -45,6 +76,7 @@ export const cardCatalog: CardDefinition[] = (sourceRows as SourceRow[]).map((ro
   energyCost: energyCost(row["Energy Cost"]),
   energyCostRaw: row["Energy Cost"],
   effect: row.Effect,
+  displayDescription: descriptions[row["Card Name"]] ?? row.Effect,
   shopCostRaw: row["Median Purchase Cost at Shop"],
   isUpgrade: row.Type.startsWith("Upgrade"),
 }));

@@ -217,7 +217,7 @@ button {
 
 .unit-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   margin-top: 28px;
 }
@@ -548,6 +548,30 @@ button {
   text-transform: uppercase;
 }
 
+.hub-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.new-game-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 8px;
+  background: rgba(24,24,21,.82);
+  color: #e4ded2;
+  cursor: pointer;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.new-game-button:hover { border-color: #d77a66; color: #fff4eb; }
+
 .hub-header h1 {
   max-width: 700px;
   margin: 0;
@@ -585,6 +609,35 @@ button {
 .battle-destination { background: #422d2a; }
 .memory-destination { background: #1f4747; }
 .hub-grid-icon { display: grid; place-items: center; width: 34px; height: 34px; background: #f0ca73; color: #1a1916; font-weight: 900; }
+
+.quartermaster-screen { min-height: 100vh; padding-bottom: 44px; background: linear-gradient(145deg, #233f3b, #262825 48%, #4a322c); }
+.quartermaster-header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 14px clamp(16px,3vw,36px); border-bottom: 1px solid rgba(255,255,255,.14); background: rgba(14,15,13,.9); }
+.quartermaster-header p, .section-heading p { margin: 0; color: #f0ca73; font-size: .72rem; font-weight: 900; text-transform: uppercase; }
+.quartermaster-header h1, .section-heading h2 { margin: 3px 0 0; font-family: Georgia,serif; }
+.quartermaster-header > strong { color: #f5d98d; }
+.quartermaster-options, .training-reset-section, .quartermaster-picker { width: min(980px,calc(100% - 32px)); margin: 24px auto 0; }
+.quartermaster-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.quartermaster-option { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; min-height: 92px; padding: 16px; border: 1px solid rgba(240,202,115,.34); border-radius: 8px; background: rgba(31,29,25,.92); color: #f8f1e4; cursor: pointer; text-align: left; }
+.quartermaster-option span { display: grid; gap: 4px; }
+.quartermaster-option small { color: #bdb8ad; }
+.quartermaster-option b { color: #f0ca73; }
+.quartermaster-option.locked { border-color: rgba(255,255,255,.1); color: #85827a; cursor: not-allowed; }
+.quartermaster-picker { padding: 18px; border: 1px solid #6cb5a1; border-radius: 8px; background: #202520; }
+.quartermaster-picker > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.quartermaster-picker p { margin: 0; font-weight: 800; }
+.quartermaster-picker > div:first-child button { min-height: 36px; padding: 0 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; background: #343531; color: white; cursor: pointer; }
+.quartermaster-card-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(100px,1fr)); gap: 10px; margin-top: 16px; }
+.quartermaster-card-grid button { display: grid; place-items: center; min-height: 120px; padding: 10px; border: 3px solid #858b88; border-radius: 8px; background: #28677a; color: white; cursor: pointer; }
+.quartermaster-card-grid strong { font-size: 1.8rem; }
+.quartermaster-card-grid span, .quartermaster-card-grid small { font-size: .65rem; }
+.training-reset-section { padding: 20px; border: 1px solid rgba(255,255,255,.13); border-radius: 8px; background: rgba(31,29,25,.9); }
+.section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.training-reset-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.09); }
+.training-reset-row > div { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 7px; }
+.training-reset-row button { min-height: 54px; border: 1px solid rgba(108,181,161,.38); border-radius: 6px; background: #214c43; color: #eef8f3; cursor: pointer; }
+.training-reset-row button span, .training-reset-row button small { display: block; }
+.training-reset-row button small { margin-top: 3px; color: #cde4db; }
+.training-reset-row button.locked { border-color: rgba(255,255,255,.08); background: #2b2b28; color: #77766f; cursor: not-allowed; }
 
 .dungeon-map-screen {
   min-height: 100vh;
@@ -811,12 +864,21 @@ button {
 
 .battle-controls { padding: 16px max(16px, calc((100vw - 1080px) / 2)) 28px; border-top: 1px solid rgba(255,255,255,.12); background: rgba(13, 13, 12, 0.78); }
 .expression-builder { display: grid; grid-template-columns: minmax(140px, .7fr) minmax(220px, 2fr) auto; align-items: center; gap: 14px; min-height: 86px; padding: 12px; border: 1px solid rgba(240,202,115,.28); background: #201e1a; }
-.expression-builder > div:first-child span { display: block; color: #aeb9b7; font-size: .72rem; text-transform: uppercase; }
-.expression-builder > div:first-child strong { display: block; margin-top: 4px; color: #f0ca73; font-size: 1.25rem; }
+.expression-energy-panel span { display: block; color: #aeb9b7; font-size: .72rem; text-transform: uppercase; }
+.expression-energy-panel strong { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: #93d6e7; font-size: 1.1rem; white-space: nowrap; }
 .expression-slots { display: flex; flex-wrap: wrap; gap: 6px; min-height: 44px; padding: 5px; border-bottom: 2px solid #645b4b; }
 .expression-slots button { width: 42px; height: 42px; border: 1px solid #dbc57f; border-radius: 6px; background: #423925; color: #fff5d6; cursor: pointer; font-size: 1.2rem; font-weight: 900; }
 .expression-summary { display: flex; align-items: center; gap: 10px; }
 .energy-readout { display: flex; align-items: center; gap: 5px; color: #93d6e7; font-weight: 900; white-space: nowrap; }
+.expression-result { display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 76px; min-height: 44px; padding: 0 10px; border: 1px solid rgba(255,255,255,.16); border-radius: 7px; background: #2a2823; color: #f6e8bd; }
+.expression-result span { font-size: 1.2rem; }
+.expression-result strong { font-size: 1.45rem; }
+.expression-result.counter-ready { border-color: #f0ca73; background: #4e421f; color: #fff3bd; animation: counter-ready 900ms ease-in-out infinite; }
+
+@keyframes counter-ready {
+  0%, 100% { box-shadow: 0 0 0 rgba(240,202,115,0); transform: scale(1); }
+  50% { box-shadow: 0 0 18px rgba(240,202,115,.62); transform: scale(1.04); }
+}
 .submit-attack, .battle-actions button { min-height: 44px; padding: 0 16px; border: 1px solid #dc8b6a; border-radius: 8px; background: #7d392d; color: #fff7e8; cursor: pointer; font-weight: 900; }
 .submit-attack:disabled { opacity: .55; cursor: wait; }
 .battle-error { grid-column: 1 / -1; margin: 0; color: #ff9d89; font-weight: 800; }
@@ -834,7 +896,7 @@ button {
 .battle-card.rarity-starter { border-color: #858b88; }
 .battle-card.rarity-common { border-color: #f2f0e8; }
 .battle-card.rarity-uncommon { border-color: #55aee6; }
-.battle-card.rarity-rare { border-color: #e1b84e; }
+.battle-card.rarity-rare { border-color: #e77d38; }
 .battle-card.upgrades-1 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 2px #55b879; }
 .battle-card.upgrades-2 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 3px #55b879; }
 .battle-card.upgrades-3 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 4px #55b879; }
@@ -848,6 +910,11 @@ button {
 .battle-card em { font-size: .58rem; font-style: normal; line-height: 1.2; text-transform: uppercase; }
 .card-upgrade-icons { display: flex; flex-wrap: wrap; align-content: end; gap: 2px; min-height: 14px; }
 .card-upgrade-icons span { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #55b879; color: #102d1b; font-size: .55rem; font-weight: 900; }
+.card-upgrade-icons .upgrade-defense { background: #5aa8df; color: #102936; }
+.card-upgrade-icons .upgrade-offense { background: #d96459; color: #35110e; }
+.card-upgrade-icons .upgrade-stats { background: #171816; color: #f2f0e8; }
+.card-upgrade-icons .upgrade-energy { background: #e1bd4e; color: #362b09; }
+.card-upgrade-icons .upgrade-special { background: #d77bb5; color: #371127; }
 .card-explainer { position: absolute; left: 50%; bottom: calc(100% + 10px); z-index: 30; display: none; width: 260px; padding: 12px; border: 1px solid #8f977f; border-radius: 6px; background: #171916; color: #ddd8cc; font-size: .72rem; font-weight: 400; line-height: 1.4; text-align: left; transform: translateX(-50%); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 .card-explainer > strong, .card-explainer > span { display: block; }
 .card-explainer > strong { margin-bottom: 5px; color: #fff4d5; font-size: .9rem; }
@@ -881,7 +948,7 @@ button {
 .reward-cards .reward-option { align-content: center; gap: 9px; padding: 14px; border-width: 4px; }
 .reward-cards .reward-option.rarity-common { border-color: #f2f0e8; }
 .reward-cards .reward-option.rarity-uncommon { border-color: #55aee6; }
-.reward-cards .reward-option.rarity-rare { border-color: #e1b84e; }
+.reward-cards .reward-option.rarity-rare { border-color: #e77d38; }
 .reward-cards .reward-option.upgrade { background: #326445; }
 .reward-cards .reward-option span { font-size: .68rem; font-weight: 900; text-transform: uppercase; }
 .reward-cards .reward-option small { color: #d7d1c5; font-size: .7rem; line-height: 1.35; }
@@ -899,4 +966,9 @@ button {
   .pile-counts { display: none; }
   .dungeon-map-header { grid-template-columns: auto 1fr; }
   .dungeon-map-header > span { display: none; }
+  .hub-header { align-items: stretch; flex-direction: column; }
+  .new-game-button { align-self: flex-start; }
+  .quartermaster-options { grid-template-columns: 1fr; }
+  .training-reset-row { grid-template-columns: 1fr; }
+  .training-reset-row > div { grid-template-columns: repeat(2,minmax(0,1fr)); }
 }

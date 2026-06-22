@@ -23,6 +23,111 @@ function shuffle<T>(items: T[]) {
   return copy;
 }
 
+type FractionForm = "mixed" | "unsimplified" | "simplified" | "percentage" | "decimal";
+const fractionForms = new Set<FractionForm>(["mixed", "unsimplified", "simplified"]);
+const commonDenominators = new Set([2, 3, 4, 5, 6, 8, 10, 12]);
+
+function gcd(left: number, right: number): number {
+  return right === 0 ? Math.abs(left) : gcd(right, left % right);
+}
+
+function fractionRanges(stage: Stage) {
+  const range = stageRanges[stage];
+  const leftSize = range.left[1] - range.left[0];
+  const rightSize = range.right[1] - range.right[0];
+  if (range.right[1] > range.left[1] || rightSize > leftSize) return { numerator: range.right, denominator: range.left };
+  return { numerator: range.left, denominator: range.right };
+}
+
+function conciseNumber(value: number) {
+  return String(Number(value.toFixed(4)));
+}
+
+function makeFractionRepresentations(stage: Stage) {
+  const ranges = fractionRanges(stage);
+  for (let attempt = 0; attempt < 800; attempt += 1) {
+    const numerator = randomInt(Math.max(1, ranges.numerator[0]), ranges.numerator[1]);
+    const denominator = randomInt(Math.max(1, ranges.denominator[0]), ranges.denominator[1]);
+    if (numerator <= denominator || numerator % denominator === 0) continue;
+    const divisor = gcd(numerator, denominator);
+    const reducedNumerator = numerator / divisor;
+    const reducedDenominator = denominator / divisor;
+    if (!commonDenominators.has(reducedDenominator)) continue;
+
+    let unsimplified: string | undefined;
+    if (divisor > 1) unsimplified = `${numerator}/${denominator}`;
+    if (!unsimplified) {
+      for (let scale = 2; scale <= 8; scale += 1) {
+        const scaledNumerator = reducedNumerator * scale;
+        const scaledDenominator = reducedDenominator * scale;
+        if (scaledNumerator >= ranges.numerator[0] && scaledNumerator <= ranges.numerator[1] && scaledDenominator >= ranges.denominator[0] && scaledDenominator <= ranges.denominator[1]) {
+          unsimplified = `${scaledNumerator}/${scaledDenominator}`;
+          break;
+        }
+      }
+    }
+
+    const whole = Math.floor(reducedNumerator / reducedDenominator);
+    const remainder = reducedNumerator % reducedDenominator;
+    const value = reducedNumerator / reducedDenominator;
+    return {
+      value,
+      labels: {
+        mixed: `${whole} ${remainder}/${reducedDenominator}`,
+        unsimplified,
+        simplified: `${reducedNumerator}/${reducedDenominator}`,
+        percentage: `${conciseNumber(value * 100)}%`,
+        decimal: conciseNumber(value),
+      } as Record<FractionForm, string | undefined>,
+    };
+  }
+  throw new Error(`Could not generate a familiar fraction for stage ${stage}.`);
+}
+
+function formPair(fractionCardCount: number): [FractionForm, FractionForm] {
+  const choices: Record<number, Array<[FractionForm, FractionForm]>> = {
+    0: [["percentage", "decimal"]],
+    1: [["unsimplified", "percentage"], ["simplified", "percentage"], ["simplified", "decimal"]],
+    2: [["mixed", "unsimplified"], ["mixed", "simplified"], ["unsimplified", "simplified"]],
+  };
+  return choices[fractionCardCount][randomInt(0, choices[fractionCardCount].length - 1)];
+}
+
+function generateFractionPuzzle(level: LevelConfig): PuzzleCard[] {
+  const totalCards = level.pairs * 2;
+  const targetFractionCards = randomInt(Math.ceil(totalCards * 0.5), Math.floor(totalCards * 0.75));
+  const fractionCounts = Array.from({ length: level.pairs }, () => 0);
+  for (let count = 0; count < targetFractionCards; count += 1) {
+    const eligible = fractionCounts.map((value, index) => ({ value, index })).filter(({ value }) => value < 2);
+    fractionCounts[eligible[randomInt(0, eligible.length - 1)].index] += 1;
+  }
+
+  const pairs: PuzzlePair[] = [];
+  const usedValues = new Set<string>();
+  for (let index = 0; index < level.pairs; index += 1) {
+    let guard = 0;
+    while (guard < 800) {
+      const representation = makeFractionRepresentations(level.stage);
+      const valueKey = representation.value.toFixed(8);
+      const [blueForm, greenForm] = formPair(fractionCounts[index]);
+      const blue = representation.labels[blueForm];
+      const green = representation.labels[greenForm];
+      if (!usedValues.has(valueKey) && blue && green && blue !== green) {
+        usedValues.add(valueKey);
+        pairs.push({ id: `${level.id}_pair${index + 1}`, expression: blue, result: representation.value, resultLabel: green });
+        break;
+      }
+      guard += 1;
+    }
+    if (pairs.length !== index + 1) throw new Error(`Could not generate fraction pair ${index + 1} for ${level.id}.`);
+  }
+
+  return shuffle(pairs.flatMap((pair) => [
+    { id: `${pair.id}_expression`, pairId: pair.id, kind: "expression" as const, label: pair.expression, matched: false },
+    { id: `${pair.id}_result`, pairId: pair.id, kind: "result" as const, label: pair.resultLabel ?? String(pair.result), matched: false },
+  ]));
+}
+
 function makePair(level: LevelConfig, index: number): PuzzlePair {
   const range = stageRanges[level.stage];
   let left = randomInt(...range.left);
@@ -46,6 +151,15 @@ function makePair(level: LevelConfig, index: number): PuzzlePair {
     symbol = "x";
   }
 
+  if (level.unit === "division") {
+    const divisor = Math.max(1, left);
+    const quotient = right;
+    left = divisor * quotient;
+    right = divisor;
+    result = quotient;
+    symbol = "÷";
+  }
+
   return {
     id: `${level.id}_pair${index}`,
     expression: `${left} ${symbol} ${right}`,
@@ -54,6 +168,7 @@ function makePair(level: LevelConfig, index: number): PuzzlePair {
 }
 
 export function generatePuzzle(level: LevelConfig): PuzzleCard[] {
+  if (level.unit === "fractions") return generateFractionPuzzle(level);
   const pairsByResult = new Map<number, PuzzlePair>();
   let guard = 0;
 
@@ -81,7 +196,7 @@ export function generatePuzzle(level: LevelConfig): PuzzleCard[] {
         id: `${pair.id}_result`,
         pairId: pair.id,
         kind: "result" as const,
-        label: String(pair.result),
+        label: pair.resultLabel ?? String(pair.result),
         matched: false,
       },
     ]),

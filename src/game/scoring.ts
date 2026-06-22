@@ -4,6 +4,8 @@ const unitValues: Record<Unit, number> = {
   addition: 1,
   subtraction: 2,
   multiplication: 3,
+  division: 4,
+  fractions: 5,
 };
 
 const stageValues: Record<Stage, number> = {
