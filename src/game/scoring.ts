@@ -6,6 +6,8 @@ const unitValues: Record<Unit, number> = {
   multiplication: 3,
   division: 4,
   fractions: 5,
+  geometry: 5,
+  algebra: 6,
 };
 
 const stageValues: Record<Stage, number> = {

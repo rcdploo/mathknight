@@ -15,7 +15,7 @@ import {
 } from "./game/progressStore";
 import { calculateCoins, calculateStars } from "./game/scoring";
 import { findNextUnlocked, isLevelUnlocked } from "./game/unlockRules";
-import type { LevelConfig, LevelResult, PlayerProgress, PuzzleCard } from "./game/types";
+import type { GeometryVisual, LevelConfig, LevelResult, PlayerProgress, PuzzleCard } from "./game/types";
 import { resetAllGameProgress } from "./game/resetGame";
 
 type Screen = "map" | "game" | "result";
@@ -38,7 +38,27 @@ function playTone(muted: boolean, frequency: number, duration = 0.08) {
   oscillator.stop(context.currentTime + duration);
 }
 
-function formatStageDescription(stage: string) {
+function formatStageDescription(stage: string, unit?: string) {
+  if (unit === "geometry") {
+    const geometryDescriptions: Record<string, string> = {
+      "1": "Rectangles & triangle perimeter",
+      "2": "Triangles & parallelograms",
+      "3a": "Circles & obtuse triangles",
+      "3b": "Trapezoids & hexagons",
+      "4": "L-shaped figures",
+    };
+    return geometryDescriptions[stage];
+  }
+  if (unit === "algebra") {
+    const algebraDescriptions: Record<string, string> = {
+      "1": "Two-step equations",
+      "2": "Combine like terms",
+      "3a": "Variables on both sides",
+      "3b": "One fractional side",
+      "4": "Fractions on both sides",
+    };
+    return algebraDescriptions[stage];
+  }
   const descriptions: Record<string, string> = {
     "1": "1 digit with 1 digit",
     "2": "1 digit with 10-19",
@@ -280,7 +300,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
                   <div className="stage-row" key={`${unit}_${stage}`}>
                     <div className="stage-label">
                       <strong>{stageLabels[stage]}</strong>
-                      <span>{formatStageDescription(stage)}</span>
+                      <span>{formatStageDescription(stage, unit)}</span>
                     </div>
                     <div className="lesson-row">
                       {allLevelConfigs
@@ -362,7 +382,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
                     key={card.id}
                     onClick={() => handleCardClick(card)}
                   >
-                    <span className="card-front">{card.label}</span>
+                    <span className="card-front">{card.geometry ? <GeometryCardVisual geometry={card.geometry} /> : card.label}</span>
                     <span className="card-back">?</span>
                   </button>
                 );
@@ -394,6 +414,32 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
         </section>
       )}
     </main>
+  );
+}
+
+function GeometryCardVisual({ geometry }: { geometry: GeometryVisual }) {
+  const shapes: Record<GeometryVisual["shape"], React.ReactNode> = {
+    rectangle: <rect x="27" y="20" width="66" height="50" />,
+    triangle: <><polygon points="18,70 60,16 102,70" /><line className="geometry-height" x1="60" y1="16" x2="60" y2="70" /></>,
+    "obtuse-triangle": <><polygon points="12,70 102,70 82,20" /><line className="geometry-height" x1="82" y1="20" x2="82" y2="70" /></>,
+    parallelogram: <><polygon points="32,18 102,18 88,70 18,70" /><line className="geometry-height" x1="32" y1="18" x2="32" y2="70" /></>,
+    circle: <circle cx="60" cy="45" r="30" />,
+    trapezoid: <><polygon points="38,18 82,18 103,70 17,70" /><line className="geometry-height" x1="38" y1="18" x2="38" y2="70" /></>,
+    hexagon: <polygon points="35,14 85,14 108,45 85,76 35,76 12,45" />,
+    "l-shape": <polygon points="20,12 96,12 96,42 62,42 62,76 20,76" />,
+  };
+  const positions = {
+    top: [60, 10], bottom: [60, 87], left: [8, 47], right: [112, 47], inside: [60, 50],
+    "cutout-horizontal": [79, 35], "cutout-vertical": [70, 59],
+  } as const;
+  return (
+    <svg className="geometry-card-visual" viewBox="0 0 120 92" aria-label={`${geometry.shape} with measurements ${geometry.measurements.map((item) => item.label).join(", ")}`}>
+      <g className="geometry-shape">{shapes[geometry.shape]}</g>
+      {geometry.measurements.map((measurement, index) => {
+        const [x, y] = positions[measurement.position];
+        return <text x={x} y={y} key={`${measurement.label}-${index}`}>{measurement.label}</text>;
+      })}
+    </svg>
   );
 }
 

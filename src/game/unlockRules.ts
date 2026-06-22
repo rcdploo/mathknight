@@ -31,7 +31,7 @@ function globalKindUnlocked(progress: PlayerProgress, kind: Extract<LevelKind, "
 }
 
 export function isLevelUnlocked(progress: PlayerProgress, level: LevelConfig) {
-  if (level.unit === "fractions") return true;
+  if (level.unit === "fractions" || level.unit === "geometry" || level.unit === "algebra") return true;
   return stageAvailable(progress, level.stage) && samePathUnlocked(progress, level);
 }
 

@@ -14,6 +14,8 @@ const resetPrices: Record<Unit, Record<Stage, number>> = {
   multiplication: { "1": 80, "2": 120, "3a": 160, "3b": 160, "4": 240 },
   division: { "1": 100, "2": 150, "3a": 200, "3b": 200, "4": 300 },
   fractions: { "1": 120, "2": 180, "3a": 240, "3b": 240, "4": 360 },
+  geometry: { "1": 120, "2": 180, "3a": 240, "3b": 240, "4": 360 },
+  algebra: { "1": 140, "2": 210, "3a": 280, "3b": 280, "4": 420 },
 };
 
 export default function Quartermaster({ onExit, onTraining }: { onExit: () => void; onTraining: () => void }) {

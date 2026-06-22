@@ -437,6 +437,11 @@ button {
   background: #2d654a;
 }
 
+.geometry-card-visual { width: 100%; height: 100%; overflow: visible; }
+.geometry-shape > * { fill: rgba(136,214,229,.16); stroke: #d8f2f5; stroke-width: 3; stroke-linejoin: round; }
+.geometry-shape .geometry-height { fill: none; stroke: #f0ca73; stroke-width: 2; stroke-dasharray: 4 3; }
+.geometry-card-visual text { fill: #fff7dd; stroke: #25546a; stroke-width: 3; paint-order: stroke; text-anchor: middle; dominant-baseline: middle; font-size: 11px; font-weight: 900; }
+
 .card.flipped .card-back {
   transform: rotateY(180deg);
 }

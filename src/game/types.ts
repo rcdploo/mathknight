@@ -1,4 +1,4 @@
-export type Unit = "addition" | "subtraction" | "multiplication" | "division" | "fractions";
+export type Unit = "addition" | "subtraction" | "multiplication" | "division" | "fractions" | "geometry" | "algebra";
 export type Stage = "1" | "2" | "3a" | "3b" | "4";
 export type LevelKind = "level1" | "level2" | "level3" | "boss";
 export type CardKind = "expression" | "result";
@@ -21,6 +21,12 @@ export type PuzzleCard = {
   kind: CardKind;
   label: string;
   matched: boolean;
+  geometry?: GeometryVisual;
+};
+
+export type GeometryVisual = {
+  shape: "rectangle" | "triangle" | "obtuse-triangle" | "parallelogram" | "circle" | "trapezoid" | "hexagon" | "l-shape";
+  measurements: Array<{ label: string; position: "top" | "bottom" | "left" | "right" | "inside" | "cutout-horizontal" | "cutout-vertical" }>;
 };
 
 export type PuzzlePair = {

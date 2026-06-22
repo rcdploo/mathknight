@@ -1,4 +1,6 @@
 import type { LevelConfig, PuzzleCard, PuzzlePair, Stage } from "./types";
+import { generateGeometryPuzzle } from "./geometryGenerator";
+import { generateAlgebraPuzzle } from "./algebraGenerator";
 
 type Range = { left: [number, number]; right: [number, number] };
 
@@ -168,6 +170,8 @@ function makePair(level: LevelConfig, index: number): PuzzlePair {
 }
 
 export function generatePuzzle(level: LevelConfig): PuzzleCard[] {
+  if (level.unit === "algebra") return generateAlgebraPuzzle(level);
+  if (level.unit === "geometry") return generateGeometryPuzzle(level);
   if (level.unit === "fractions") return generateFractionPuzzle(level);
   const pairsByResult = new Map<number, PuzzlePair>();
   let guard = 0;
