@@ -13,7 +13,7 @@ import {
   recordLevelResult,
   setMuted,
 } from "./game/progressStore";
-import { calculateCoins, calculateStars } from "./game/scoring";
+import { calculateCoins, calculateStars, getUnitValue } from "./game/scoring";
 import { findNextUnlocked, isLevelUnlocked } from "./game/unlockRules";
 import type { GeometryVisual, LevelConfig, LevelResult, PlayerProgress, PuzzleCard } from "./game/types";
 import { resetAllGameProgress } from "./game/resetGame";
@@ -165,7 +165,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
         setIsResolving(false);
         if (!selectedLevel.isBoss && nextTurnsRemaining <= 0) finishLevel(false, nextTurnsUsed);
       },
-      selectedLevel.isBoss ? 500 : 1000,
+      selectedLevel.isBoss ? 500 : getUnitValue(selectedLevel.unit) * 1000,
     );
   }
 

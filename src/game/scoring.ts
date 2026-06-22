@@ -10,6 +10,10 @@ const unitValues: Record<Unit, number> = {
   algebra: 6,
 };
 
+export function getUnitValue(unit: Unit) {
+  return unitValues[unit];
+}
+
 const stageValues: Record<Stage, number> = {
   "1": 1,
   "2": 2,

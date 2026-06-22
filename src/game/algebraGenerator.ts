@@ -39,6 +39,8 @@ function stage2(variable: string, solution: number) {
     const termCount = randomInt(4, 5);
     const kinds = shuffle([true, true, false, false, ...(termCount === 5 ? [Math.random() < 0.5] : [])]);
     const terms = kinds.map((isVariable) => ({ coefficient: randomInt(1, 9), variable: isVariable, sign: choice<1 | -1>([1, -1]) }));
+    const variableCoefficient = terms.filter((term) => term.variable).reduce((total, term) => total + term.sign * term.coefficient, 0);
+    if (variableCoefficient === 0) continue;
     const right = evaluateTerms(terms, solution);
     if (right >= 1 && right <= 9) return `${formatTerms(terms, variable)} = ${right}`;
   }
@@ -62,6 +64,7 @@ function stage3(variable: string, solution: number) {
 function stage4(variable: string, solution: number) {
   for (let guard = 0; guard < 2500; guard += 1) {
     const a = randomInt(1, 9); const c = randomInt(1, 9); const denominator = randomInt(2, 9); const e = randomInt(1, 9);
+    if (a === c * denominator) continue;
     const b = denominator * (c * solution + e) - a * solution;
     if (b < 1 || b > 9) continue;
     const fraction = `(${a}${variable} + ${b})/${denominator}`;
@@ -75,6 +78,7 @@ function stage5(variable: string, solution: number) {
   for (let guard = 0; guard < 4000; guard += 1) {
     const a = randomInt(1, 9); const b = randomInt(1, 9); const c = randomInt(1, 9);
     const leftDenominator = randomInt(2, 9); const rightDenominator = randomInt(2, 9);
+    if (a * rightDenominator === c * leftDenominator) continue;
     const numerator = (a * solution + b) * rightDenominator;
     if (numerator % leftDenominator !== 0) continue;
     const e = numerator / leftDenominator - c * solution;
@@ -95,10 +99,11 @@ function makeEquation(stage: Stage, variable: string, solution: number) {
 export function generateAlgebraPuzzle(level: LevelConfig): PuzzleCard[] {
   const usedAnswers = new Set<string>();
   const cards: PuzzleCard[] = [];
+  const levelVariables = shuffle(variables).slice(0, 2);
   for (let index = 0; index < level.pairs; index += 1) {
     let guard = 0;
     while (guard < 500) {
-      const variable = choice(variables); const solution = randomInt(1, 9); const answer = `${variable} = ${solution}`;
+      const variable = levelVariables[index % levelVariables.length]; const solution = randomInt(1, 9); const answer = `${variable} = ${solution}`;
       if (!usedAnswers.has(answer)) {
         const equation = makeEquation(level.stage, variable, solution);
         usedAnswers.add(answer);
