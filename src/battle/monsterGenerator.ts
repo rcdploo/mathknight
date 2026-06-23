@@ -170,20 +170,28 @@ function leastUsed<T extends { name: string }>(items: T[], counts: Record<string
   return items.filter((item) => (counts[item.name] ?? 0) === lowest);
 }
 
-function weightedPatternPool(type: MonsterTypeDefinition) {
-  if (type.spellcasting === "Never") return monsterAttackPatterns.filter((pattern) => !pattern.hasSpells);
-  if (type.spellcasting === "Always") return monsterAttackPatterns.filter((pattern) => pattern.hasSpells);
+function patternAllowedInRoom(pattern: MonsterAttackPatternDefinition, room: DungeonRoom) {
+  if (pattern.name === "Explosive") return room !== "Boss" && room >= 7 && room <= 9;
+  return true;
+}
+
+function weightedPatternPool(type: MonsterTypeDefinition, room: DungeonRoom) {
+  const roomPatterns = monsterAttackPatterns.filter((pattern) => patternAllowedInRoom(pattern, room));
+  if (type.spellcasting === "Never") return roomPatterns.filter((pattern) => !pattern.hasSpells);
+  if (type.spellcasting === "Always") return roomPatterns.filter((pattern) => pattern.hasSpells);
   if (type.spellcasting === "Rarely") {
-    return monsterAttackPatterns.flatMap((pattern) => pattern.hasSpells ? [pattern] : [pattern, pattern, pattern]);
+    return roomPatterns.flatMap((pattern) => pattern.hasSpells ? [pattern] : [pattern, pattern, pattern]);
   }
-  return monsterAttackPatterns;
+  return roomPatterns;
 }
 
 function allowedComplexities(room: DungeonRoom): MonsterComplexity[] {
   if (room === "Boss") return ["Tough"];
-  if (room >= 7) return ["Tough"];
-  if (room >= 3) return ["Basic", "Medium"];
-  return ["Basic"];
+  if (room === 3) return ["Basic", "Medium"];
+  if (room === 7) return ["Medium", "Tough"];
+  if (room <= 2) return ["Basic"];
+  if (room <= 6) return ["Medium"];
+  return ["Tough"];
 }
 
 function selectBuffs(totalDifficulty: number, usage: MonsterUsage, type: MonsterTypeDefinition) {
@@ -209,7 +217,7 @@ export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedType
   const usage = loadUsage();
   const typePool = monsterTypes.filter((type) => allowedComplexities(room).includes(type.complexity) && !usedTypeNames.includes(type.name));
   const type = choice(leastUsed(typePool.length > 0 ? typePool : monsterTypes.filter((item) => allowedComplexities(room).includes(item.complexity)), usage.types));
-  const pattern = choice(leastUsed(weightedPatternPool(type), usage.patterns));
+  const pattern = choice(leastUsed(weightedPatternPool(type, room), usage.patterns));
   const buffs = selectBuffs(buffBudget[stage][room] ?? 0, usage, type);
   const sortedBuffs = [...buffs].sort((left, right) => right.difficulty - left.difficulty || left.name.localeCompare(right.name));
   const highestDifficulty = sortedBuffs[0]?.difficulty;
@@ -245,3 +253,5 @@ export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedType
 export function nextDungeonStage(stage: DungeonStage): DungeonStage {
   return Math.min(5, stage + 1) as DungeonStage;
 }
+
+

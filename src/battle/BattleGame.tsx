@@ -25,6 +25,7 @@ type BattleSession = {
   rewards: BattleCard[];
 };
 type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff" };
+type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string };
 
 const battleSessionKey = "mathknight.battle.session.v1";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
@@ -177,6 +178,24 @@ function spellName(spell: string) {
   if (name === "Confound") return "Perplex";
   if (name === "Energy Drain") return "Mana Drain";
   return name;
+}
+
+function spellLabel(spell: string) {
+  const power = Number(spell.match(/\d+/)?.[0] ?? NaN);
+  const name = spellName(spell);
+  return Number.isFinite(power) ? `${name} ${power}` : name;
+}
+
+function monsterSpellBuffs(battle: BattleState): MonsterBuffTile[] {
+  const buffs: Array<MonsterBuffTile | null> = [
+    battle.enrageStacks > 0
+      ? { name: "Enrage", symbol: "E", value: battle.enrageStacks, effect: "Attacks deal 10% more damage per stack." }
+      : null,
+    battle.thornsStacks > 0
+      ? { name: "Thorns", symbol: "T", value: battle.thornsStacks, effect: "When the monster acts, you take 2*Stage damage per stack." }
+      : null,
+  ];
+  return buffs.filter((buff): buff is MonsterBuffTile => buff !== null);
 }
 
 function makeZeroCard(reason: string) {
@@ -424,8 +443,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     ? [...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
     : [...battle.discardPile].reverse();
   const statusTiles: Array<StatusTile | null> = [
-    battle.enrageStacks > 0 ? { name: "Enrage", symbol: "E", value: battle.enrageStacks, tone: "buff" as const } : null,
-    battle.thornsStacks > 0 ? { name: "Thorns", symbol: "T", value: battle.thornsStacks, tone: "buff" as const } : null,
     battle.crippleTurns > 0 ? { name: "Cripple", symbol: "C", value: battle.crippleTurns, tone: "debuff" as const } : null,
     battle.playerWeakenTurns > 0 ? { name: "Weaken", symbol: "W", value: battle.playerWeakenTurns, tone: "debuff" as const } : null,
     battle.addleTurns > 0 ? { name: "Addle", symbol: "A", value: battle.addleTurns, tone: "debuff" as const } : null,
@@ -437,6 +454,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     battle.enemySecondaryIntent > 0 ? { name: "Split attack", symbol: "S", tone: "buff" as const } : null,
   ];
   const activeStatuses = statusTiles.filter((status): status is StatusTile => status !== null);
+  const monsterStatusBuffs = monsterSpellBuffs(battle);
 
   useEffect(() => () => stopBattleMusic(), []);
 
@@ -615,6 +633,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }
 
     window.setTimeout(() => {
+      if (playerHit.health === 0) {
+        stopBattleMusic();
+        playBattleSound("defeat");
+        setImpact("defeat");
+        setPhase("defeat");
+        setMessage(reflectedHit.health === 0 ? `${monster.name} falls with you. The dungeon returns you to its entrance.` : "The dungeon returns you to its entrance.");
+        return;
+      }
       if (reflectedHit.health === 0) {
         const healedHealth = Math.min(battle.playerMaxHealth, playerHit.health + battle.mendingHealing);
         const healingReceived = healedHealth - playerHit.health;
@@ -633,14 +659,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         );
         return;
       }
-      if (playerHit.health === 0) {
-        stopBattleMusic();
-        playBattleSound("defeat");
-        setImpact("defeat");
-        setPhase("defeat");
-        setMessage("The dungeon returns you to its entrance.");
-        return;
-      }
+      const advanceToNextIntent = () => {
       const nextTurn = turn + 1;
       const nextAction = monsterAction(monster, nextTurn, battle.monsterActionDeck, battle.monsterLastAction);
       const regeneratedHealth = hasBuff(monster, "Regenerating")
@@ -702,7 +721,25 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setBottleUsed(false);
       setTurn(nextTurn);
       setPhase("playing");
-      setMessage(pendingSpellResult.messages.length > 0 ? `${nextAction.text} It ${pendingSpellResult.messages.join(", ")}.` : nextAction.text);
+      setMessage(nextAction.text);
+      };
+
+      if (pendingSpellResult.messages.length > 0) {
+        const spellNames = battle.pendingMonsterSpells.map(spellLabel).join(", ");
+        setBattle((current) => ({
+          ...current,
+          enemyIntent: 0,
+          enemySecondaryIntent: 0,
+          enemyFakeIntent: null,
+          enemySpellCount: 0,
+          monsterMessage: "",
+        }));
+        setMessage(`${monster.name} casts ${spellNames}. It ${pendingSpellResult.messages.join(", ")}.`);
+        window.setTimeout(advanceToNextIntent, 3000);
+        return;
+      }
+
+      advanceToNextIntent();
     }, 900);
   }
 
@@ -847,7 +884,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         />
         <div className="combat-center">
           <div className="enemy-intent">
-            <span>{battle.enemyStunned ? "Enemy is stunned" : battle.monsterMessage}</span>
             <strong>
               {(displayedIntent > 0 || displayedSecondaryIntent > 0 || battle.enemyFakeIntent !== null) && <><Swords size={22} /> {attackIntentLabel}</>}
               {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>✦</span>)}
@@ -855,7 +891,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           </div>
           <p className="combat-message">{message}</p>
         </div>
-        <Combatant name={monster.name} buffs={monster.buffs} sprite="♜" health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
+        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} sprite="♜" health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
       </section>
 
       {phase === "victory" || phase === "defeat" ? (
@@ -916,11 +952,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   );
 }
 
-function Combatant({ name, buffs = [], sprite, health, maxHealth, armor, enemy = false, hit = false }: { name: string; buffs?: GeneratedMonster["buffs"]; sprite: string; health: number; maxHealth: number; armor: number; enemy?: boolean; hit?: boolean }) {
+function Combatant({ name, buffs = [], statusBuffs = [], sprite, health, maxHealth, armor, enemy = false, hit = false }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: MonsterBuffTile[]; sprite: string; health: number; maxHealth: number; armor: number; enemy?: boolean; hit?: boolean }) {
+  const allBuffs = [
+    ...buffs.map((buff) => ({ name: buff.name, symbol: buff.name[0], effect: buff.effect, value: undefined as number | undefined })),
+    ...statusBuffs,
+  ];
   return <div className={`combatant ${enemy ? "enemy-combatant" : "hero-combatant"} ${hit ? "taking-hit" : ""}`}>
-    {enemy && buffs.length > 0 && (
-      <div className="monster-buff-badges" aria-label={`Monster buffs: ${buffs.map((buff) => buff.name).join(", ")}`}>
-        {buffs.map((buff) => <span title={`${buff.name}: ${buff.effect}`} key={buff.name}>{buff.name[0]}</span>)}
+    {enemy && allBuffs.length > 0 && (
+      <div className="monster-buff-badges" aria-label={`Monster buffs: ${allBuffs.map((buff) => buff.name).join(", ")}`}>
+        {allBuffs.map((buff) => <span title={`${buff.name}: ${buff.effect}`} key={buff.name}>{buff.symbol}{buff.value !== undefined && <small>{buff.value}</small>}</span>)}
       </div>
     )}
     <div className={`pixel-sprite ${enemy ? "enemy-sprite" : "hero-sprite"}`} aria-label={name}>{sprite}</div>
@@ -967,3 +1007,4 @@ const upgradeVisuals: Record<string, { label: string; category: "defense" | "off
   efficiency: { label: "E", category: "energy" }, consumable: { label: "C", category: "energy" },
   cycling: { label: "C", category: "special" }, reflecting: { label: "R", category: "special" },
 };
+

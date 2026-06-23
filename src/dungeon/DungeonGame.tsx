@@ -137,7 +137,7 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
 
   function enterRoom(node: DungeonNode) {
     if (!dungeon.availableIds.includes(node.id)) return;
-    setDungeon((current) => ({ ...current, activeNodeId: node.id, view: "battle", notice: `Entered ${roomDetails[node.type].label}.` }));
+    setDungeon((current) => ({ ...current, availableIds: [node.id], activeNodeId: node.id, view: "battle", notice: `Entered ${roomDetails[node.type].label}.` }));
   }
 
   function completeRoom(won: boolean) {
