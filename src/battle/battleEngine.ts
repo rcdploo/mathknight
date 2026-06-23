@@ -233,8 +233,9 @@ export function rollAny(attempts: number, chance: number) {
 
 export function canApplyUpgrade(card: BattleCard, upgradeId: string) {
   if (card.upgrades.includes(upgradeId)) return false;
-  if (upgradeId === "armor" || upgradeId === "1") return card.kind === "number";
-  if (upgradeId === "3") return card.kind === "variable";
+  if ((upgradeId === "armor" || upgradeId === "1" || upgradeId === "plus-1") && card.kind === "number") return true;
+  if ((upgradeId === "3" || upgradeId === "plus-3") && card.kind === "variable") return true;
+  if (upgradeId === "armor" || upgradeId === "1" || upgradeId === "plus-1" || upgradeId === "3" || upgradeId === "plus-3") return false;
   return true;
 }
 

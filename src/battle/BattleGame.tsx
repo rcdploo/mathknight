@@ -90,6 +90,12 @@ function choice<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+function rollAttack(median: number) {
+  const min = Math.ceil(median * 0.7);
+  const max = Math.floor(median * 1.3);
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
 function makeMonsterActionDeck(monster: GeneratedMonster) {
   const pattern = monster.attackPattern.name;
   if (pattern === "Stalwart") return shuffle(["attack", "half-attack-half-block"]);
@@ -113,7 +119,7 @@ function monsterAction(monster: GeneratedMonster, turn: number, deck: string[], 
   if (monster.attackPattern.name === "Prime") action = "prime";
   if (monster.attackPattern.name === "Explosive") action = turn <= 3 ? `countdown-${4 - turn}` : "explosion";
 
-  const attack = monster.baseAttack;
+  const attack = rollAttack(monster.baseAttack);
   const spell = monster.spells.length > 0 ? choice(monster.spells) : "spell";
   const twoSpells = monster.spells.length > 0 ? [choice(monster.spells), choice(monster.spells)] : [];
   const threeSpells = monster.spells.length > 0 ? [choice(monster.spells), choice(monster.spells), choice(monster.spells)] : [];
@@ -354,7 +360,7 @@ function clearBattleSession() {
   window.localStorage.removeItem(battleSessionKey);
 }
 
-export default function BattleGame({ onExit, onComplete, monster = fallbackMonster, roomLabel = "Dungeon" }: { onExit: () => void; onComplete: (won: boolean) => void; monster?: GeneratedMonster; roomLabel?: string }) {
+export default function BattleGame({ onExit, onComplete, monster = fallbackMonster, roomLabel = "Dungeon", dungeonLevel = 1 }: { onExit: () => void; onComplete: (won: boolean) => void; monster?: GeneratedMonster; roomLabel?: string; dungeonLevel?: number }) {
   const restoredSession = useMemo(() => loadBattleSession(monster), [monster]);
   const [battle, setBattle] = useState(restoredSession.battle);
   const [selectedCards, setSelectedCards] = useState<BattleCard[]>(restoredSession.selectedCards);
@@ -389,22 +395,22 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       : String(displayedIntent);
   const previewResult = useMemo(() => {
     try {
-      return evaluateExpression(selectedCards, { turn, level: 1 });
+      return evaluateExpression(selectedCards, { turn, level: dungeonLevel });
     } catch {
       return null;
     }
-  }, [selectedCards, turn]);
+  }, [dungeonLevel, selectedCards, turn]);
   const counterReady = previewResult !== null && previewResult === displayedIntent;
   const expressionItems = useMemo(() => {
     try {
-      return resolveExpressionTokens(selectedCards, { turn, level: 1 }).map((token) => ({
+      return resolveExpressionTokens(selectedCards, { turn, level: dungeonLevel }).map((token) => ({
         label: token.kind === "number" ? String(token.value) : token.kind === "left" ? "(" : token.kind === "right" ? ")" : token.operator ?? "",
         sourceIds: token.sourceIds,
       }));
     } catch {
       return selectedCards.map((card) => ({ label: card.lockedValue === undefined ? card.label : `^${card.lockedValue}`, sourceIds: [card.id] }));
     }
-  }, [selectedCards, turn]);
+  }, [dungeonLevel, selectedCards, turn]);
   const viewedPile = pileView === "deck"
     ? [...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
     : [...battle.discardPile].reverse();
@@ -517,7 +523,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }
     let value: number;
     try {
-      value = evaluateExpression(selectedCards, { turn, level: 1 });
+      value = evaluateExpression(selectedCards, { turn, level: dungeonLevel });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Try a different expression.");
       return;
@@ -539,16 +545,19 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const baseDamage = countered ? displayedIntent : weakenedValue;
     const outgoingDamage = Math.round(baseDamage * (criticalHit ? 1.5 : 1));
     const enemyHit = applyDamage(battle.enemyHealth, battle.enemyArmor, outgoingDamage);
+    const monsterDefeated = enemyHit.health === 0;
     const armorAfterExpression = battle.playerArmor + upgradeEffects.armor;
     const vexxingDamage = hasBuff(monster, "Vexxing") ? monster.stage * operatorCount : 0;
-    const noxiousDamage = hasBuff(monster, "Noxious") && enemyHit.health > 0 ? monster.stage * 2 : 0;
+    const noxiousDamage = hasBuff(monster, "Noxious") && !monsterDefeated ? monster.stage * 2 : 0;
     const thornsDamage = battle.thornsStacks * monster.stage * 2;
     const effectiveArmor = hasBuff(monster, "Corrosive") ? Math.floor(armorAfterExpression * 0.75) : armorAfterExpression;
     const incomingDamage = countered ? displayedSecondaryIntent : displayedIntent + displayedSecondaryIntent;
-    const playerHit = countered || enemyHit.health === 0
-      ? incomingDamage > 0
-        ? applyDamage(Math.max(0, battle.playerHealth - vexxingDamage - noxiousDamage - thornsDamage), effectiveArmor, incomingDamage)
-        : { health: Math.max(0, battle.playerHealth - vexxingDamage - noxiousDamage - thornsDamage), armor: armorAfterExpression, damage: vexxingDamage + noxiousDamage + thornsDamage }
+    const playerHit = monsterDefeated
+      ? { health: battle.playerHealth, armor: armorAfterExpression, damage: 0 }
+      : countered
+        ? incomingDamage > 0
+          ? applyDamage(Math.max(0, battle.playerHealth - vexxingDamage - noxiousDamage - thornsDamage), effectiveArmor, incomingDamage)
+          : { health: Math.max(0, battle.playerHealth - vexxingDamage - noxiousDamage - thornsDamage), armor: armorAfterExpression, damage: vexxingDamage + noxiousDamage + thornsDamage }
       : applyDamage(Math.max(0, battle.playerHealth - vexxingDamage - noxiousDamage - thornsDamage), effectiveArmor, incomingDamage);
     const stolenCoins = playerHit.damage > 0 && hasBuff(monster, "Thieving")
       ? (() => {
@@ -558,7 +567,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           return stolen;
         })()
       : 0;
-    const reflectedDamage = upgradeEffects.reflecting ? Math.round(playerHit.damage * 0.5) : 0;
+    const reflectedDamage = !monsterDefeated && upgradeEffects.reflecting ? Math.round(playerHit.damage * 0.5) : 0;
     const reflectedHit = reflectedDamage > 0 ? applyDamage(enemyHit.health, enemyHit.armor, reflectedDamage) : enemyHit;
     const stunnedNext = rollAny(upgradeEffects.bashAttempts, 0.1);
     const armoredGain = hasBuff(monster, "Armored") && displayedIntent > 0 ? Math.round(displayedIntent * 0.2) : 0;
@@ -573,7 +582,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     wakeAudio();
     setImpact(countered ? "counter" : "enemy");
     playBattleSound(countered ? "counter" : "enemy-hit");
-    setBattle((current) => ({ ...current, enemyHealth: reflectedHit.health, enemyArmor: reflectedHit.armor + armoredGain, playerArmor: armorAfterExpression }));
+    setBattle((current) => ({ ...current, enemyHealth: reflectedHit.health, enemyArmor: reflectedHit.armor + armoredGain, playerHealth: playerHit.health, playerArmor: playerHit.armor }));
     window.setTimeout(() => setImpact(null), 360);
 
     if (playerHit.damage > 0) {
@@ -647,6 +656,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setBattle((current) => ({
         ...current,
         ...spellResult.battle,
+        playerHealth: playerHit.health,
         enemyIntent: stunnedNext ? 0 : nextIntent,
         enemySecondaryIntent: stunnedNext ? 0 : nextSecondaryIntent,
         enemyFakeIntent: stunnedNext ? null : nextAction.fakeIntent,
@@ -700,12 +710,16 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
   function applyRewardUpgrade(target: BattleCard) {
     if (!chosenReward) return;
-    const nextDeck = chosenReward.catalogId === "card-removal"
-      ? runDeck.filter((card) => card.id !== target.id)
-      : runDeck.map((card) => card.id === target.id ? applyCardUpgrade(card, chosenReward.catalogId) : card);
-    saveRunDeck(nextDeck);
-    setRunDeck(nextDeck);
-    finishRoom(true);
+    try {
+      const nextDeck = chosenReward.catalogId === "card-removal"
+        ? runDeck.filter((card) => card.id !== target.id)
+        : runDeck.map((card) => card.id === target.id ? applyCardUpgrade(card, chosenReward.catalogId) : card);
+      saveRunDeck(nextDeck);
+      setRunDeck(nextDeck);
+      finishRoom(true);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "That upgrade could not be applied.");
+    }
   }
 
   if (phase === "upgrade" && chosenReward) {
@@ -716,6 +730,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <div className="reward-panel upgrade-target-panel">
           <p>{removable ? "Card Removal" : "Apply Upgrade"}</p>
           <h1>{removable ? "Choose a card to remove" : `Choose a card for ${chosenReward.label}`}</h1>
+          {error && <p className="battle-error" role="alert">{error}</p>}
           <div className="pile-card-grid">
             {eligibleCards.map((card) => <CardButton key={card.id} card={card} onClick={() => applyRewardUpgrade(card)} disabled={false} preview />)}
           </div>

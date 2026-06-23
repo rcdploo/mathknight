@@ -59,7 +59,17 @@ type SourceRow = {
 };
 
 function cardId(name: string) {
-  const aliases: Record<string, string> = { "+": "plus", "-": "minus", "x": "multiply", "/": "divide", "()": "parentheses", "_^2": "combo-square", "_^3": "combo-cube" };
+  const aliases: Record<string, string> = {
+    "+": "plus",
+    "-": "minus",
+    "x": "multiply",
+    "/": "divide",
+    "()": "parentheses",
+    "+1": "plus-1",
+    "+3": "plus-3",
+    "_^2": "combo-square",
+    "_^3": "combo-cube",
+  };
   return aliases[name] ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 

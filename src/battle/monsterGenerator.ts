@@ -218,7 +218,7 @@ export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedType
   const fatMultiplier = buffs.some((buff) => buff.name === "Fat") ? 1.3 : 1;
   const mightyMultiplier = buffs.some((buff) => buff.name === "Mighty") ? 1.3 : 1;
   const hp = Math.round((baseHp[stage][room] ?? 30) * type.hpMultiplier * fatMultiplier);
-  const damage = Math.max(1, Math.round((baseDamage[stage][room] ?? 6) * mightyMultiplier * randomBetween(0.7, 1.3)));
+  const damage = Math.max(1, Math.round((baseDamage[stage][room] ?? 6) * mightyMultiplier));
   const reward = Math.max(0, Math.round((baseReward[stage][room] ?? 0) * randomBetween(0.9, 1.1)));
 
   incrementUsage(usage, "types", type.name);
