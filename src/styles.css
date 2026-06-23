@@ -879,6 +879,17 @@ button {
   font-size: 1.15rem;
   line-height: 1;
 }
+.block-intent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid #94b8c7;
+  border-radius: 999px;
+  background: #243944;
+  color: #d9eef6;
+  font-size: 1.35rem;
+}
 .combat-message { min-height: 40px; margin: 0; color: #e8dfce; line-height: 1.4; }
 
 @keyframes combat-hit {

@@ -24,7 +24,7 @@ type BattleSession = {
   chosenReward: BattleCard | null;
   rewards: BattleCard[];
 };
-type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff" };
+type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff"; effect: string };
 type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string };
 
 const battleSessionKey = "mathknight.battle.session.v1";
@@ -421,6 +421,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       ? `${displayedIntent} + ${displayedSecondaryIntent}`
       : String(displayedIntent);
   const spellSymbols = battle.enemyStunned ? [] : Array.from({ length: battle.enemySpellCount }, (_, index) => index);
+  const displayedBlock = battle.enemyStunned ? 0 : battle.enemyArmor;
   const previewResult = useMemo(() => {
     try {
       return evaluateExpression(selectedCards, { turn, level: dungeonLevel });
@@ -443,15 +444,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     ? [...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
     : [...battle.discardPile].reverse();
   const statusTiles: Array<StatusTile | null> = [
-    battle.crippleTurns > 0 ? { name: "Cripple", symbol: "C", value: battle.crippleTurns, tone: "debuff" as const } : null,
-    battle.playerWeakenTurns > 0 ? { name: "Weaken", symbol: "W", value: battle.playerWeakenTurns, tone: "debuff" as const } : null,
-    battle.addleTurns > 0 ? { name: "Addle", symbol: "A", value: battle.addleTurns, tone: "debuff" as const } : null,
-    battle.confoundTurns > 0 ? { name: "Perplex", symbol: "P", value: battle.confoundTurns, tone: "debuff" as const } : null,
-    battle.energyDrainTurns > 0 ? { name: "Mana Drain", symbol: "M", value: battle.energyDrainTurns, tone: "debuff" as const } : null,
-    battle.usurpDraws > 0 ? { name: "Usurp", symbol: "U", value: battle.usurpDraws, tone: "debuff" as const } : null,
-    battle.immolationTurns > 0 ? { name: "Immolation", symbol: "I", value: battle.immolationTurns, tone: "debuff" as const } : null,
-    battle.enemyFakeIntent !== null ? { name: "Guileful decoy", symbol: "G", tone: "buff" as const } : null,
-    battle.enemySecondaryIntent > 0 ? { name: "Split attack", symbol: "S", tone: "buff" as const } : null,
+    battle.crippleTurns > 0 ? { name: "Cripple", symbol: "C", value: battle.crippleTurns, tone: "debuff" as const, effect: "You can use at most one operator." } : null,
+    battle.playerWeakenTurns > 0 ? { name: "Weaken", symbol: "W", value: battle.playerWeakenTurns, tone: "debuff" as const, effect: "Your submitted expression deals 10% less damage, rounded up." } : null,
+    battle.addleTurns > 0 ? { name: "Addle", symbol: "A", value: battle.addleTurns, tone: "debuff" as const, effect: "Your maximum hand size is reduced by 20%." } : null,
+    battle.confoundTurns > 0 ? { name: "Perplex", symbol: "P", value: battle.confoundTurns, tone: "debuff" as const, effect: "You cannot use your bottled card." } : null,
+    battle.energyDrainTurns > 0 ? { name: "Mana Drain", symbol: "M", value: battle.energyDrainTurns, tone: "debuff" as const, effect: "Your maximum energy is reduced by 25%." } : null,
+    battle.usurpDraws > 0 ? { name: "Usurp", symbol: "U", value: battle.usurpDraws, tone: "debuff" as const, effect: "The marked card must be used in your submission." } : null,
+    battle.immolationTurns > 0 ? { name: "Immolation", symbol: "I", value: battle.immolationTurns, tone: "debuff" as const, effect: "Digit and variable values are reduced by 1 when drawn." } : null,
+    battle.enemyFakeIntent !== null ? { name: "Guileful decoy", symbol: "G", tone: "buff" as const, effect: "One displayed attack value is false." } : null,
+    battle.enemySecondaryIntent > 0 ? { name: "Split attack", symbol: "S", tone: "buff" as const, effect: "The attack is split into two uneven parts." } : null,
   ];
   const activeStatuses = statusTiles.filter((status): status is StatusTile => status !== null);
   const monsterStatusBuffs = monsterSpellBuffs(battle);
@@ -569,7 +570,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     setPhase("resolving");
     const countered = value === displayedIntent;
     const criticalHit = rollAny(upgradeEffects.critAttempts, 0.2);
-    const weakenedValue = (hasBuff(monster, "Weakening") && battle.weakenNext > 0) || battle.playerWeakenTurns > 0 ? Math.round(value * 0.9) : value;
+    const isWeakened = (hasBuff(monster, "Weakening") && battle.weakenNext > 0) || battle.playerWeakenTurns > 0;
+    const weakenedValue = isWeakened ? Math.max(0, value - Math.max(1, Math.ceil(value * 0.1))) : value;
     const baseDamage = countered ? displayedIntent : weakenedValue;
     const outgoingDamage = Math.round(baseDamage * (criticalHit ? 1.5 : 1));
     const enemyArmorForHit = countered ? 0 : battle.enemyArmor;
@@ -601,10 +603,19 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const reflectedHit = reflectedDamage > 0 ? applyDamage(enemyHit.health, enemyHit.armor, reflectedDamage) : enemyHit;
     const stunnedNext = rollAny(upgradeEffects.bashAttempts, 0.1);
     const armoredGain = !monsterEffectsCanceled && hasBuff(monster, "Armored") && displayedIntent > 0 ? Math.round(displayedIntent * 0.2) : 0;
+    const expiredDebuffs = {
+      ...battle,
+      crippleTurns: Math.max(0, battle.crippleTurns - 1),
+      playerWeakenTurns: Math.max(0, battle.playerWeakenTurns - 1),
+      addleTurns: Math.max(0, battle.addleTurns - 1),
+      confoundTurns: Math.max(0, battle.confoundTurns - 1),
+      energyDrainTurns: Math.max(0, battle.energyDrainTurns - 1),
+      immolationTurns: Math.max(0, battle.immolationTurns - 1),
+    };
     const pendingSpellResult = monsterEffectsCanceled
-      ? { battle: { ...battle, enemyHealth: reflectedHit.health, playerHealth: playerHit.health }, messages: [] as string[] }
+      ? { battle: { ...expiredDebuffs, enemyHealth: reflectedHit.health, playerHealth: playerHit.health }, messages: [] as string[] }
       : applyMonsterSpells({
-          ...battle,
+          ...expiredDebuffs,
           enemyHealth: reflectedHit.health,
           playerHealth: playerHit.health,
         }, monster, battle.pendingMonsterSpells);
@@ -708,12 +719,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         monsterLastAction: nextAction.action,
         monsterMessage: nextAction.text,
         pendingMonsterSpells: nextAction.spells ?? [],
-        crippleTurns: Math.max(0, nextBattleBase.crippleTurns - 1),
-        playerWeakenTurns: Math.max(0, nextBattleBase.playerWeakenTurns - 1),
-        addleTurns: Math.max(0, nextBattleBase.addleTurns - 1),
-        confoundTurns: Math.max(0, nextBattleBase.confoundTurns - 1),
-        energyDrainTurns: Math.max(0, nextBattleBase.energyDrainTurns - 1),
-        immolationTurns: Math.max(0, nextBattleBase.immolationTurns - 1),
+        crippleTurns: nextBattleBase.crippleTurns,
+        playerWeakenTurns: nextBattleBase.playerWeakenTurns,
+        addleTurns: nextBattleBase.addleTurns,
+        confoundTurns: nextBattleBase.confoundTurns,
+        energyDrainTurns: nextBattleBase.energyDrainTurns,
+        immolationTurns: nextBattleBase.immolationTurns,
         usurpDraws: forcedCard ? Math.max(0, nextBattleBase.usurpDraws - 1) : nextBattleBase.usurpDraws,
         forcedCardId: forcedCard?.id ?? null,
       }));
@@ -849,7 +860,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         {activeStatuses.length > 0 && (
           <div className="status-strip">
             {activeStatuses.map((status) => (
-              <span className={`status-tile ${status.tone}`} title={status.name} key={status.name}>
+              <span className={`status-tile ${status.tone}`} title={`${status.name}: ${status.effect}`} key={status.name}>
                 {status.symbol}
                 {status.value !== undefined && <small>{status.value}</small>}
               </span>
@@ -886,6 +897,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <div className="enemy-intent">
             <strong>
               {(displayedIntent > 0 || displayedSecondaryIntent > 0 || battle.enemyFakeIntent !== null) && <><Swords size={22} /> {attackIntentLabel}</>}
+              {displayedBlock > 0 && <span className="block-intent" title="Block"><Shield size={20} /> {displayedBlock}</span>}
               {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>✦</span>)}
             </strong>
           </div>
