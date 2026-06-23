@@ -1,0 +1,114 @@
+YOUR STATS,,,,,,,,,,
+Stage/Your Level,1,2,3,4,5,,,,,
+Base HP,40,60,100,160,250,,,,,
+Energy,4,5,6,7,8,,,,,
+Hand Size,5,5,6,6,7,,,,,
+Upgrades,Mending Charm,Resilience,Unlock Training Grounds,2nd Bottle,Heroic Will,,,,,
+,,,,,,,,,,
+DAMAGE,Levels,,,,,,,,,
+Stage,1,2,3,4,5,6,7,8,9,Boss
+1,6,8,9,11,n/a,12,14,15,18,23
+2,9,11,14,16,n/a,18,20,23,27,34
+3,14,17,20,24,n/a,27,30,34,41,51
+4,20,25,30,35,n/a,41,46,51,61,76
+5,30,38,46,53,n/a,61,68,76,91,114
+,,,,,,,,,,
+HP,Levels,,,,,,,,,
+Stage,1,2,3,4,5,6,7,8,9,Boss
+1,30,35,40,45,n/a,50,55,60,65,80
+2,60,70,80,90,n/a,100,110,120,130,160
+3,120,140,160,180,n/a,200,220,240,260,320
+4,240,280,320,360,n/a,400,440,480,520,640
+5,480,560,640,720,n/a,800,880,960,1040,1280
+,,,,,,,,,,
+Buffs,Levels,,,,,,,,,
+Stage,1,2,3,4,5,6,7,8,9,Boss
+1,0,0,0,1,n/a,1,2,2,2,3
+2,1,1,1,2,n/a,2,3,3,3,4
+3,2,2,2,3,n/a,3,4,4,4,5
+4,3,3,3,4,n/a,4,5,5,5,6
+5,4,4,4,5,n/a,5,6,6,6,7
+,,,,,,,,,,
+$ Reward,Levels,,,,,,,,,
+Stage,1,2,3,4,5,6,7,8,9,Boss
+1,10,12,14,16,n/a,18,20,22,24,30
+2,26,28,30,32,n/a,34,36,38,40,50
+3,42,44,46,48,n/a,50,52,54,56,70
+4,58,60,62,64,n/a,66,68,70,72,90
+5,74,76,78,80,n/a,82,84,86,88,n/a
+,,,,,,,,,,
+,,,,,,,,,,
+Monster Attack Patterns,,,,,,,,,,
+Name,Has Spells,Difficulty,Attack Pattern,,,,,,,
+Brutish,N,1,Normal attack every turn,,,,,,,
+Prime,N,1,"Attack every turn. Start from the lowest prime number in the attack range. Next biggest prime next turn, and so on moving up one prime every turn (can exceed the range)",,,,,,,
+Explosive,N,3,"First 3 attack turns are 3, 2, 1. Then the 4th turn roll 3 attacks at once and add them into one big number. Next turn rull 4 attacks together, then 5, etc.",,,,,,,
+Stalwart,N,1,"Shuffle between 1) normal attack; 2) half normal attack, half block",,,,,,,
+Casting,Y,2,Shuffle between 1) normal attack; 2)  half block plus spellcast,,,,,,,
+Ruthless,Y,3,Shuffle between 1) normal attack; 2) 1.5x crit attack; 3) spell cast; 4) 0.75x block,,,,,,,
+Sorcerous,Y,2,Shuffle between 1) normal attack; 2) double spellcast,,,,,,,
+Arcane,Y,3,Shuffle between 1) half attack + half block; 2) half block + spellcast; 3) 1.25x attack 4) triple spellcast ,,,,,,,
+Defensive,N,2,Shuffle between 1) 0.25x attack + 0.75x block; 2) 0.5x attack + 0.5x block; 3) 0.75x attack + 0.25x block,,,,,,,
+Wild,Y,2,Randomize between 1) normal attack; 2) Spell cast; 3) 75% block; 50% attack + 25% block; 1.25x attack,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+Monster Buffs,,,,,,,,,,
+Name,Short Symbol,Difficulty,Effect,,,,,,,
+Regenerating,R,1,Heal 3% of Max HP every turn,,,,,,,
+Mighty,M,3,Deal 30% more damage,,,,,,,
+Fat,F,2,Start with 30% more health,,,,,,,
+Armored,A,2,Each attack adds 20% of that amount in Armor,,,,,,,
+Noxious,N,1,You lose 2*Stage HP at the end of each combat turn (if the monster is still alive),,,,,,,
+Vexxing,V,2,You lose 1*Stage HP for each operator in the expression you submit,,,,,,,
+Weakening,W,1,"If it damages you, you are weakened on your next turn (your submission does 10% less damage)",,,,,,,
+Lobotomizing,L,3,"If it damanges you, it removes your best card from your deck for the rest of the fight (order by # upgrades then by rarity)",,,,,,,
+Dazing,D,3,"Each turn, it shuffles a temporary ""0"" Digit card into your draw pile, that evaporates at the end of the turn that you drew it (whether you use it or not)",,,,,,,
+Polarizing,P,4,"Alternating turns, you can only use Even cards (digits or variables), then only Odd cards, repeating every turn",,,,,,,
+Guileful,G,3,Shows two different attack numbers. Only one is the real attack but you don't know which until after you submit. [cannot be combined with swashbuckling],,,,,,,
+Hypnotic,H,3,"You do not discard unplayed cards at the end of the turn. Draw up to Max hand size, keeping those cards.",,,,,,,
+Swashbuckling,S,2,Splits their attack into two halves that are nor exactly equal. Only one can be countered. [cannot be combined with guileful],,,,,,,
+Eldritch,E,2,[Only monsters that spell cast and have at least one N spell] This Monster's N spells are increased by 1,,,,,,,
+Thieving,T,1,"If it damages you, Steals 5*Stage $ from you.",,,,,,,
+Corrosive,C,1,Your armor is 25% less effective,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+,,,,,,,,,,
+Monster Spells,# Times Used,Difficulty,Effect,,,,,,,
+Heal,7,2,Heals 25% of Max HP,,,,,,,
+Cripple (n),6,1+n,You can only use 1 operator next n turns,,,,,,,
+Enrage,8,2,Plus 10% Damage rest of fight (stacking),,,,,,,
+Brainrot (n),4,n,Shuffle n 0s into your draw pile,,,,,,,
+Weaken (n),8,n-1,You do 10% less damage for the next n turns,,,,,,,
+Thorns,4,2,You take 2*Stage Damage each time you attack (stacking),,,,,,,
+Addle (n),4,n,Your Maximum Handsize is reduced by 20% (round to nearest int) for the next n turns,,,,,,,
+Confound (n),4,1+n,You cannot use your bottled card for the next n turns,,,,,,,
+Energy Drain (n),6,n,Your max energy is reduced by 25% for the next n turns (round the reduction amount to the nearest integer) ,,,,,,,
+Usurp (n),5,n,"In your next n draws, a card will be selected randomly that MUST be used in your submission",,,,,,,
+Immolation (n),4,1+n,"At the start of each of the next n turns, reduce the value of all Digit and Variable cards in your deck by 1 (stacking)",,,,,,,
+,,,,,,,,,,
+Monster Class,HP multiplier,Complexity',Spellcaster?,Spells available,,,,,,
+Faerie,0.9,Basic,Always,"Heal, Brainrot 1, Addle 2, Weaken 2, Thorns",,,,,,
+Witch,0.96,Basic,Always,"Heal, Cripple 1, Weaken 2, Energy Drain 2",,,,,,
+Dark Elf,1,Basic,Rarely,"Thorns, Enrage, Weaken",,,,,,
+Goblin,1.02,Basic,Never,,,,,,,
+Harpy,0.93,Basic,Sometimes,"Brainrot 1, Usurp 1, Enrage,",,,,,,
+Mireling,1.03,Basic,Rarely,,,,,,,
+Fiend,1.06,Basic,Sometimes,"Cripple 1, Enrage, Energy Drain 1",,,,,,
+Orc,1.1,Basic,Never,,,,,,,
+Enchantress,0.9,Medium,Always,"Heal, Addle 2, Confound 2, Weaken 3",,,,,,
+Sorcerer,0.94,Medium,Always,"Usurp 2, Energy Drain 2, Weaken 3, Confound 2",,,,,,
+Djinn,0.96,Medium,Always,"Cripple 1, Addle 2, Immolation 1",,,,,,
+Slime,1.06,Medium,Rarely,"Heal, Weaken 3, Energy Drain 2",,,,,,
+Golem,1.08,Medium,Never,,,,,,,
+Warg,1.05,Medium,Never,,,,,,,
+Wraith,0.98,Medium,Sometimes,"Brainrot 2, Weaken 3, Usurp 2",,,,,,
+Umbralith,1,Medium,Sometimes,"Energy Drain 2, Confound 1, Cripple 1",,,,,,
+Basilisk,1.03,Medium,Sometimes,"Thorns, Immolation 1, Enrage",,,,,,
+Necromancer,0.9,Tough,Always,"Cripple 2, Heal, Usurp 2, Addle 2",,,,,,
+Lich,0.93,Tough,Always,"Enrage, Confound 2, Weaken 3, Brainrot 2",,,,,,
+Manticore,0.97,Tough,Sometimes,"Heal, Thorns, Enrage",,,,,,
+Troll,1.01,Tough,Never,,,,,,,
+Ogre,0.99,Tough,Rarely,Enrage,,,,,,
+Dragon,1.1,Tough,Sometimes,"Immolation2, Enrage",,,,,,
+Demon,1.03,Tough,Sometimes,"Usurp 2, Heal, Energy Drain 2",,,,,,
+Balrog,1.07,Tough,Sometimes,"Immolation 2, Cripple 2",,,,,,

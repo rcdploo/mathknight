@@ -1,10 +1,12 @@
 import { Crown, Flag, Gem, HelpCircle, ShoppingBag, Skull, Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import BattleGame from "../battle/BattleGame";
+import { generateMonster, nextDungeonStage, type DungeonRoom, type DungeonStage, type GeneratedMonster } from "../battle/monsterGenerator";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
-type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[] };
+type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster };
 type DungeonState = {
+  stage: DungeonStage;
   nodes: DungeonNode[];
   completedIds: string[];
   availableIds: string[];
@@ -44,21 +46,38 @@ function generateLaneRooms() {
   return laneRooms;
 }
 
-function generateDungeon(): DungeonState {
+function roomNumberForMonster(step: number): DungeonRoom {
+  return step === 10 ? "Boss" : step as DungeonRoom;
+}
+
+function shouldGenerateMonster(type: RoomType) {
+  return type === "battle" || type === "elite" || type === "boss";
+}
+
+function generateDungeon(stage: DungeonStage): DungeonState {
   const laneRooms = [generateLaneRooms(), generateLaneRooms(), generateLaneRooms()];
+  const usedTypeNames: string[] = [];
+  const makeMonster = (type: RoomType, step: number) => {
+    if (!shouldGenerateMonster(type)) return undefined;
+    const monster = generateMonster(stage, roomNumberForMonster(step), usedTypeNames);
+    usedTypeNames.push(monster.type.name);
+    return monster;
+  };
   const nodes: DungeonNode[] = [{ id: "start", step: 0, lane: 1, type: "start", next: ["room-1-0", "room-1-1", "room-1-2"] }];
   for (let step = 1; step <= 9; step += 1) {
     for (let lane = 0; lane < 3; lane += 1) {
+      const type = laneRooms[lane][step];
       const next = step === 9
         ? ["boss"]
         : [lane, ...(Math.random() < 0.62 ? [lane + (Math.random() < 0.5 ? -1 : 1)] : [])]
             .filter((nextLane, index, lanes) => nextLane >= 0 && nextLane <= 2 && lanes.indexOf(nextLane) === index)
             .map((nextLane) => `room-${step + 1}-${nextLane}`);
-      nodes.push({ id: `room-${step}-${lane}`, step, lane, type: laneRooms[lane][step], next });
+      nodes.push({ id: `room-${step}-${lane}`, step, lane, type, next, monster: makeMonster(type, step) });
     }
   }
-  nodes.push({ id: "boss", step: 10, lane: 1, type: "boss", next: [] });
+  nodes.push({ id: "boss", step: 10, lane: 1, type: "boss", next: [], monster: makeMonster("boss", 10) });
   return {
+    stage,
     nodes,
     completedIds: ["start"],
     availableIds: ["room-1-0", "room-1-1", "room-1-2"],
@@ -71,11 +90,11 @@ function generateDungeon(): DungeonState {
 function loadDungeon() {
   try {
     const raw = window.localStorage.getItem(dungeonStorageKey);
-    if (!raw) return generateDungeon();
+    if (!raw) return generateDungeon(1);
     const parsed = JSON.parse(raw) as DungeonState;
-    return parsed.nodes?.length ? parsed : generateDungeon();
+    return parsed.nodes?.length ? { ...parsed, stage: parsed.stage ?? 1 } : generateDungeon(1);
   } catch {
-    return generateDungeon();
+    return generateDungeon(1);
   }
 }
 
@@ -108,7 +127,7 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
 
   function completeRoom(won: boolean) {
     if (!won) {
-      const nextDungeon = generateDungeon();
+      const nextDungeon = generateDungeon(dungeon.stage);
       nextDungeon.notice = "The dungeon shifted after your defeat. Choose a new path.";
       setDungeon(nextDungeon);
       return;
@@ -118,27 +137,36 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
       const completedNode = current.activeNodeId ? nodeById.get(current.activeNodeId) : undefined;
       if (!completedNode) return { ...current, view: "map", activeNodeId: null };
       const bossDefeated = completedNode.type === "boss";
+      if (bossDefeated) {
+        const nextStage = nextDungeonStage(current.stage);
+        const nextDungeon = generateDungeon(nextStage);
+        nextDungeon.notice = nextStage === current.stage
+          ? "The final boss is defeated. Stage 5 is mastered."
+          : `Stage ${current.stage} conquered. Stage ${nextStage} begins.`;
+        return nextDungeon;
+      }
       return {
         ...current,
         completedIds: [...new Set([...current.completedIds, completedNode.id])],
         availableIds: completedNode.next,
         activeNodeId: null,
         view: "map",
-        notice: bossDefeated ? "Dungeon conquered. Your next level awaits." : "Room cleared. New paths are open.",
+        notice: "Room cleared. New paths are open.",
       };
     });
   }
 
   if (dungeon.view === "battle") {
-    return <BattleGame onExit={onExit} onComplete={completeRoom} />;
+    const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
+    return <BattleGame onExit={onExit} onComplete={completeRoom} monster={activeNode?.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode?.step ?? 1}`} />;
   }
 
   return (
     <main className="dungeon-map-screen">
       <header className="dungeon-map-header">
         <button className="map-back-button" onClick={onExit}>Game Hall</button>
-        <div><p>Dungeon Level 1</p><h1>The Verdant Descent</h1></div>
-        <span>10 rooms to the boss</span>
+        <div><p>Dungeon Stage {dungeon.stage}</p><h1>The Verdant Descent</h1></div>
+        <span>Room 5 treasure / Room 10 boss</span>
       </header>
       <div className="dungeon-map-copy"><p>{dungeon.notice}</p></div>
       <div className="dungeon-map-scroll">
@@ -168,7 +196,7 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
                 aria-label={`${label}: ${completed ? "completed" : available ? "available" : "locked"}`}
               >
                 <Icon size={23} />
-                <span>{node.type === "battle" ? "Fight" : node.type === "mystery" ? "?" : node.type}</span>
+                <span>{node.type === "battle" ? "Fight" : node.type === "mystery" ? "?" : node.type === "boss" ? "Boss" : node.type}</span>
               </button>
             );
           })}
