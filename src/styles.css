@@ -777,22 +777,33 @@ button {
 }
 
 .item-icon:focus { border-color: #f0ca73; }
-.monster-info {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 11px;
-  border: 1px solid #6d8f86;
-  border-radius: 6px;
-  outline: none;
-  background: #263b36;
-  color: #dff4ee;
-  font-size: .72rem;
-}
-.monster-info:focus { border-color: #6cb5a1; }
 .status-strip { display: flex; flex-wrap: wrap; gap: 5px; margin-left: 4px; }
-.status-strip span { padding: 4px 7px; border: 1px solid rgba(240,202,115,.3); border-radius: 999px; background: rgba(25,25,22,.5); color: #f5d98d; font-size: .64rem; font-weight: 900; }
+.status-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  font-size: .72rem;
+  font-weight: 900;
+}
+.status-tile.buff { border: 1px solid #d0aa58; background: #3d3320; color: #f5d98d; }
+.status-tile.debuff { border: 1px solid #9d4b4b; background: #3d1f24; color: #ffd7d7; }
+.status-tile small {
+  position: absolute;
+  left: 2px;
+  bottom: 1px;
+  display: grid;
+  place-items: center;
+  min-width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: #2a2927;
+  color: #d0cbc3;
+  font-size: .48rem;
+  line-height: 1;
+}
 .item-tooltip {
   position: absolute;
   top: calc(100% + 9px);
@@ -811,7 +822,7 @@ button {
 }
 .item-tooltip strong { display: block; margin-bottom: 3px; color: #f5d98d; }
 .item-tooltip span { display: block; margin-top: 6px; }
-.item-icon:hover .item-tooltip, .item-icon:focus .item-tooltip, .monster-info:hover .item-tooltip, .monster-info:focus .item-tooltip { display: block; }
+.item-icon:hover .item-tooltip, .item-icon:focus .item-tooltip { display: block; }
 
 .battlefield {
   display: grid;
@@ -825,12 +836,13 @@ button {
 }
 
 .combatant { display: grid; justify-items: center; gap: 7px; min-width: 0; }
+.monster-buff-badges { display: flex; justify-content: flex-end; gap: 4px; width: min(180px, 100%); min-height: 20px; }
+.monster-buff-badges span { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #d0aa58; border-radius: 3px; background: #3d3320; color: #f5d98d; font-size: .7rem; font-weight: 900; }
 .combatant.taking-hit { animation: combat-hit 360ms ease; }
 .counter-flash { animation: counter-flash 420ms ease; }
 .victory-flash { animation: victory-flash 1.15s ease-out; }
 .defeat-flash { animation: defeat-flash 1.15s ease-out; }
 .combatant h2 { margin: 0; font-family: Georgia, serif; font-size: clamp(1rem, 2.5vw, 1.5rem); }
-.combatant-subtitle { max-width: 220px; min-height: 18px; margin: -3px 0 0; color: #bdb8ad; font-size: .68rem; font-weight: 800; line-height: 1.25; text-align: center; }
 .combatant > strong { font-size: 0.78rem; }
 .pixel-sprite {
   display: grid;
@@ -852,8 +864,20 @@ button {
 .armor-readout { display: flex; align-items: center; gap: 5px; color: #b9c9d4; font-size: 0.75rem; }
 .combat-center { align-self: center; display: grid; justify-items: center; gap: 18px; text-align: center; }
 .enemy-intent { padding: 14px 18px; border: 1px solid #d77a66; border-radius: 8px; background: rgba(75, 31, 28, 0.9); }
-.enemy-intent span { display: block; color: #e9c3b9; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
+.enemy-intent > span { display: block; color: #e9c3b9; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
 .enemy-intent strong { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 3px; font-size: 2rem; }
+.spell-intent {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #9cc0ff;
+  border-radius: 50%;
+  background: #24304f;
+  color: #dce8ff;
+  font-size: 1.15rem;
+  line-height: 1;
+}
 .combat-message { min-height: 40px; margin: 0; color: #e8dfce; line-height: 1.4; }
 
 @keyframes combat-hit {

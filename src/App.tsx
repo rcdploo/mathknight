@@ -19,6 +19,7 @@ import type { GeometryVisual, LevelConfig, LevelResult, PlayerProgress, PuzzleCa
 import { resetAllGameProgress } from "./game/resetGame";
 
 type Screen = "map" | "game" | "result";
+type GameMode = "playing" | "reviewing";
 
 const bossMemorizeSeconds = 30;
 const bossMatchSeconds = 15;
@@ -77,6 +78,7 @@ function formatStars(stars: number) {
 function MemoryMatchGame({ onExit }: { onExit: () => void }) {
   const [progress, setProgress] = useState<PlayerProgress>(() => loadProgress());
   const [screen, setScreen] = useState<Screen>("map");
+  const [gameMode, setGameMode] = useState<GameMode>("playing");
   const [selectedLevel, setSelectedLevel] = useState<LevelConfig>(() => makeLevelConfig("addition", "1", "level1"));
   const [cards, setCards] = useState<PuzzleCard[]>([]);
   const [flippedIds, setFlippedIds] = useState<string[]>([]);
@@ -115,7 +117,25 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
     setResult(null);
     setBossPhase(level.isBoss ? "memorize" : "match");
     setBossSeconds(level.isBoss ? bossMemorizeSeconds : 0);
+    setGameMode("playing");
     setScreen("game");
+  }
+
+  function goBack() {
+    if (savePanelOpen) {
+      setSavePanelOpen(false);
+      return;
+    }
+    if (screen === "game") {
+      setScreen(gameMode === "reviewing" ? "result" : "map");
+      setGameMode("playing");
+      return;
+    }
+    if (screen === "result") {
+      setScreen("map");
+      return;
+    }
+    onExit();
   }
 
   function finishLevel(completed: boolean, finalTurnsUsed = turnsUsed) {
@@ -147,6 +167,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
     const first = cards.find((item) => item.id === nextFlipped[0]);
     if (!first) return;
     const isMatch = first.pairId === card.pairId && first.kind !== card.kind;
+    const bothGreenTiles = first.kind === "result" && card.kind === "result";
     const nextTurnsUsed = turnsUsed + 1;
     setTurnsUsed(nextTurnsUsed);
     setIsResolving(true);
@@ -173,7 +194,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
         setIsResolving(false);
         if (!selectedLevel.isBoss && nextTurnsRemaining <= 0) finishLevel(false, nextTurnsUsed);
       },
-      selectedLevel.isBoss ? 500 : getUnitValue(selectedLevel.unit) * 1000,
+      selectedLevel.isBoss ? 500 : getUnitValue(selectedLevel.unit) * 1000 * (bothGreenTiles ? 0.5 : 1),
     );
   }
 
@@ -222,7 +243,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
   return (
     <main className="app">
       <header className="topbar">
-        <button className="icon-button" aria-label="Return to game hall" onClick={onExit}>
+        <button className="icon-button" aria-label="Go back" onClick={goBack}>
           <ArrowLeft size={20} />
         </button>
         <button className="brand" onClick={() => setScreen("map")}>
@@ -420,7 +441,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
             <div className="result-actions">
               <button onClick={() => startLevel(selectedLevel)}>Retry</button>
               {nextLevel && <button onClick={() => startLevel(nextLevel as LevelConfig)}>Next Trial</button>}
-              {result.completed && <button onClick={() => setScreen("game")}>View Results</button>}
+              {result.completed && <button onClick={() => { setGameMode("reviewing"); setScreen("game"); }}>View Results</button>}
               <button onClick={() => setScreen("map")}>Training Grounds</button>
             </div>
           </div>

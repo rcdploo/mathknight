@@ -171,14 +171,18 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
     });
   }
 
+  function returnToMap() {
+    setDungeon((current) => ({ ...current, activeNodeId: null, view: "map", notice: "Choose a connected room and press deeper into the dungeon." }));
+  }
+
   if (dungeon.view === "battle") {
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (!activeNode?.monster) {
       const repairedDungeon = hydrateDungeonMonsters(dungeon);
       const repairedNode = dungeon.activeNodeId ? new Map(repairedDungeon.nodes.map((node) => [node.id, node])).get(dungeon.activeNodeId) : undefined;
-      return <BattleGame onExit={onExit} onComplete={completeRoom} monster={repairedNode?.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode?.step ?? 1}`} dungeonLevel={activeNode?.step ?? 1} />;
+      return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={repairedNode?.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode?.step ?? 1}`} dungeonLevel={activeNode?.step ?? 1} />;
     }
-    return <BattleGame onExit={onExit} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} />;
+    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} />;
   }
 
   return (
