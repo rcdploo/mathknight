@@ -120,12 +120,20 @@
         "Median Purchase Cost at Shop":  "$115"
     },
     {
-        "Card Name":  "^X",
-        "Type":  "Variable",
+        "Card Name":  "_^2",
+        "Type":  "Combo",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "2",
+        "Effect":  "Exponeniates the combined digit to the power of 2",
+        "Median Purchase Cost at Shop":  "$200"
+    },
+    {
+        "Card Name":  "_^3",
+        "Type":  "Combo",
         "Rarity":  "Rare",
-        "Energy Cost":  "X",
-        "Effect":  "Exponeniates the prior digit (or parenthetical expression) to the power of X, where X is your remaining energy (it is all spent to play this card). [You get the energy back if you unplay it before submitting. If you get more energy from other effects later you can use it separately,it\u0027s not spent on this card.]",
-        "Median Purchase Cost at Shop":  "$250"
+        "Energy Cost":  "4",
+        "Effect":  "Exponeniates the combined digit to the power of 3",
+        "Median Purchase Cost at Shop":  "$300"
     },
     {
         "Card Name":  "()",

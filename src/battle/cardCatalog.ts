@@ -25,7 +25,8 @@ const descriptions: Record<string, string> = {
   "2_": "Combine with a digit to make a number from 20 to 29.",
   "+": "Add two values.", "-": "Subtract the next value.", "x": "Multiply two values.",
   "/": "Divide two values. Dividing by zero wins, but destroys this card.",
-  "^X": "Raise the previous value to your remaining Energy, then spend it all.",
+  "_^2": "Combine with a digit, then square the combined value.",
+  "_^3": "Combine with a digit, then cube the combined value.",
   "()": "Group part of an expression with parentheses.",
   "T": "Equals the current turn number.",
   "2o": "Equals twice the number of operators played.",
@@ -58,7 +59,7 @@ type SourceRow = {
 };
 
 function cardId(name: string) {
-  const aliases: Record<string, string> = { "+": "plus", "-": "minus", "x": "multiply", "/": "divide", "()": "parentheses", "^X": "power-x" };
+  const aliases: Record<string, string> = { "+": "plus", "-": "minus", "x": "multiply", "/": "divide", "()": "parentheses", "_^2": "combo-square", "_^3": "combo-cube" };
   return aliases[name] ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 

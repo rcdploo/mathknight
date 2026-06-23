@@ -158,7 +158,7 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
   const expressionItems = useMemo(() => {
     try {
       return resolveExpressionTokens(selectedCards, { turn, level: 1 }).map((token) => ({
-        label: token.kind === "number" ? String(token.value) : token.kind === "power" ? `^${token.value}` : token.kind === "left" ? "(" : token.kind === "right" ? ")" : token.operator ?? "",
+        label: token.kind === "number" ? String(token.value) : token.kind === "left" ? "(" : token.kind === "right" ? ")" : token.operator ?? "",
         sourceIds: token.sourceIds,
       }));
     } catch {
@@ -183,9 +183,7 @@ export default function BattleGame({ onExit, onComplete }: { onExit: () => void;
   function addCard(card: BattleCard, bottled = false) {
     if (phase !== "playing" || selectedCards.some((selected) => selected.id === card.id)) return;
     const remainingEnergy = availableEnergy - energyUsed;
-    const playedCard = card.kind === "power"
-      ? { ...card, energy: remainingEnergy, lockedValue: remainingEnergy }
-      : card.label === "L" ? { ...card, energy: 1 }
+    const playedCard = card.label === "L" ? { ...card, energy: 1 }
       : card.label === "()" ? { ...card, label: "(", token: "(" } : card;
     if (energyUsed + playedCard.energy > availableEnergy) {
       setError("Not enough energy for that card.");

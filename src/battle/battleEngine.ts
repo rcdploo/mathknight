@@ -4,7 +4,7 @@ export type BattleCard = {
   id: string;
   label: string;
   token: string;
-  kind: "number" | "operator" | "combo" | "variable" | "power" | "parenthesis" | "upgrade";
+  kind: "number" | "operator" | "combo" | "variable" | "parenthesis" | "upgrade";
   energy: number;
   catalogId: string;
   type: CardType;
@@ -45,7 +45,6 @@ export function makeCard(label: string, kind: BattleCard["kind"], energy: number
 
 function cardKind(definition: CardDefinition): BattleCard["kind"] {
   if (definition.isUpgrade) return "upgrade";
-  if (definition.name === "^X") return "power";
   if (definition.name === "()") return "parenthesis";
   if (definition.type === "Digit") return "number";
   if (definition.type === "Combo") return "combo";
@@ -122,7 +121,7 @@ export function expressionEnergy(cards: BattleCard[]) {
 }
 
 export type ExpressionContext = { turn: number; level: number };
-type ResolvedToken = { kind: "number" | "operator" | "left" | "right" | "power"; value?: number; operator?: string; sourceIds: string[] };
+type ResolvedToken = { kind: "number" | "operator" | "left" | "right"; value?: number; operator?: string; sourceIds: string[] };
 
 function upgradedValue(card: BattleCard, value: number) {
   return card.upgrades.includes("1") || card.upgrades.includes("plus-1") ? value + 1 : value;
@@ -132,6 +131,12 @@ function isPrime(value: number) {
   if (!Number.isInteger(value) || value < 2) return false;
   for (let divisor = 2; divisor <= Math.sqrt(value); divisor += 1) if (value % divisor === 0) return false;
   return true;
+}
+
+function exponentComboPower(label: string) {
+  if (label === "_^2") return 2;
+  if (label === "_^3") return 3;
+  return null;
 }
 
 export function resolveExpressionTokens(cards: BattleCard[], context: ExpressionContext): ResolvedToken[] {
@@ -144,10 +149,20 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
   for (let index = 0; index < cards.length; index += 1) {
     const card = cards[index];
     if (card.kind === "combo") {
+      const exponent = exponentComboPower(card.label);
+      if (exponent !== null) {
+        const previous = tokens[tokens.length - 1];
+        if (!previous || previous.kind !== "number") throw new Error(`${card.label} must be played after a digit card.`);
+        const value = (previous.value ?? 0) ** exponent;
+        tokens[tokens.length - 1] = { ...previous, value, sourceIds: [...previous.sourceIds, card.id] };
+        resolvedNumbers[resolvedNumbers.length - 1] = value;
+        continue;
+      }
+
       const digit = cards[index + 1];
       if (!digit || digit.kind !== "number") throw new Error(`${card.label} must be followed by a digit card.`);
-      const tens = Number(card.label[0]) * 10;
-      const value = tens + upgradedValue(digit, Number(digit.token));
+      const digitValue = upgradedValue(digit, Number(digit.token));
+      const value = Number(card.label[0]) * 10 + digitValue;
       tokens.push({ kind: "number", value, sourceIds: [card.id, digit.id] });
       resolvedNumbers.push(value);
       index += 1;
@@ -172,10 +187,6 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
       if (card.upgrades.includes("3") || card.upgrades.includes("plus-3")) value += 3;
       tokens.push({ kind: "number", value, sourceIds: [card.id] });
       resolvedNumbers.push(value);
-      continue;
-    }
-    if (card.kind === "power") {
-      tokens.push({ kind: "power", value: card.lockedValue ?? card.energy, sourceIds: [card.id] });
       continue;
     }
     if (card.kind === "parenthesis") {
@@ -276,12 +287,6 @@ export function evaluateExpression(cards: BattleCard[], context: ExpressionConte
       if (expectsNumber) throw new Error("A closing parenthesis needs a number before it.");
       while (operators.length > 0 && operators[operators.length - 1] !== "(") applyOperator();
       if (operators.pop() !== "(") throw new Error("Parentheses are not balanced.");
-      return;
-    }
-    if (token.kind === "power") {
-      if (expectsNumber || values.length === 0) throw new Error("^X must follow a number or parenthetical expression.");
-      const base = values.pop();
-      values.push((base ?? 0) ** (token.value ?? 0));
       return;
     }
     if (expectsNumber) throw new Error("Expressions cannot begin with an operator.");

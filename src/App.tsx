@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, Home, KeyRound, RotateCcw, Settings, ShoppingBag, Swords, Volume2, VolumeX, X } from "lucide-react";
 import DungeonGame from "./dungeon/DungeonGame";
 import Quartermaster from "./quartermaster/Quartermaster";
@@ -22,6 +22,7 @@ type Screen = "map" | "game" | "result";
 
 const bossMemorizeSeconds = 30;
 const bossMatchSeconds = 15;
+const matchBorderColors = ["#f0ca73", "#6cb5a1", "#73c8dc", "#d77bb5", "#d77a66", "#9ea56c", "#b69be4", "#e39d5c", "#8fd3a9", "#b8c7d9"];
 
 function playTone(muted: boolean, frequency: number, duration = 0.08) {
   if (muted) return;
@@ -92,6 +93,13 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
   const hasEndedRef = useRef(false);
 
   const allLevelConfigs = useMemo(() => allLevels(), []);
+  const matchColorByPair = useMemo(() => {
+    const colorByPair = new Map<string, string>();
+    cards.forEach((card) => {
+      if (!colorByPair.has(card.pairId)) colorByPair.set(card.pairId, matchBorderColors[colorByPair.size % matchBorderColors.length]);
+    });
+    return colorByPair;
+  }, [cards]);
   const matchedPairs = useMemo(() => new Set(cards.filter((card) => card.matched).map((card) => card.pairId)).size, [cards]);
   const pairsRemaining = selectedLevel.pairs - matchedPairs;
   const currentProgress = progress.puzzles[selectedLevel.id] ?? blankPuzzleProgress();
@@ -373,6 +381,9 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
             <div className="board" style={{ gridTemplateColumns: `repeat(${selectedLevel.columns}, minmax(64px, 1fr))` }}>
               {cards.map((card) => {
                 const visible = card.matched || flippedIds.includes(card.id) || (selectedLevel.isBoss && bossPhase === "memorize");
+                const cardStyle = card.matched
+                  ? ({ "--match-color": matchColorByPair.get(card.pairId) } as CSSProperties)
+                  : undefined;
                 return (
                   <button
                     data-testid={`card-${card.id}`}
@@ -380,6 +391,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
                     data-card-kind={card.kind}
                     className={`card ${visible ? "flipped" : ""} ${card.matched ? "matched" : ""} ${card.kind}`}
                     key={card.id}
+                    style={cardStyle}
                     onClick={() => handleCardClick(card)}
                   >
                     <span className="card-front">{card.geometry ? <GeometryCardVisual geometry={card.geometry} /> : card.label}</span>
@@ -408,6 +420,7 @@ function MemoryMatchGame({ onExit }: { onExit: () => void }) {
             <div className="result-actions">
               <button onClick={() => startLevel(selectedLevel)}>Retry</button>
               {nextLevel && <button onClick={() => startLevel(nextLevel as LevelConfig)}>Next Trial</button>}
+              {result.completed && <button onClick={() => setScreen("game")}>View Results</button>}
               <button onClick={() => setScreen("map")}>Training Grounds</button>
             </div>
           </div>

@@ -455,8 +455,13 @@ button {
 }
 
 .card.matched .card-front {
-  opacity: 0.2;
-  transform: scale(0.94);
+  border-color: var(--match-color);
+  opacity: 0.68;
+  filter: saturate(0.58) brightness(0.9);
+  transform: scale(0.96);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--match-color) 72%, transparent),
+    0 8px 18px rgba(0, 0, 0, 0.2);
 }
 
 .result-screen {
