@@ -1,11 +1,12 @@
 import { Crown, Flag, Gem, HelpCircle, ShoppingBag, Skull, Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import BattleGame from "../battle/BattleGame";
-import { addRunItem, itemSymbol, loadRunItems, surfaceItems, type ItemDefinition } from "../battle/itemCatalog";
+import { addRunItem, itemById, itemSymbol, loadRunItems, surfaceItems, type ItemDefinition } from "../battle/itemCatalog";
 import { applyCardUpgrade, canApplyUpgrade, type BattleCard } from "../battle/battleEngine";
+import { cardById } from "../battle/cardCatalog";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
-import { generateMonster, nextDungeonStage, type DungeonRoom, type DungeonStage, type GeneratedMonster } from "../battle/monsterGenerator";
+import { generateMonster, generateRoomGold, nextDungeonStage, type DungeonRoom, type DungeonStage, type GeneratedMonster } from "../battle/monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { totalStars } from "../game/unlockRules";
 import { hasVisitedQuartermaster, loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
@@ -103,7 +104,7 @@ function generateDungeon(stage: DungeonStage): DungeonState {
   const usedTypeNames: string[] = [];
   const makeMonster = (type: RoomType, step: number) => {
     if (!shouldGenerateMonster(type)) return undefined;
-    const monster = generateMonster(stage, roomNumberForMonster(step), usedTypeNames);
+    const monster = generateMonster(stage, roomNumberForMonster(step), usedTypeNames, type === "elite" ? 2 : 0);
     usedTypeNames.push(monster.type.name);
     return monster;
   };
@@ -196,7 +197,7 @@ export default function DungeonGame({
       setDungeon((current) => {
         const usedTypeNames = current.nodes.flatMap((candidate) => candidate.monster ? [candidate.monster.type.name] : []);
         const monster = shouldGenerateMonster(resolvedType)
-          ? generateMonster(current.stage, roomNumberForMonster(node.step), usedTypeNames)
+          ? generateMonster(current.stage, roomNumberForMonster(node.step), usedTypeNames, resolvedType === "elite" ? 2 : 0)
           : undefined;
         return {
           ...current,
@@ -257,7 +258,8 @@ export default function DungeonGame({
   if (dungeon.view === "battle") {
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (!activeNode?.monster) return null;
-    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} />;
+    const effectiveType = activeNode.resolvedType ?? activeNode.type;
+    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite"} />;
   }
 
   if (dungeon.view === "event") {
@@ -265,6 +267,7 @@ export default function DungeonGame({
     if (activeNode) {
       const effectiveType = activeNode.resolvedType ?? activeNode.type;
       if (effectiveType === "shop") return <ShopRoom node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+      if (effectiveType === "treasure") return <TreasureReward node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
       return <RoomEvent node={activeNode} stage={dungeon.stage} eventType={effectiveType} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
     }
   }
@@ -406,6 +409,80 @@ function RoomEvent({ node, stage, eventType, onExit, onComplete }: { node: Dunge
       </section>
     </main>
   );
+}
+
+type TreasureState = { rewards: BattleCard[]; itemId: string | null; gold: number; paid: boolean };
+
+function TreasureReward({ node, stage, onExit, onComplete }: { node: DungeonNode; stage: DungeonStage; onExit: () => void; onComplete: () => void }) {
+  const storageKey = `mathknight.dungeon.treasure.${node.id}.v1`;
+  const [state, setState] = useState<TreasureState>(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem(storageKey) ?? "") as TreasureState;
+    } catch {
+      const next = {
+        rewards: generateCombatRewards(stage).map((reward) => reward.card),
+        itemId: surfaceItems(1)[0]?.id ?? null,
+        gold: Math.round(generateRoomGold(stage, node.step) * 1.5),
+        paid: false,
+      };
+      window.localStorage.setItem(storageKey, JSON.stringify(next));
+      return next;
+    }
+  });
+  const [chosen, setChosen] = useState<BattleCard | null>(null);
+  const [targeting, setTargeting] = useState(false);
+  const deck = loadRunDeckCards();
+
+  useEffect(() => {
+    if (state.paid) return;
+    const progress = loadProgress();
+    saveProgress({ ...progress, coins: progress.coins + state.gold });
+    if (state.itemId) addRunItem(state.itemId);
+    const next = { ...state, paid: true };
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+    setState(next);
+  }, [state, storageKey]);
+
+  function finishWithDeck(nextDeck: BattleCard[]) {
+    window.localStorage.setItem(runDeckKey, JSON.stringify(nextDeck));
+    window.localStorage.removeItem(storageKey);
+    onComplete();
+  }
+
+  function claim() {
+    if (!chosen) {
+      window.localStorage.removeItem(storageKey);
+      onComplete();
+      return;
+    }
+    if (chosen.kind === "upgrade") {
+      setTargeting(true);
+      return;
+    }
+    finishWithDeck([...deck, chosen]);
+  }
+
+  if (targeting && chosen) {
+    const removable = chosen.catalogId === "card-removal";
+    const eligible = removable ? deck : deck.filter((card) => canApplyUpgrade(card, chosen.catalogId));
+    return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
+      <p>Treasure Upgrade</p><h1>{removable ? "Choose a card to remove" : `Choose a card for ${chosen.label}`}</h1>
+      <div className="shop-target-grid">{eligible.map((card) => <button key={card.id} onClick={() => finishWithDeck(removable ? deck.filter((entry) => entry.id !== card.id) : deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, chosen.catalogId) : entry))}><strong>{card.label}</strong><small>{card.rarity}</small></button>)}</div>
+      <div className="battle-actions"><button onClick={() => setTargeting(false)}>Back</button></div>
+    </section></main>;
+  }
+
+  const item = state.itemId ? itemById.get(state.itemId) : undefined;
+  return <main className="battle-game reward-screen"><section className="reward-panel">
+    <p>Treasure Cache</p><h1>Choose one card</h1>
+    <p className="premium-item-earned">You found ${state.gold}{item ? <> and <strong>{item.name}</strong></> : null}.</p>
+    <div className="reward-cards">{state.rewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosen?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosen(card)}>
+      <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
+      {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
+      <small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
+    </button>)}</div>
+    <div className="battle-actions"><button onClick={claim}>{chosen ? `Choose ${chosen.label}` : "Continue without a card"}</button><button onClick={onExit}>Return to map</button></div>
+  </section></main>;
 }
 
 const runDeckKey = "mathknight.dungeon.runDeck.v1";

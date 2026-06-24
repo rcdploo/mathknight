@@ -1149,6 +1149,8 @@ button {
 .reward-cards .reward-option.upgrade { background: #326445; }
 .reward-cards .reward-option span { font-size: .68rem; font-weight: 900; text-transform: uppercase; }
 .reward-cards .reward-option .reward-upgrades { color: #9ee0bd; text-transform: none; }
+.premium-item-earned { margin: -12px 0 18px !important; color: #d8d0c3 !important; font-weight: 500 !important; text-transform: none !important; }
+.premium-item-earned strong { color: #e7a8d8; }
 .reward-cards .reward-option small { color: #d7d1c5; font-size: .7rem; line-height: 1.35; }
 .upgrade-target-panel { width: min(900px, calc(100% - 32px)); max-height: 88vh; overflow: auto; }
 

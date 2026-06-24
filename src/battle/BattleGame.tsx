@@ -5,7 +5,7 @@ import { cardById } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { loadPermanentLoadout } from "../quartermaster/quartermasterStore";
-import { hasItem, itemById, itemSymbol, loadRunItems, resetRunItems } from "./itemCatalog";
+import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, resetRunItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import {
   applyCardUpgrade, applyDamage, canApplyUpgrade, drawHand, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
@@ -25,6 +25,7 @@ type BattleSession = {
   turn: number;
   chosenReward: BattleCard | null;
   rewards: BattleCard[];
+  bonusItemId: string | null;
 };
 type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff"; effect: string };
 type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string; tone?: "buff" | "debuff" };
@@ -354,7 +355,7 @@ function createBattle(monster: GeneratedMonster) {
   };
 }
 
-function createBattleSession(monster: GeneratedMonster): BattleSession {
+function createBattleSession(monster: GeneratedMonster, bonusItem: boolean): BattleSession {
   const rewardPool = generateCombatRewards(monster.stage).map((reward) => ({
     ...reward.card,
     rewardSlot: reward.slot,
@@ -372,13 +373,14 @@ function createBattleSession(monster: GeneratedMonster): BattleSession {
     turn: 1,
     chosenReward: null,
     rewards: rewardPool,
+    bonusItemId: bonusItem ? surfaceItems(1)[0]?.id ?? null : null,
   };
 }
 
-function loadBattleSession(monster: GeneratedMonster): BattleSession {
+function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean) {
   try {
     const raw = window.localStorage.getItem(battleSessionKey);
-    if (!raw) return createBattleSession(monster);
+    if (!raw) return createBattleSession(monster, bonusItem);
     const parsed = JSON.parse(raw) as BattleSession;
     if (
       parsed.monsterId !== monster.id
@@ -386,9 +388,10 @@ function loadBattleSession(monster: GeneratedMonster): BattleSession {
       || !parsed.rewards
       || parsed.rewards.some((reward) => reward.rewardSlot === undefined)
       || typeof parsed.turn !== "number"
-    ) return createBattleSession(monster);
+    ) return createBattleSession(monster, bonusItem);
     const migrated = {
       ...parsed,
+      bonusItemId: parsed.bonusItemId ?? (bonusItem ? surfaceItems(1)[0]?.id ?? null : null),
       battle: {
         ...parsed.battle,
         itemIds: parsed.battle.itemIds ?? loadRunItems(),
@@ -400,7 +403,7 @@ function loadBattleSession(monster: GeneratedMonster): BattleSession {
     };
     return parsed.phase === "resolving" ? { ...migrated, phase: "playing" as const } : migrated;
   } catch {
-    return createBattleSession(monster);
+    return createBattleSession(monster, bonusItem);
   }
 }
 
@@ -408,8 +411,8 @@ function clearBattleSession() {
   window.localStorage.removeItem(battleSessionKey);
 }
 
-export default function BattleGame({ onExit, onComplete, monster = fallbackMonster, roomLabel = "Dungeon", dungeonLevel = 1 }: { onExit: () => void; onComplete: (won: boolean) => void; monster?: GeneratedMonster; roomLabel?: string; dungeonLevel?: number }) {
-  const restoredSession = useMemo(() => loadBattleSession(monster), [monster]);
+export default function BattleGame({ onExit, onComplete, monster = fallbackMonster, roomLabel = "Dungeon", dungeonLevel = 1, premiumReward = false }: { onExit: () => void; onComplete: (won: boolean) => void; monster?: GeneratedMonster; roomLabel?: string; dungeonLevel?: number; premiumReward?: boolean }) {
+  const restoredSession = useMemo(() => loadBattleSession(monster, premiumReward), [monster, premiumReward]);
   const [battle, setBattle] = useState(restoredSession.battle);
   const [selectedCards, setSelectedCards] = useState<BattleCard[]>(restoredSession.selectedCards);
   const [bottleUsed, setBottleUsed] = useState(restoredSession.bottleUsed);
@@ -419,6 +422,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [turn, setTurn] = useState(restoredSession.turn);
   const [chosenReward, setChosenReward] = useState<BattleCard | null>(restoredSession.chosenReward);
   const [rewards] = useState<BattleCard[]>(restoredSession.rewards);
+  const [bonusItemId] = useState(restoredSession.bonusItemId);
   const [musicOn, setMusicOn] = useState(true);
   const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | "victory" | "defeat" | null>(null);
   const [pileView, setPileView] = useState<"deck" | "discard" | null>(null);
@@ -516,9 +520,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   }, [musicOn]);
 
   useEffect(() => {
-    const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards };
+    const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId };
     window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
-  }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, monster.id]);
+  }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, monster.id]);
 
   function wakeAudio() {
     if (musicOn) startBattleMusic();
@@ -736,8 +740,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         const healedHealth = Math.min(battle.playerMaxHealth, playerHit.health + battle.mendingHealing * healMultiplier);
         const healingReceived = healedHealth - playerHit.health;
         const progress = loadProgress();
-        const goldReward = Math.round(monster.reward * (hasItem(itemIds, "signet") ? 1.3 : 1)) + (countered && hasItem(itemIds, "pursestring-cutter") ? monster.stage * 5 : 0);
+        const goldReward = Math.round(monster.reward * (premiumReward ? 1.5 : 1) * (hasItem(itemIds, "signet") ? 1.3 : 1)) + (countered && hasItem(itemIds, "pursestring-cutter") ? monster.stage * 5 : 0);
         saveProgress({ ...progress, coins: progress.coins + goldReward });
+        if (bonusItemId) addRunItem(bonusItemId);
         saveRunHealth(healedHealth);
         setBattle((current) => ({ ...current, playerHealth: healedHealth }));
         stopBattleMusic();
@@ -746,8 +751,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         setPhase("victory");
         setMessage(
           healingReceived > 0
-            ? `${monster.name} falls. You gain $${goldReward}. Healing restores ${healingReceived} HP.`
-            : `${monster.name} falls. You gain $${goldReward}. Your health is already full.`,
+            ? `${monster.name} falls. You gain $${goldReward}${bonusItemId ? ` and ${itemById.get(bonusItemId)?.name ?? "an item"}` : ""}. Healing restores ${healingReceived} HP.`
+            : `${monster.name} falls. You gain $${goldReward}${bonusItemId ? ` and ${itemById.get(bonusItemId)?.name ?? "an item"}` : ""}. Your health is already full.`,
         );
         return;
       }
@@ -905,6 +910,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       <main className="battle-game reward-screen">
         <div className="reward-panel">
           <p>Battle Spoils</p><h1>Choose one card</h1>
+          {bonusItemId && itemById.get(bonusItemId) && <p className="premium-item-earned">Item acquired: <strong>{itemById.get(bonusItemId)?.name}</strong></p>}
           <div className="reward-cards">
             {rewards.map((card) => (
               <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>

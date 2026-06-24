@@ -218,7 +218,7 @@ function selectBuffs(totalDifficulty: number, usage: MonsterUsage, type: Monster
   return selected;
 }
 
-export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedTypeNames: string[]): GeneratedMonster {
+export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedTypeNames: string[], buffBonus = 0): GeneratedMonster {
   const usage = loadUsage();
   const compatibleTypes = monsterTypes.filter((type) =>
     allowedComplexities(room).includes(type.complexity)
@@ -227,7 +227,7 @@ export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedType
   const unusedCompatibleTypes = compatibleTypes.filter((type) => !usedTypeNames.includes(type.name));
   const type = choice(leastUsed(unusedCompatibleTypes.length > 0 ? unusedCompatibleTypes : compatibleTypes, usage.types));
   const pattern = choice(leastUsed(weightedPatternPool(type, room), usage.patterns));
-  const buffs = selectBuffs(buffBudget[stage][room] ?? 0, usage, type);
+  const buffs = selectBuffs((buffBudget[stage][room] ?? 0) + buffBonus, usage, type);
   const sortedBuffs = [...buffs].sort((left, right) => right.difficulty - left.difficulty || left.name.localeCompare(right.name));
   const highestDifficulty = sortedBuffs[0]?.difficulty;
   const titleBuff = highestDifficulty ? choice(sortedBuffs.filter((buff) => buff.difficulty === highestDifficulty)) : undefined;
@@ -257,6 +257,15 @@ export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedType
     baseAttack: damage,
     reward,
   };
+}
+
+export function generateRoomGold(stage: DungeonStage, step: number) {
+  const lowerRoom = Math.max(1, Math.min(9, Math.floor(step))) as DungeonRoom;
+  const upperRoom = Math.max(1, Math.min(9, Math.ceil(step))) as DungeonRoom;
+  const lower = baseReward[stage][lowerRoom] ?? 0;
+  const upper = baseReward[stage][upperRoom] ?? lower;
+  const base = lowerRoom === upperRoom ? lower : lower + (upper - lower) * (step - Math.floor(step));
+  return Math.max(0, Math.round(base * randomBetween(.9, 1.1)));
 }
 
 export function nextDungeonStage(stage: DungeonStage): DungeonStage {
