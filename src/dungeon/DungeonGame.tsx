@@ -207,10 +207,12 @@ export default function DungeonGame({
         const monster = shouldGenerateMonster(resolvedType)
           ? generateMonster(current.level, roomNumberForMonster(node.step), usedTypeNames, resolvedType === "elite" ? 2 : 0)
           : undefined;
+        const shopResolved = resolvedType === "shop";
         return {
           ...current,
           nodes: current.nodes.map((candidate) => candidate.id === node.id ? { ...candidate, resolvedType, monster } : candidate),
-          availableIds: [node.id],
+          completedIds: shopResolved ? [...new Set([...current.completedIds, node.id])] : current.completedIds,
+          availableIds: shopResolved ? [node.id, ...node.next] : [node.id],
           activeNodeId: node.id,
           view: shouldGenerateMonster(resolvedType) ? "battle" : "event",
           notice: `The unknown room revealed a ${roomDetails[resolvedType].label.toLowerCase()}.`,
@@ -220,7 +222,14 @@ export default function DungeonGame({
     }
     const effectiveType = node.resolvedType ?? node.type;
     const view = shouldGenerateMonster(effectiveType) ? "battle" : "event";
-    setDungeon((current) => ({ ...current, availableIds: [node.id], activeNodeId: node.id, view, notice: `Entered ${roomDetails[effectiveType].label}.` }));
+    setDungeon((current) => ({
+      ...current,
+      completedIds: effectiveType === "shop" ? [...new Set([...current.completedIds, node.id])] : current.completedIds,
+      availableIds: effectiveType === "shop" ? [node.id, ...node.next] : [node.id],
+      activeNodeId: node.id,
+      view,
+      notice: `Entered ${roomDetails[effectiveType].label}.`,
+    }));
   }
 
   function completeRoom(won: boolean) {
@@ -513,6 +522,9 @@ function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; leve
   const [coins, setCoins] = useState(() => loadProgress().coins);
   const [deck, setDeck] = useState(loadRunDeckCards);
   const [targetSlot, setTargetSlot] = useState<ShopSlot | null>(null);
+  const [randomRewardSlot, setRandomRewardSlot] = useState<ShopSlot | null>(null);
+  const [randomRewards, setRandomRewards] = useState<BattleCard[]>([]);
+  const [chosenRandomReward, setChosenRandomReward] = useState<BattleCard | null>(null);
   const [message, setMessage] = useState("Need more gold? Return to the Training Grounds to earn more.");
   const discount = loadRunItems().includes("loyalty-card") ? .8 : 1;
   const shopPositionOrder = ["C1", "C2", "C3", "I1", "C4", "C5", "C6", "I2", "U1", "U2", "U3", "I3", "S1", "S2", "S3", "I4"];
@@ -559,16 +571,28 @@ function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; leve
       persist(slots, deck, coins - price);
       setMessage("Sustenance restores up to 30 HP.");
     } else if (slot.type === "random-reward") {
-      const reward = generateCombatRewards(level)[Math.floor(Math.random() * 3)].card;
-      if (reward.kind === "upgrade") {
-        setTargetSlot({ ...slot, type: "upgrade", card: reward } as ShopSlot);
-      } else {
-        persist(markSold(slot), [...deck, reward], coins - price);
-        setMessage(`${reward.label} was added to your deck.`);
-      }
+      setRandomRewardSlot(slot);
+      setRandomRewards(generateCombatRewards(level).map((reward) => reward.card));
+      setChosenRandomReward(null);
     } else {
       setTargetSlot(slot);
     }
+  }
+
+  function claimRandomReward() {
+    if (!randomRewardSlot || !chosenRandomReward) return;
+    if (chosenRandomReward.kind === "upgrade") {
+      setTargetSlot({ ...randomRewardSlot, type: "upgrade", card: chosenRandomReward } as ShopSlot);
+      setRandomRewardSlot(null);
+      setRandomRewards([]);
+      return;
+    }
+    const price = priceFor(randomRewardSlot);
+    persist(markSold(randomRewardSlot), [...deck, chosenRandomReward], coins - price);
+    setMessage(`${chosenRandomReward.label} was added to your deck.`);
+    setRandomRewardSlot(null);
+    setRandomRewards([]);
+    setChosenRandomReward(null);
   }
 
   function chooseTarget(card: BattleCard) {
@@ -594,6 +618,21 @@ function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; leve
       <p>Shop purchase</p><h1>{targetSlot.type === "remove-card" ? "Choose a card to remove" : `Choose a card for ${targetSlot.type === "upgrade" ? targetSlot.card.label : "upgrade"}`}</h1>
       <div className="shop-target-grid">{eligible.map((card) => <GameCard card={card} bottled={loadPermanentLoadout().bottledCard.id === card.id} preview onClick={() => chooseTarget(card)} key={card.id} />)}</div>
       <div className="battle-actions"><button onClick={() => setTargetSlot(null)}>Cancel</button></div>
+    </section></main>;
+  }
+
+  if (randomRewardSlot) {
+    return <main className="battle-game reward-screen"><section className="reward-panel">
+      <p>Shop Card Reward</p><h1>Choose one card</h1>
+      <div className="reward-cards">{randomRewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenRandomReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenRandomReward(card)}>
+        <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
+        {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
+        <small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
+      </button>)}</div>
+      <div className="battle-actions">
+        <button onClick={claimRandomReward} disabled={!chosenRandomReward}>{chosenRandomReward ? `Choose ${chosenRandomReward.label}` : "Choose a card"}</button>
+        <button onClick={() => { setRandomRewardSlot(null); setRandomRewards([]); setChosenRandomReward(null); }}>Cancel</button>
+      </div>
     </section></main>;
   }
 
