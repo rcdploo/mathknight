@@ -1,4 +1,4 @@
-import source from "./items.csv?raw";
+import source from "./Items.csv?raw";
 import { applyCardUpgrade, canApplyUpgrade, makeCatalogEntry, shuffle, type BattleCard } from "./battleEngine";
 import { cardsEligibleForRewards } from "./cardCatalog";
 
