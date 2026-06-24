@@ -87,27 +87,11 @@ function generateDungeon(stage: DungeonStage): DungeonState {
   };
 }
 
-function hydrateDungeonMonsters(dungeon: DungeonState): DungeonState {
-  const usedTypeNames: string[] = [];
-  const nodes = dungeon.nodes.map((node) => {
-    if (!shouldGenerateMonster(node.type)) return node;
-    if (node.monster) {
-      usedTypeNames.push(node.monster.type.name);
-      return node;
-    }
-    const monster = generateMonster(dungeon.stage, roomNumberForMonster(node.step), usedTypeNames);
-    usedTypeNames.push(monster.type.name);
-    return { ...node, monster };
-  });
-  return { ...dungeon, nodes };
-}
-
 function loadDungeon() {
   try {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
-    const parsed = JSON.parse(raw) as DungeonState;
-    return parsed.nodes?.length ? hydrateDungeonMonsters({ ...parsed, stage: parsed.stage ?? 1 }) : generateDungeon(1);
+    return JSON.parse(raw) as DungeonState;
   } catch {
     return generateDungeon(1);
   }
@@ -144,6 +128,7 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
     if (!won) {
       const nextDungeon = generateDungeon(dungeon.stage);
       nextDungeon.notice = "The dungeon shifted after your defeat. Choose a new path.";
+      window.localStorage.setItem(dungeonStorageKey, JSON.stringify(nextDungeon));
       setDungeon(nextDungeon);
       return;
     }
@@ -177,11 +162,7 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
 
   if (dungeon.view === "battle") {
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
-    if (!activeNode?.monster) {
-      const repairedDungeon = hydrateDungeonMonsters(dungeon);
-      const repairedNode = dungeon.activeNodeId ? new Map(repairedDungeon.nodes.map((node) => [node.id, node])).get(dungeon.activeNodeId) : undefined;
-      return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={repairedNode?.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode?.step ?? 1}`} dungeonLevel={activeNode?.step ?? 1} />;
-    }
+    if (!activeNode?.monster) return null;
     return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} />;
   }
 

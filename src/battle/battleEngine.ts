@@ -75,23 +75,6 @@ export function makeStartingDeck() {
   ];
 }
 
-export function makeBottledPlus() {
-  return makeCard("+", "operator", 1);
-}
-
-export function migrateBattleCard(card: BattleCard): BattleCard {
-  const definition = cardByName.get(card.label);
-  return {
-    ...card,
-    catalogId: card.catalogId ?? definition?.id ?? card.label,
-    type: card.type ?? definition?.type ?? (card.kind === "number" ? "Digit" : "Operator"),
-    rarity: card.rarity ?? definition?.rarity ?? "Starter",
-    effect: card.effect ?? definition?.effect ?? card.label,
-    shopCostRaw: card.shopCostRaw ?? definition?.shopCostRaw ?? "",
-    upgrades: card.upgrades ?? [],
-  };
-}
-
 export function shuffle<T>(items: T[]) {
   const shuffled = [...items];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {

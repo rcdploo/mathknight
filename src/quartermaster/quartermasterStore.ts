@@ -1,5 +1,5 @@
 import { cardById } from "../battle/cardCatalog";
-import { makeStartingDeck, migrateBattleCard, type BattleCard } from "../battle/battleEngine";
+import { makeStartingDeck, type BattleCard } from "../battle/battleEngine";
 
 export type PermanentLoadout = {
   deck: BattleCard[];
@@ -36,20 +36,7 @@ export function loadPermanentLoadout(): PermanentLoadout {
       savePermanentLoadout(initial);
       return initial;
     }
-    const parsed = JSON.parse(raw) as PermanentLoadout;
-    return {
-      ...parsed,
-      deck: parsed.deck.map(migrateBattleCard),
-      bottledCard: migrateBattleCard(parsed.bottledCard),
-      bottleMaxCost: parsed.bottleMaxCost ?? 1,
-      bottleUpgradeCount: parsed.bottleUpgradeCount ?? 0,
-      removalPurchases: parsed.removalPurchases ?? 0,
-      dungeonLevel: parsed.dungeonLevel ?? 1,
-      mendingHealing: parsed.mendingHealing ?? 10,
-      mendingUpgradeCount: parsed.mendingUpgradeCount ?? 0,
-      maxHealth: parsed.maxHealth ?? 40,
-      growPurchases: parsed.growPurchases ?? 0,
-    };
+    return JSON.parse(raw) as PermanentLoadout;
   } catch {
     return startingLoadout();
   }
@@ -69,7 +56,7 @@ export function printedEnergyCost(card: BattleCard, maxEnergy = 3) {
 export function syncRunDeck(transform: (deck: BattleCard[]) => BattleCard[]) {
   try {
     const raw = window.localStorage.getItem(runDeckKey);
-    const deck = raw ? (JSON.parse(raw) as BattleCard[]).map(migrateBattleCard) : loadPermanentLoadout().deck;
+    const deck = raw ? JSON.parse(raw) as BattleCard[] : loadPermanentLoadout().deck;
     window.localStorage.setItem(runDeckKey, JSON.stringify(transform(deck)));
   } catch {
     window.localStorage.setItem(runDeckKey, JSON.stringify(loadPermanentLoadout().deck));

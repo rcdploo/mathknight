@@ -19,12 +19,7 @@ export function loadProgress(): PlayerProgress {
   try {
     const parsed = JSON.parse(raw) as PlayerProgress;
     if (parsed.schemaVersion !== 1) return structuredClone(defaultProgress);
-    return {
-      ...defaultProgress,
-      ...parsed,
-      settings: { ...defaultProgress.settings, ...parsed.settings },
-      puzzles: parsed.puzzles ?? {},
-    };
+    return parsed;
   } catch {
     return structuredClone(defaultProgress);
   }
@@ -59,14 +54,8 @@ export function importProgressCode(code: string): PlayerProgress {
     throw new Error("This save code is not a valid Mathknight save.");
   }
 
-  const next = {
-    ...defaultProgress,
-    ...parsed,
-    settings: { ...defaultProgress.settings, ...parsed.settings },
-    puzzles: parsed.puzzles,
-  };
-  saveProgress(next);
-  return next;
+  saveProgress(parsed);
+  return parsed;
 }
 
 function readLocalProgress() {
@@ -124,12 +113,6 @@ export function recordLevelResult(progress: PlayerProgress, level: LevelConfig, 
 
 export function setMuted(progress: PlayerProgress, muted: boolean) {
   const next = { ...progress, settings: { ...progress.settings, muted } };
-  saveProgress(next);
-  return next;
-}
-
-export function resetProgress() {
-  const next = structuredClone(defaultProgress);
   saveProgress(next);
   return next;
 }

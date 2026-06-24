@@ -15,7 +15,7 @@ Card Name,Type,Rarity,Energy Cost,Effect,Median Purchase Cost at Shop
 x,Operator,Uncommon,2,<multiplication operator>,$125
 /,Operator,Uncommon,-1,"<division operator> [if you divide by 0 you deal infinite damage and auto win, but this card is removed from your deck and lost forever. warn the player first]",$115
 _^2,Combo,Uncommon,2,Exponeniates the combined digit to the power of 2,$200
-_^3,Combo,Rare,4,Exponeniates the combined digit to the power of 3,$300
+_^3,Combo,Rare,3,Exponeniates the combined digit to the power of 3,$300
 (),Operator,Rare,1,"You play an open right parenthesis ""("", then a closing left parentesis "")"" is generated in your hand <no additional energy cost, its not a separate card just an indicator>. You must play the closing parenthesis to make a valid expression, or if you remove the open parenthesis the closed one disappears from your hand",$175
 T,Variable,Uncommon,0,Value is equal to the turn number of the current fight,$135
 2o,Variable,Uncommon,1,Value is equal to twice the number of operators in your expression,$145
@@ -27,7 +27,7 @@ U^2,Variable,Rare,2,Value is equal to the square of the number of upgraded cards
 Armor,Upgrade (Digit),Common,n/a,"When used in an expression, increase your armor by this amount. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$95
 +1,Upgrade (Digit),Common,n/a,"Change the value of a 1-8 digit card by 1. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$65
 Card Removal,Upgrade,Rare,n/a,"When acquired, immediately remove a card from your deck forever","$100, increasing in cost by $100 for each card you've removed"
-L,Variable,Rare,?,"Value is equal to the level you are currently on. (1st run has levels 1-10. After than 11-20, then 21-30 etc.). The energy cost is the Level / 10 rouded up.",$240
+L,Variable,Rare,0,"Value is equal to the level you are currently on. (1st run has levels 1-10. After than 11-20, then 21-30 etc.).",$240
 +3,Upgrade (Variable),Uncommon,n/a,"Change the resulting value of any variable card by +3. [When purchased, permanently enhance a variable card in the deck that doesn't have this upgrade]",$155
 Cycling,Upgrade (any),Uncommon,n/a,"When this card is in hand, you may discard it to draw a replacement card at no cost (cannot be undone). [When purchased, permanently enhance a card in the deck that doesn't have this upgrade]",$180
 Consumable,Upgrade (any),Rare,n/a,"When this card is in hand, you may discard it to gain 1 energy this turn (can be undone). [When purchased, permanently enhance a card in the deck that doesn't have this upgrade]",$210

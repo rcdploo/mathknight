@@ -3,13 +3,13 @@ export type BattleSound = "card" | "hero-hit" | "enemy-hit" | "counter" | "victo
 let context: AudioContext | null = null;
 let musicTimer: number | null = null;
 let musicEnabled = true;
+let musicStarting = false;
 
 function audioContext() {
   if (!context) {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     context = new AudioContextClass();
   }
-  if (context.state === "suspended") void context.resume();
   return context;
 }
 
@@ -49,27 +49,36 @@ export function playBattleSound(sound: BattleSound) {
 }
 
 function scheduleMusicLoop() {
-  if (!musicEnabled) return;
+  if (!musicEnabled || audioContext().state !== "running") return;
   const audio = audioContext();
   const start = audio.currentTime + 0.08;
   const bass = [110, 110, 98, 98, 123.47, 123.47, 82.41, 82.41];
   const melody = [220, 261.63, 293.66, 261.63, 246.94, 293.66, 329.63, 293.66];
   for (let beat = 0; beat < 64; beat += 1) {
     const step = beat % 8;
-    if (beat % 2 === 0) tone(bass[step], start + beat * 0.5, 0.42, 0.009, "triangle");
-    if (beat % 4 === 1) tone(melody[step], start + beat * 0.5, 0.3, 0.006, "sine");
+    if (beat % 2 === 0) tone(bass[step], start + beat * 0.5, 0.42, 0.022, "triangle");
+    if (beat % 4 === 1) tone(melody[step], start + beat * 0.5, 0.3, 0.015, "sine");
   }
 }
 
 export function startBattleMusic() {
   musicEnabled = true;
-  if (musicTimer !== null) return;
-  scheduleMusicLoop();
-  musicTimer = window.setInterval(scheduleMusicLoop, 32_000);
+  if (musicTimer !== null || musicStarting) return;
+  musicStarting = true;
+  const audio = audioContext();
+  void audio.resume().then(() => {
+    musicStarting = false;
+    if (!musicEnabled || musicTimer !== null) return;
+    scheduleMusicLoop();
+    musicTimer = window.setInterval(scheduleMusicLoop, 32_000);
+  }).catch(() => {
+    musicStarting = false;
+  });
 }
 
 export function stopBattleMusic() {
   musicEnabled = false;
+  musicStarting = false;
   if (musicTimer !== null) window.clearInterval(musicTimer);
   musicTimer = null;
 }

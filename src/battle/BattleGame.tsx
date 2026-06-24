@@ -7,7 +7,7 @@ import { loadProgress, saveProgress } from "../game/progressStore";
 import { loadPermanentLoadout } from "../quartermaster/quartermasterStore";
 import {
   applyCardUpgrade, applyDamage, canApplyUpgrade, drawHand, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
-  makeCard, makeCatalogEntry, migrateBattleCard, resolveExpressionTokens, rollAny, shuffle, type BattleCard,
+  makeCard, makeCatalogEntry, resolveExpressionTokens, rollAny, shuffle, type BattleCard,
 } from "./battleEngine";
 
 type BattlePhase = "playing" | "resolving" | "victory" | "defeat" | "reward" | "upgrade";
@@ -25,7 +25,7 @@ type BattleSession = {
   rewards: BattleCard[];
 };
 type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff"; effect: string };
-type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string };
+type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string; tone?: "buff" | "debuff" };
 
 const battleSessionKey = "mathknight.battle.session.v1";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
@@ -50,7 +50,7 @@ function loadRunDeck() {
   try {
     const raw = window.localStorage.getItem(runDeckKey);
     if (!raw) return loadPermanentLoadout().deck;
-    return (JSON.parse(raw) as BattleCard[]).map(migrateBattleCard);
+    return JSON.parse(raw) as BattleCard[];
   } catch {
     return loadPermanentLoadout().deck;
   }
@@ -88,6 +88,12 @@ function primeAtLeast(value: number) {
   return candidate;
 }
 
+function advancingPrime(medianAttack: number, turn: number) {
+  let prime = primeAtLeast(Math.ceil(medianAttack * 0.7));
+  for (let step = 1; step < turn; step += 1) prime = primeAtLeast(prime + 1);
+  return prime;
+}
+
 function choice<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
@@ -101,6 +107,7 @@ function rollAttack(median: number) {
 function makeMonsterActionDeck(monster: GeneratedMonster) {
   const pattern = monster.attackPattern.name;
   if (pattern === "Stalwart") return shuffle(["attack", "half-attack-half-block"]);
+  if (pattern === "Magical") return shuffle(["attack", "spell"]);
   if (pattern === "Casting") return shuffle(["attack", "half-block-spell"]);
   if (pattern === "Ruthless") return shuffle(["attack", "crit-attack", "spell", "block"]);
   if (pattern === "Sorcerous") return shuffle(["attack", "double-spell"]);
@@ -138,7 +145,7 @@ function monsterAction(monster: GeneratedMonster, turn: number, deck: string[], 
     "heavy-attack-light-block": { intent: Math.round(attack * 0.75), armor: Math.round(attack * 0.25), text: `${monster.name} advances behind a light guard.` },
     "half-attack-light-block": { intent: Math.round(attack * 0.5), armor: Math.round(attack * 0.25), text: `${monster.name} moves unpredictably.` },
     "heavy-attack": { intent: Math.round(attack * 1.25), armor: 0, text: `${monster.name} surges forward.` },
-    prime: { intent: primeAtLeast(attack + turn - 1), armor: 0, text: `${monster.name} counts upward through prime strikes.` },
+    prime: { intent: advancingPrime(monster.baseAttack, turn), armor: 0, text: `${monster.name} counts upward through prime strikes.` },
     "countdown-3": { intent: 3, armor: 0, text: `${monster.name} begins an explosive countdown.` },
     "countdown-2": { intent: 2, armor: 0, text: `${monster.name} continues the countdown.` },
     "countdown-1": { intent: 1, armor: 0, text: `${monster.name} is about to explode.` },
@@ -186,13 +193,13 @@ function spellLabel(spell: string) {
   return Number.isFinite(power) ? `${name} ${power}` : name;
 }
 
-function monsterSpellBuffs(battle: BattleState): MonsterBuffTile[] {
+function monsterSpellBuffs(battle: BattleState, stage: number): MonsterBuffTile[] {
   const buffs: Array<MonsterBuffTile | null> = [
     battle.enrageStacks > 0
       ? { name: "Enrage", symbol: "E", value: battle.enrageStacks, effect: "Attacks deal 10% more damage per stack." }
       : null,
     battle.thornsStacks > 0
-      ? { name: "Thorns", symbol: "T", value: battle.thornsStacks, effect: "When the monster acts, you take 2*Stage damage per stack." }
+      ? { name: "Thorns", symbol: "T", value: battle.thornsStacks, effect: `You take ${2 * stage} Damage after each time attacking.` }
       : null,
   ];
   return buffs.filter((buff): buff is MonsterBuffTile => buff !== null);
@@ -204,6 +211,10 @@ function makeZeroCard(reason: string) {
 
 function isTemporaryCard(card: BattleCard) {
   return card.generatedById === "Dazing";
+}
+
+function isClosingParenthesisHelper(card: BattleCard) {
+  return card.label === ")" && card.generatedById !== undefined && card.id.endsWith("-close");
 }
 
 function reduceDigits(cards: BattleCard[], amount: number) {
@@ -287,7 +298,7 @@ function createBattle(monster: GeneratedMonster) {
   const openingAction = monsterAction(monster, 1, [], null);
   return {
     ...opening,
-    bottledCard: loadPermanentLoadout().bottledCard,
+    bottledCard: loadout.bottledCard,
     playerHealth: loadRunHealth(loadout.maxHealth),
     playerMaxHealth: loadout.maxHealth,
     mendingHealing: loadout.mendingHealing,
@@ -334,50 +345,13 @@ function createBattleSession(monster: GeneratedMonster): BattleSession {
   };
 }
 
-function loadBattleSession(monster: GeneratedMonster) {
+function loadBattleSession(monster: GeneratedMonster): BattleSession {
   try {
     const raw = window.localStorage.getItem(battleSessionKey);
     if (!raw) return createBattleSession(monster);
     const parsed = JSON.parse(raw) as BattleSession;
     if (parsed.monsterId !== monster.id || !parsed.battle?.hand || !parsed.rewards || typeof parsed.turn !== "number") return createBattleSession(monster);
-    return {
-      ...parsed,
-      battle: {
-        ...parsed.battle,
-        hand: parsed.battle.hand.map(migrateBattleCard),
-        drawPile: parsed.battle.drawPile.map(migrateBattleCard),
-        discardPile: parsed.battle.discardPile.map(migrateBattleCard),
-        bottledCard: migrateBattleCard(parsed.battle.bottledCard),
-        playerArmor: parsed.battle.playerArmor ?? 0,
-        enemyArmor: parsed.battle.enemyArmor ?? 0,
-        enemySecondaryIntent: parsed.battle.enemySecondaryIntent ?? 0,
-        enemyFakeIntent: parsed.battle.enemyFakeIntent ?? null,
-        enemySpellCount: parsed.battle.enemySpellCount ?? parsed.battle.pendingMonsterSpells?.length ?? 0,
-        enemyStunned: parsed.battle.enemyStunned ?? false,
-        weakenNext: parsed.battle.weakenNext ?? 0,
-        playerMaxHealth: parsed.battle.playerMaxHealth ?? loadPermanentLoadout().maxHealth,
-        mendingHealing: parsed.battle.mendingHealing ?? loadPermanentLoadout().mendingHealing,
-        enemyMaxHealth: parsed.battle.enemyMaxHealth ?? monster.maxHealth,
-        monsterActionDeck: parsed.battle.monsterActionDeck ?? [],
-        monsterLastAction: parsed.battle.monsterLastAction ?? null,
-        monsterMessage: parsed.battle.monsterMessage ?? "",
-        pendingMonsterSpells: parsed.battle.pendingMonsterSpells ?? [],
-        enrageStacks: parsed.battle.enrageStacks ?? 0,
-        thornsStacks: parsed.battle.thornsStacks ?? 0,
-        crippleTurns: parsed.battle.crippleTurns ?? 0,
-        playerWeakenTurns: parsed.battle.playerWeakenTurns ?? 0,
-        addleTurns: parsed.battle.addleTurns ?? 0,
-        confoundTurns: parsed.battle.confoundTurns ?? 0,
-        energyDrainTurns: parsed.battle.energyDrainTurns ?? 0,
-        usurpDraws: parsed.battle.usurpDraws ?? 0,
-        forcedCardId: parsed.battle.forcedCardId ?? null,
-        immolationTurns: parsed.battle.immolationTurns ?? 0,
-      },
-      selectedCards: parsed.selectedCards.map(migrateBattleCard),
-      rewards: parsed.rewards.map(migrateBattleCard),
-      chosenReward: parsed.chosenReward ? migrateBattleCard(parsed.chosenReward) : null,
-      phase: parsed.phase === "resolving" ? "playing" : parsed.phase,
-    };
+    return parsed.phase === "resolving" ? { ...parsed, phase: "playing" } : parsed;
   } catch {
     return createBattleSession(monster);
   }
@@ -422,14 +396,20 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       : String(displayedIntent);
   const spellSymbols = battle.enemyStunned ? [] : Array.from({ length: battle.enemySpellCount }, (_, index) => index);
   const displayedBlock = battle.enemyStunned ? 0 : battle.enemyArmor;
-  const previewResult = useMemo(() => {
+  const rawPreviewResult = useMemo(() => {
     try {
       return evaluateExpression(selectedCards, { turn, level: dungeonLevel });
     } catch {
       return null;
     }
   }, [dungeonLevel, selectedCards, turn]);
-  const counterReady = previewResult !== null && previewResult === displayedIntent;
+  const playerIsWeakened = battle.playerWeakenTurns > 0;
+  const previewResult = rawPreviewResult === null
+    ? null
+    : playerIsWeakened && rawPreviewResult !== displayedIntent
+      ? Math.max(0, rawPreviewResult - Math.max(1, Math.ceil(rawPreviewResult * 0.1)))
+      : rawPreviewResult;
+  const counterReady = rawPreviewResult !== null && rawPreviewResult === displayedIntent;
   const expressionItems = useMemo(() => {
     try {
       return resolveExpressionTokens(selectedCards, { turn, level: dungeonLevel }).map((token) => ({
@@ -455,9 +435,29 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     battle.enemySecondaryIntent > 0 ? { name: "Split attack", symbol: "S", tone: "buff" as const, effect: "The attack is split into two uneven parts." } : null,
   ];
   const activeStatuses = statusTiles.filter((status): status is StatusTile => status !== null);
-  const monsterStatusBuffs = monsterSpellBuffs(battle);
+  const monsterStatusBuffs: MonsterBuffTile[] = [
+    ...monsterSpellBuffs(battle, monster.stage),
+    ...(battle.weakenNext > 0
+      ? [{ name: "Weaken", symbol: "W", value: battle.weakenNext, effect: "The monster's next attack deals 10% less damage per stack.", tone: "debuff" as const }]
+      : []),
+  ];
+  const visibleHand = battle.hand.filter((card) =>
+    !isClosingParenthesisHelper(card)
+    || selectedCards.some((selected) => selected.id === card.generatedById && selected.label === "("),
+  );
 
   useEffect(() => () => stopBattleMusic(), []);
+
+  useEffect(() => {
+    if (!musicOn) return;
+    const unlockMusic = () => startBattleMusic();
+    window.addEventListener("pointerdown", unlockMusic, { once: true });
+    window.addEventListener("keydown", unlockMusic, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockMusic);
+      window.removeEventListener("keydown", unlockMusic);
+    };
+  }, [musicOn]);
 
   useEffect(() => {
     const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards };
@@ -479,8 +479,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       return;
     }
     const remainingEnergy = availableEnergy - energyUsed;
-    const playedCard = card.label === "L" ? { ...card, energy: 1 }
-      : card.label === "()" ? { ...card, label: "(", token: "(" } : card;
+    const playedCard = card.label === "()" ? { ...card, label: "(", token: "(" } : card;
     if (energyUsed + playedCard.energy > availableEnergy) {
       setError("Not enough energy for that card.");
       return;
@@ -578,19 +577,20 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const enemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, outgoingDamage);
     const monsterDefeated = enemyHit.health === 0;
     const armorAfterExpression = battle.playerArmor + upgradeEffects.armor;
-    const vexxingDamage = hasBuff(monster, "Vexxing") ? monster.stage * operatorCount : 0;
     const monsterEffectsCanceled = countered || monsterDefeated;
+    const vexxingDamage = hasBuff(monster, "Vexxing") && !monsterEffectsCanceled ? monster.stage * operatorCount : 0;
     const noxiousDamage = hasBuff(monster, "Noxious") && !monsterEffectsCanceled ? monster.stage * 2 : 0;
-    const thornsDamage = !monsterEffectsCanceled ? battle.thornsStacks * monster.stage * 2 : 0;
+    const thornsDamage = !countered ? battle.thornsStacks * monster.stage * 2 : 0;
     const effectiveArmor = hasBuff(monster, "Corrosive") ? Math.floor(armorAfterExpression * 0.75) : armorAfterExpression;
     const incomingDamage = monsterEffectsCanceled ? 0 : displayedIntent + displayedSecondaryIntent;
-    const playerHit = monsterDefeated
-      ? { health: battle.playerHealth, armor: armorAfterExpression, damage: 0 }
-      : countered
-        ? incomingDamage > 0
-          ? applyDamage(Math.max(0, battle.playerHealth - vexxingDamage - noxiousDamage - thornsDamage), effectiveArmor, incomingDamage)
-          : { health: Math.max(0, battle.playerHealth - vexxingDamage - noxiousDamage - thornsDamage), armor: armorAfterExpression, damage: vexxingDamage + noxiousDamage + thornsDamage }
-      : applyDamage(Math.max(0, battle.playerHealth - vexxingDamage - noxiousDamage - thornsDamage), effectiveArmor, incomingDamage);
+    const thornHit = applyDamage(battle.playerHealth, effectiveArmor, thornsDamage);
+    const passiveDamage = Math.min(thornHit.health, vexxingDamage + noxiousDamage);
+    const attackHit = applyDamage(Math.max(0, thornHit.health - passiveDamage), thornHit.armor, incomingDamage);
+    const playerHit = {
+      health: attackHit.health,
+      armor: attackHit.armor,
+      damage: thornHit.damage + passiveDamage + attackHit.damage,
+    };
     const stolenCoins = !monsterEffectsCanceled && playerHit.damage > 0 && hasBuff(monster, "Thieving")
       ? (() => {
           const progress = loadProgress();
@@ -678,7 +678,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         : enemyHealthAfterCurrentTurn;
       const cleanDrawPile = battle.drawPile.filter((card) => !isTemporaryCard(card));
       const cleanDiscardPile = battle.discardPile.filter((card) => !isTemporaryCard(card));
-      const cleanHand = battle.hand.filter((card) => !isTemporaryCard(card));
+      const cleanHand = battle.hand.filter((card) => !isTemporaryCard(card) && !isClosingParenthesisHelper(card));
       const baseDrawPile = hasBuff(monster, "Dazing")
         ? shuffle([...cleanDrawPile, makeZeroCard("Dazing")])
         : cleanDrawPile;
@@ -860,7 +860,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         {activeStatuses.length > 0 && (
           <div className="status-strip">
             {activeStatuses.map((status) => (
-              <span className={`status-tile ${status.tone}`} title={`${status.name}: ${status.effect}`} key={status.name}>
+              <span className={`status-tile ${status.tone} ${status.name === "Weaken" ? "weaken-flash" : ""}`} title={`${status.name}: ${status.effect}`} key={status.name}>
                 {status.symbol}
                 {status.value !== undefined && <small>{status.value}</small>}
               </span>
@@ -896,7 +896,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <div className="combat-center">
           <div className="enemy-intent">
             <strong>
-              {(displayedIntent > 0 || displayedSecondaryIntent > 0 || battle.enemyFakeIntent !== null) && <><Swords size={22} /> {attackIntentLabel}</>}
+              {(displayedIntent > 0 || displayedSecondaryIntent > 0 || battle.enemyFakeIntent !== null) && <span className={weakenStacks > 0 ? "weakened-intent" : ""}><Swords size={22} /> {attackIntentLabel}</span>}
               {displayedBlock > 0 && <span className="block-intent" title="Block"><Shield size={20} /> {displayedBlock}</span>}
               {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>✦</span>)}
             </strong>
@@ -915,7 +915,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             ) : (
               <button onClick={() => finishRoom(false)}>Continue</button>
             )}
-            <button onClick={onExit}>Game Hall</button>
+            <button onClick={() => phase === "defeat" ? finishRoom(false) : onExit()}>Game Hall</button>
           </div>
         </section>
       ) : (
@@ -929,7 +929,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
               {expressionItems.map((item, index) => <button key={`${item.sourceIds.join("-")}-${index}`} onClick={() => removeExpressionItem(item.sourceIds)} aria-label={`Remove ${item.label}`}>{item.label}</button>)}
             </div>
             <div className="expression-summary">
-              <div className={`expression-result ${counterReady ? "counter-ready" : ""}`} aria-live="polite">
+              <div className={`expression-result ${counterReady ? "counter-ready" : ""} ${playerIsWeakened && rawPreviewResult !== null && !counterReady ? "weakened-preview weaken-flash" : ""}`} aria-live="polite">
                 <span>=</span><strong>{previewResult ?? "?"}</strong>
               </div>
               <button className="submit-attack" onClick={submitExpression} disabled={phase !== "playing"}>Submit Attack</button>
@@ -940,7 +940,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <div className="hand-area">
             <div className="bottle-slot"><span>Bottled</span><CardButton card={battle.bottledCard} onClick={() => addCard(battle.bottledCard, true)} disabled={bottleUsed || battle.confoundTurns > 0 || phase !== "playing"} bottled /></div>
             <div className="hand-cards">
-              {battle.hand.map((card) => (
+              {visibleHand.map((card) => (
                 <div className="hand-card-slot" key={card.id}>
                   <CardButton
                     card={card}
@@ -965,14 +965,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 }
 
 function Combatant({ name, buffs = [], statusBuffs = [], sprite, health, maxHealth, armor, enemy = false, hit = false }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: MonsterBuffTile[]; sprite: string; health: number; maxHealth: number; armor: number; enemy?: boolean; hit?: boolean }) {
-  const allBuffs = [
-    ...buffs.map((buff) => ({ name: buff.name, symbol: buff.name[0], effect: buff.effect, value: undefined as number | undefined })),
+  const allBuffs: MonsterBuffTile[] = [
+    ...buffs.map((buff) => ({ name: buff.name, symbol: buff.name[0], effect: buff.effect, value: undefined, tone: "buff" as const })),
     ...statusBuffs,
   ];
   return <div className={`combatant ${enemy ? "enemy-combatant" : "hero-combatant"} ${hit ? "taking-hit" : ""}`}>
     {enemy && allBuffs.length > 0 && (
       <div className="monster-buff-badges" aria-label={`Monster buffs: ${allBuffs.map((buff) => buff.name).join(", ")}`}>
-        {allBuffs.map((buff) => <span title={`${buff.name}: ${buff.effect}`} key={buff.name}>{buff.symbol}{buff.value !== undefined && <small>{buff.value}</small>}</span>)}
+        {allBuffs.map((buff) => <span className={buff.tone === "debuff" ? "debuff" : ""} title={`${buff.name}: ${buff.effect}`} key={buff.name}>{buff.symbol}{buff.value !== undefined && <small>{buff.value}</small>}</span>)}
       </div>
     )}
     <div className={`pixel-sprite ${enemy ? "enemy-sprite" : "hero-sprite"}`} aria-label={name}>{sprite}</div>

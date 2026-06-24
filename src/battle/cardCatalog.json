@@ -131,7 +131,7 @@
         "Card Name":  "_^3",
         "Type":  "Combo",
         "Rarity":  "Rare",
-        "Energy Cost":  "4",
+        "Energy Cost":  "3",
         "Effect":  "Exponeniates the combined digit to the power of 3",
         "Median Purchase Cost at Shop":  "$300"
     },
@@ -227,7 +227,7 @@
         "Card Name":  "L",
         "Type":  "Variable",
         "Rarity":  "Rare",
-        "Energy Cost":  "?",
+        "Energy Cost":  "0",
         "Effect":  "Value is equal to the level you are currently on. (1st run has levels 1-10. After than 11-20, then 21-30 etc.). The energy cost is the Level / 10 rouded up.",
         "Median Purchase Cost at Shop":  "$240"
     },
