@@ -1,4 +1,4 @@
-import { ArrowLeft, HeartPulse, Shield, Swords, Volume2, VolumeX, X, Zap } from "lucide-react";
+﻿import { ArrowLeft, HeartPulse, Shield, Swords, Volume2, VolumeX, X, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { playBattleSound, startBattleMusic, stopBattleMusic } from "./battleAudio";
 import { cardById } from "./cardCatalog";
@@ -570,6 +570,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const statusTiles: Array<StatusTile | null> = [
     battle.resourcefulnessRemaining > 0 ? { name: "Resourcefulness", symbol: "R", value: battle.resourcefulnessRemaining, tone: "buff" as const, effect: "Discard your hand to draw one fewer card." } : null,
     battle.heroicWillRemaining > 0 ? { name: "Heroic Will", symbol: "H", value: battle.heroicWillRemaining, tone: "buff" as const, effect: "Lethal damage leaves you at 25% HP and removes all debuffs." } : null,
+    battle.discardDamageStacks > 0 ? { name: "Fertilizer", symbol: "F", value: battle.discardDamageStacks, tone: "buff" as const, effect: `Your damage is increased by ${battle.discardDamageStacks * 20}% this turn.` } : null,
     battle.crippleTurns > 0 ? { name: "Cripple", symbol: "C", value: battle.crippleTurns, tone: "debuff" as const, effect: "You can use at most one operator." } : null,
     battle.playerWeakenTurns > 0 ? { name: "Weaken", symbol: "W", value: battle.playerWeakenTurns, tone: "debuff" as const, effect: "Your submitted expression deals 10% less damage, rounded up." } : null,
     battle.addleTurns > 0 ? { name: "Addle", symbol: "A", value: battle.addleTurns, tone: "debuff" as const, effect: "Your maximum hand size is reduced by 20%." } : null,
@@ -577,8 +578,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     battle.energyDrainTurns > 0 ? { name: "Mana Drain", symbol: "M", value: battle.energyDrainTurns, tone: "debuff" as const, effect: "Your maximum energy is reduced by 25%." } : null,
     battle.usurpDraws > 0 ? { name: "Usurp", symbol: "U", value: battle.usurpDraws, tone: "debuff" as const, effect: "The marked card must be used in your submission." } : null,
     battle.immolationTurns > 0 ? { name: "Immolation", symbol: "I", value: battle.immolationTurns, tone: "debuff" as const, effect: "Digit and variable values are reduced by 1 when drawn." } : null,
-    battle.enemyFakeIntent !== null ? { name: "Guileful decoy", symbol: "G", tone: "buff" as const, effect: "One displayed attack value is false." } : null,
-    battle.enemySecondaryIntent > 0 ? { name: "Split attack", symbol: "S", tone: "buff" as const, effect: "The attack is split into two uneven parts." } : null,
   ];
   const activeStatuses = statusTiles.filter((status): status is StatusTile => status !== null);
   const monsterStatusBuffs: MonsterBuffTile[] = [
@@ -686,6 +685,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? 1 : 0),
       nextTurnEnergy: current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
     }));
+    if (hasItem(itemIds, "fertilizer")) setMessage(`Fertilizer activates: +${(battle.discardDamageStacks + 1) * 20}% damage this turn.`);
     playBattleSound("card");
   }
 
@@ -1101,16 +1101,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             </div>
           );
         })}
-        {activeStatuses.length > 0 && (
-          <div className="status-strip">
-            {activeStatuses.map((status) => (
-              <span className={`status-tile ${status.tone} ${status.name === "Weaken" ? "weaken-flash" : ""}`} title={`${status.name}: ${status.effect}`} key={status.name}>
-                {status.symbol}
-                {status.value !== undefined && <small>{status.value}</small>}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {pileView && (
@@ -1131,7 +1121,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       <section className={`battlefield ${impact === "counter" ? "counter-flash" : ""} ${impact === "victory" ? "victory-flash" : ""} ${impact === "defeat" ? "defeat-flash" : ""}`}>
         <Combatant
           name="Mathknight"
-          sprite="♞"
+          sprite="â™ž"
           health={battle.playerHealth}
           maxHealth={battle.playerMaxHealth}
           armor={battle.playerArmor + (phase === "playing" ? upgradeEffects.armor : 0)}
@@ -1142,12 +1132,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             <strong>
               {(displayedIntent > 0 || displayedSecondaryIntent > 0 || battle.enemyFakeIntent !== null) && <span className={weakenStacks > 0 ? "weakened-intent" : ""}><Swords size={22} /> {attackIntentLabel}</span>}
               {displayedBlock > 0 && <span className="block-intent" title="Block"><Shield size={20} /> {displayedBlock}</span>}
-              {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>✦</span>)}
+              {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>âœ¦</span>)}
             </strong>
           </div>
           <p className="combat-message">{message}</p>
         </div>
-        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} sprite="♜" health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
+        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} sprite="â™œ" health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
       </section>
 
       {phase === "victory" || phase === "defeat" ? (
@@ -1209,23 +1199,21 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   );
 }
 
-function Combatant({ name, buffs = [], statusBuffs = [], sprite, health, maxHealth, armor, enemy = false, hit = false }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: MonsterBuffTile[]; sprite: string; health: number; maxHealth: number; armor: number; enemy?: boolean; hit?: boolean }) {
-  const allBuffs: MonsterBuffTile[] = [
+function Combatant({ name, buffs = [], statusBuffs = [], sprite, health, maxHealth, armor, enemy = false, hit = false }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: Array<MonsterBuffTile | StatusTile>; sprite: string; health: number; maxHealth: number; armor: number; enemy?: boolean; hit?: boolean }) {
+  const allBuffs: Array<MonsterBuffTile | StatusTile> = [
     ...buffs.map((buff) => ({ name: buff.name, symbol: buff.name[0], effect: buff.effect, value: undefined, tone: "buff" as const })),
     ...statusBuffs,
   ];
   return <div className={`combatant ${enemy ? "enemy-combatant" : "hero-combatant"} ${hit ? "taking-hit" : ""}`}>
-    {enemy && allBuffs.length > 0 && (
-      <div className="monster-buff-badges" aria-label={`Monster buffs: ${allBuffs.map((buff) => buff.name).join(", ")}`}>
-        {allBuffs.map((buff) => <span className={buff.tone === "debuff" ? "debuff" : ""} title={`${buff.name}: ${buff.effect}`} key={buff.name}>{buff.symbol}{buff.value !== undefined && <small>{buff.value}</small>}</span>)}
-      </div>
-    )}
     <div className={`pixel-sprite ${enemy ? "enemy-sprite" : "hero-sprite"}`} aria-label={name}>{sprite}</div>
     <h2>{name}</h2><div className={`health-bar ${enemy ? "enemy" : ""}`}><span style={{ width: `${(health / maxHealth) * 100}%` }} /></div>
-    <strong>{health} / {maxHealth} HP</strong><span className="armor-readout"><Shield size={16} /> {armor} armor</span>
+    <strong>{health} / {maxHealth} HP</strong>
+    {allBuffs.length > 0 && <div className="monster-buff-badges combatant-status-badges" aria-label={`${name} status effects: ${allBuffs.map((buff) => buff.name).join(", ")}`}>
+      {allBuffs.map((buff) => <span className={buff.tone === "debuff" ? "debuff" : ""} title={`${buff.name}: ${buff.effect}`} key={buff.name}>{buff.symbol}{buff.value !== undefined && <small>{buff.value}</small>}</span>)}
+    </div>}
+    <span className="armor-readout"><Shield size={16} /> {armor} armor</span>
   </div>;
 }
-
 function cardSequence(card: BattleCard) {
   return Number(card.id.match(/(\d+)$/)?.[1] ?? Number.MAX_SAFE_INTEGER);
 }

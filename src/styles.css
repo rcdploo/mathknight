@@ -963,6 +963,7 @@ button {
 
 .combatant { display: grid; justify-items: center; gap: 7px; min-width: 0; }
 .monster-buff-badges { display: flex; justify-content: flex-end; gap: 4px; width: min(180px, 100%); min-height: 20px; }
+.combatant-status-badges { justify-content: flex-start; width: auto; max-width: min(180px, 100%); }
 .monster-buff-badges span { position: relative; display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #d0aa58; border-radius: 3px; background: #3d3320; color: #f5d98d; font-size: .7rem; font-weight: 900; }
 .monster-buff-badges span.debuff { border-color: #b95b5b; background: #4a2025; color: #ffd7d7; }
 .monster-buff-badges small { position: absolute; left: 1px; bottom: 1px; display: grid; place-items: center; min-width: 8px; height: 8px; border-radius: 2px; background: #2a2927; color: #d0cbc3; font-size: .46rem; line-height: 1; }
