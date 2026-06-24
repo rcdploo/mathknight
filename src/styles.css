@@ -1108,7 +1108,7 @@ button {
 .battle-card.preview { width: 104px; cursor: default; }
 .battle-card small { justify-self: start; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #73c8dc; color: #102b31; font-weight: 900; }
 .battle-card.operator small { background: #f0ca73; color: #33270f; }
-.battle-card strong { align-self: center; font-size: clamp(2rem, 5vw, 3.5rem); }
+.battle-card > strong { align-self: center; font-size: clamp(1.7rem, 3vw, 2.35rem); line-height: 1; }
 .battle-card em { font-size: .58rem; font-style: normal; line-height: 1.2; text-transform: uppercase; }
 .battle-card .card-price { position: absolute; right: 7px; top: 8px; color: #f0ca73; font-size: .72rem; }
 .shop-card-offer { display: grid; place-items: center; min-height: 142px; }
