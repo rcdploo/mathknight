@@ -4,7 +4,7 @@ import { playBattleSound, startBattleMusic, stopBattleMusic } from "./battleAudi
 import { cardById } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
-import { loadPermanentLoadout } from "../quartermaster/quartermasterStore";
+import { characterStatsForLevel, loadPermanentLoadout } from "../quartermaster/quartermasterStore";
 import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, resetRunItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import {
@@ -33,10 +33,9 @@ type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: s
 const battleSessionKey = "mathknight.battle.session.v1";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const runHealthKey = "mathknight.dungeon.runHealth.v1";
-const maxEnergy = 3;
 const fallbackMonster: GeneratedMonster = {
   id: "fallback-monster",
-  stage: 1,
+  level: 1,
   room: 1,
   name: "Brutish Goblin",
   subtitle: "No buffs",
@@ -203,13 +202,13 @@ function spellLabel(spell: string) {
   return Number.isFinite(power) ? `${name} ${power}` : name;
 }
 
-function monsterSpellBuffs(battle: BattleState, stage: number): MonsterBuffTile[] {
+function monsterSpellBuffs(battle: BattleState, level: number): MonsterBuffTile[] {
   const buffs: Array<MonsterBuffTile | null> = [
     battle.enrageStacks > 0
       ? { name: "Enrage", symbol: "E", value: battle.enrageStacks, effect: "Attacks deal 10% more damage per stack." }
       : null,
     battle.thornsStacks > 0
-      ? { name: "Thorns", symbol: "T", value: battle.thornsStacks, effect: `You take ${2 * stage} Damage after each time attacking.` }
+      ? { name: "Thorns", symbol: "T", value: battle.thornsStacks, effect: `You take ${2 * level} Damage after each time attacking.` }
       : null,
   ];
   return buffs.filter((buff): buff is MonsterBuffTile => buff !== null);
@@ -314,17 +313,22 @@ function removeOnePlayerDebuff<T extends ReturnType<typeof createBattle>>(battle
 
 function createBattle(monster: GeneratedMonster) {
   const loadout = loadPermanentLoadout();
+  const character = characterStatsForLevel(monster.level, loadout);
   const itemIds = loadRunItems();
-  const opening = drawHand(shuffle(loadRunDeck()), [], 5 + (hasItem(itemIds, "satchel") ? 2 : 0));
+  const opening = drawHand(shuffle(loadRunDeck()), [], character.handSize + (hasItem(itemIds, "satchel") ? 2 : 0));
   const openingAction = monsterAction(monster, 1, [], null);
   return {
     ...opening,
     itemIds,
     bottledCard: loadout.bottledCard,
-    playerHealth: loadRunHealth(loadout.maxHealth),
-    playerMaxHealth: loadout.maxHealth,
+    playerHealth: loadRunHealth(character.maxHealth),
+    playerMaxHealth: character.maxHealth,
+    maxEnergy: character.energy,
+    handSize: character.handSize,
+    resourcefulnessRemaining: monster.level >= 2 ? loadout.resourcefulnessUses : 0,
+    heroicWillRemaining: monster.level >= 4 ? loadout.heroicWillUses : 0,
     mendingHealing: loadout.mendingHealing,
-    playerArmor: hasItem(itemIds, "drogue") ? 5 * monster.stage : 0,
+    playerArmor: hasItem(itemIds, "drogue") ? 5 * monster.level : 0,
     enemyHealth: monster.maxHealth,
     enemyArmor: openingAction.armor,
     enemyIntent: openingAction.intent,
@@ -356,7 +360,7 @@ function createBattle(monster: GeneratedMonster) {
 }
 
 function createBattleSession(monster: GeneratedMonster, bonusItem: boolean): BattleSession {
-  const rewardPool = generateCombatRewards(monster.stage).map((reward) => ({
+  const rewardPool = generateCombatRewards(monster.level).map((reward) => ({
     ...reward.card,
     rewardSlot: reward.slot,
     rewardKind: reward.kind,
@@ -399,6 +403,10 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean) {
         nextTurnDraw: parsed.battle.nextTurnDraw ?? 0,
         discardDamageStacks: parsed.battle.discardDamageStacks ?? 0,
         phoenixUsed: parsed.battle.phoenixUsed ?? false,
+        maxEnergy: parsed.battle.maxEnergy ?? characterStatsForLevel(monster.level).energy,
+        handSize: parsed.battle.handSize ?? characterStatsForLevel(monster.level).handSize,
+        resourcefulnessRemaining: parsed.battle.resourcefulnessRemaining ?? (monster.level >= 2 ? loadPermanentLoadout().resourcefulnessUses : 0),
+        heroicWillRemaining: parsed.battle.heroicWillRemaining ?? (monster.level >= 4 ? loadPermanentLoadout().heroicWillUses : 0),
       },
     };
     return parsed.phase === "resolving" ? { ...migrated, phase: "playing" as const } : migrated;
@@ -435,11 +443,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   };
   const energyUsed = useMemo(() => selectedCards.reduce((total, card) => total + effectiveCardEnergy(card, selectedCards), 0), [selectedCards, itemIds]);
   const consumedEnergy = battle.hand.filter((card) => card.consumedThisTurn).length;
-  const energyDrainPenalty = battle.energyDrainTurns > 0 ? Math.max(1, Math.round(maxEnergy * 0.25)) : 0;
+  const energyDrainPenalty = battle.energyDrainTurns > 0 ? Math.max(1, Math.round(battle.maxEnergy * 0.25)) : 0;
   const rhythmicEnergy = hasItem(itemIds, "metronome") && turn % 3 === 0 ? 1
     : hasItem(itemIds, "pendulum") && turn % 4 === 0 ? 2
       : hasItem(itemIds, "orrery") && turn % 5 === 0 ? 3 : 0;
-  const availableEnergy = Math.max(1, maxEnergy - energyDrainPenalty) + consumedEnergy + rhythmicEnergy + battle.nextTurnEnergy;
+  const availableEnergy = Math.max(1, battle.maxEnergy - energyDrainPenalty) + consumedEnergy + rhythmicEnergy + battle.nextTurnEnergy;
   const upgradeEffects = useMemo(() => expressionUpgradeEffects(selectedCards), [selectedCards]);
   const weakenStacks = battle.weakenNext + upgradeEffects.weaken;
   const weakenPerStack = Math.max(1, Math.round(battle.enemyIntent * 0.1));
@@ -484,6 +492,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     ? [...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
     : [...battle.discardPile].reverse();
   const statusTiles: Array<StatusTile | null> = [
+    battle.resourcefulnessRemaining > 0 ? { name: "Resourcefulness", symbol: "R", value: battle.resourcefulnessRemaining, tone: "buff" as const, effect: "Discard your hand to draw one fewer card." } : null,
+    battle.heroicWillRemaining > 0 ? { name: "Heroic Will", symbol: "H", value: battle.heroicWillRemaining, tone: "buff" as const, effect: "Lethal damage leaves you at 25% HP and removes all debuffs." } : null,
     battle.crippleTurns > 0 ? { name: "Cripple", symbol: "C", value: battle.crippleTurns, tone: "debuff" as const, effect: "You can use at most one operator." } : null,
     battle.playerWeakenTurns > 0 ? { name: "Weaken", symbol: "W", value: battle.playerWeakenTurns, tone: "debuff" as const, effect: "Your submitted expression deals 10% less damage, rounded up." } : null,
     battle.addleTurns > 0 ? { name: "Addle", symbol: "A", value: battle.addleTurns, tone: "debuff" as const, effect: "Your maximum hand size is reduced by 20%." } : null,
@@ -496,7 +506,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   ];
   const activeStatuses = statusTiles.filter((status): status is StatusTile => status !== null);
   const monsterStatusBuffs: MonsterBuffTile[] = [
-    ...monsterSpellBuffs(battle, monster.stage),
+    ...monsterSpellBuffs(battle, monster.level),
     ...(battle.weakenNext > 0
       ? [{ name: "Weaken", symbol: "W", value: battle.weakenNext, effect: "The monster's next attack deals 10% less damage per stack.", tone: "debuff" as const }]
       : []),
@@ -584,10 +594,27 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       hand: [...current.hand.filter((item) => item.id !== card.id), ...replacement.hand],
       drawPile: replacement.drawPile,
       discardPile: [...replacement.discardPile, card],
-      playerHealth: hasItem(itemIds, "compost-juicer") ? Math.min(current.playerMaxHealth, current.playerHealth + monster.stage * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1)) : current.playerHealth,
+      playerHealth: hasItem(itemIds, "compost-juicer") ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1)) : current.playerHealth,
       discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? 1 : 0),
       nextTurnEnergy: current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
     }));
+    playBattleSound("card");
+  }
+
+  function useResourcefulness() {
+    if (phase !== "playing" || battle.resourcefulnessRemaining <= 0 || selectedCards.length > 0) return;
+    const discardedHand = battle.hand.filter((card) => !isClosingParenthesisHelper(card));
+    const replacementCount = Math.max(0, discardedHand.length - 1);
+    const replacement = drawHand(battle.drawPile, [...battle.discardPile, ...discardedHand], replacementCount);
+    setBattle((current) => ({
+      ...current,
+      hand: replacement.hand,
+      drawPile: replacement.drawPile,
+      discardPile: replacement.discardPile,
+      resourcefulnessRemaining: current.resourcefulnessRemaining - 1,
+    }));
+    setBottleUsed(false);
+    setMessage(`Resourcefulness redraws ${replacement.hand.length} cards.`);
     playBattleSound("card");
   }
 
@@ -598,7 +625,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       return {
         ...current,
         hand: current.hand.map((item) => item.id === card.id ? { ...item, consumedThisTurn: consuming } : item),
-        playerHealth: consuming && hasItem(itemIds, "compost-juicer") ? Math.min(current.playerMaxHealth, current.playerHealth + monster.stage * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1)) : current.playerHealth,
+        playerHealth: consuming && hasItem(itemIds, "compost-juicer") ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1)) : current.playerHealth,
         discardDamageStacks: Math.max(0, current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? consuming ? 1 : -1 : 0)),
         nextTurnEnergy: Math.max(0, current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? consuming ? 1 : -1 : 0)),
       };
@@ -649,13 +676,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const monsterDefeated = enemyHit.health === 0;
     const armorAfterExpression = battle.playerArmor + upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.round(Math.abs(value) * .15) : 0);
     const healingMultiplier = hasItem(itemIds, "second-wind") && battle.playerHealth <= battle.playerMaxHealth / 2 ? 2 : 1;
-    const expressionHealing = upgradeEffects.healing * monster.stage * healingMultiplier;
+    const expressionHealing = upgradeEffects.healing * monster.level * healingMultiplier;
     const healthAfterExpressionHealing = Math.min(battle.playerMaxHealth, battle.playerHealth + expressionHealing);
     const healingReceived = healthAfterExpressionHealing - battle.playerHealth;
     const monsterEffectsCanceled = countered || monsterDefeated;
-    const vexxingDamage = hasBuff(monster, "Vexxing") && !monsterEffectsCanceled ? monster.stage * operatorCount : 0;
-    const noxiousDamage = hasBuff(monster, "Noxious") && !monsterEffectsCanceled ? monster.stage * 2 : 0;
-    const thornsDamage = !countered ? battle.thornsStacks * monster.stage * 2 : 0;
+    const vexxingDamage = hasBuff(monster, "Vexxing") && !monsterEffectsCanceled ? monster.level * operatorCount : 0;
+    const noxiousDamage = hasBuff(monster, "Noxious") && !monsterEffectsCanceled ? monster.level * 2 : 0;
+    const thornsDamage = !countered ? battle.thornsStacks * monster.level * 2 : 0;
     const effectiveArmor = hasBuff(monster, "Corrosive") ? Math.floor(armorAfterExpression * 0.75) : armorAfterExpression;
     const incomingDamage = monsterEffectsCanceled ? 0 : displayedIntent + displayedSecondaryIntent;
     const thornHit = applyDamage(healthAfterExpressionHealing, effectiveArmor, thornsDamage);
@@ -666,10 +693,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       armor: attackHit.armor,
       damage: thornHit.damage + passiveDamage + attackHit.damage,
     };
+    const heroicWillTriggered = playerHit.health === 0 && battle.heroicWillRemaining > 0;
+    if (heroicWillTriggered) playerHit.health = Math.max(1, Math.ceil(battle.playerMaxHealth * .25));
     const stolenCoins = !monsterEffectsCanceled && playerHit.damage > 0 && hasBuff(monster, "Thieving")
       ? (() => {
           const progress = loadProgress();
-          const stolen = Math.min(progress.coins, monster.stage * 5);
+          const stolen = Math.min(progress.coins, monster.level * 5);
           saveProgress({ ...progress, coins: progress.coins - stolen });
           return stolen;
         })()
@@ -686,17 +715,20 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       confoundTurns: Math.max(0, battle.confoundTurns - 1),
       energyDrainTurns: Math.max(0, battle.energyDrainTurns - 1),
       immolationTurns: Math.max(0, battle.immolationTurns - 1),
+      heroicWillRemaining: battle.heroicWillRemaining - (heroicWillTriggered ? 1 : 0),
     };
+    const survivedBattle = heroicWillTriggered ? clearPlayerDebuffs(expiredDebuffs) : expiredDebuffs;
     const wardBlocked = !monsterEffectsCanceled && battle.pendingMonsterSpells.length > 0 && hasItem(itemIds, "ward") && Math.random() < .2;
     const pendingSpellResult = monsterEffectsCanceled || wardBlocked
-      ? { battle: { ...expiredDebuffs, enemyHealth: reflectedHit.health, playerHealth: playerHit.health }, messages: [] as string[] }
+      ? { battle: { ...survivedBattle, enemyHealth: reflectedHit.health, playerHealth: playerHit.health }, messages: [] as string[] }
       : applyMonsterSpells({
-          ...expiredDebuffs,
+          ...survivedBattle,
           enemyHealth: reflectedHit.health,
           playerHealth: playerHit.health,
         }, monster, battle.pendingMonsterSpells);
+    if (heroicWillTriggered) pendingSpellResult.battle = clearPlayerDebuffs(pendingSpellResult.battle);
     if (countered && hasItem(itemIds, "tripwire")) pendingSpellResult.battle.weakenNext = Math.max(pendingSpellResult.battle.weakenNext, 2);
-    if (countered && hasItem(itemIds, "reverser")) pendingSpellResult.battle.playerHealth = Math.min(pendingSpellResult.battle.playerMaxHealth, pendingSpellResult.battle.playerHealth + monster.stage * 3 * (hasItem(itemIds, "second-wind") && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth / 2 ? 2 : 1));
+    if (countered && hasItem(itemIds, "reverser")) pendingSpellResult.battle.playerHealth = Math.min(pendingSpellResult.battle.playerMaxHealth, pendingSpellResult.battle.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth / 2 ? 2 : 1));
     if (countered && hasItem(itemIds, "snapshot")) pendingSpellResult.battle.nextTurnDraw += 1;
     if (countered && hasItem(itemIds, "riposte-charm")) pendingSpellResult.battle = removeOnePlayerDebuff(pendingSpellResult.battle);
     if (!pendingSpellResult.battle.phoenixUsed && hasItem(itemIds, "phoenix-charm") && pendingSpellResult.battle.playerHealth > 0 && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth * .25) {
@@ -708,7 +740,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setRunDeck(lobotomy.cards);
       saveRunDeck(lobotomy.cards);
     }
-    setMessage(countered
+    setMessage(heroicWillTriggered
+      ? `Heroic Will saves you at ${playerHit.health} HP and removes all debuffs.`
+      : countered
       ? `Perfect counter! ${outgoingDamage} damage reflected${criticalHit ? " with a critical hit" : ""}${healingReceived ? ` and you heal ${healingReceived}` : ""}. ${monster.name}'s turn is canceled.`
       : `You strike for ${enemyHit.damage}${criticalHit ? " with a critical hit" : ""}${healingReceived ? ` and heal ${healingReceived}` : ""}. ${monster.name} answers for ${playerHit.damage}${reflectedDamage ? ` and suffers ${reflectedDamage} reflected` : ""}${stolenCoins ? ` and steals $${stolenCoins}` : ""}${lobotomy?.removed ? ` and removes ${lobotomy.removed.label} for this fight` : ""}.`);
     wakeAudio();
@@ -740,7 +774,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         const healedHealth = Math.min(battle.playerMaxHealth, playerHit.health + battle.mendingHealing * healMultiplier);
         const healingReceived = healedHealth - playerHit.health;
         const progress = loadProgress();
-        const goldReward = Math.round(monster.reward * (premiumReward ? 1.5 : 1) * (hasItem(itemIds, "signet") ? 1.3 : 1)) + (countered && hasItem(itemIds, "pursestring-cutter") ? monster.stage * 5 : 0);
+        const goldReward = Math.round(monster.reward * (premiumReward ? 1.5 : 1) * (hasItem(itemIds, "signet") ? 1.3 : 1)) + (countered && hasItem(itemIds, "pursestring-cutter") ? monster.level * 5 : 0);
         saveProgress({ ...progress, coins: progress.coins + goldReward });
         if (bonusItemId) addRunItem(bonusItemId);
         saveRunHealth(healedHealth);
@@ -774,7 +808,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       const rhythmicDraw = hasItem(itemIds, "tabor") && nextTurn % 3 === 0 ? 1
         : hasItem(itemIds, "war-drum") && nextTurn % 4 === 0 ? 2
           : hasItem(itemIds, "taiko") && nextTurn % 5 === 0 ? 3 : 0;
-      const nextHandSize = (pendingSpellResult.battle.addleTurns > 0 ? Math.max(1, Math.round(5 * 0.8)) : 5) + rhythmicDraw + pendingSpellResult.battle.nextTurnDraw;
+      const nextHandSize = (pendingSpellResult.battle.addleTurns > 0 ? Math.max(1, Math.round(battle.handSize * 0.8)) : battle.handSize) + rhythmicDraw + pendingSpellResult.battle.nextTurnDraw;
       const nextDraw = drawHand(baseDrawPile, discardSource, nextHandSize);
       const immolatedDraw = pendingSpellResult.battle.immolationTurns > 0
         ? {
@@ -803,9 +837,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         enemyArmor: nextAction.armor,
         enemyStunned: stunnedNext,
         weakenNext: upgradeEffects.weaken,
-        playerArmor: (countered && hasItem(itemIds, "quarterstaff") ? monster.stage * 5 : 0)
-          + (hasItem(itemIds, "skene-cleat") && nextTurn === 2 ? monster.stage * 6 : 0)
-          + (hasItem(itemIds, "tiller") && nextTurn === 3 ? monster.stage * 7 : 0),
+        playerArmor: (countered && hasItem(itemIds, "quarterstaff") ? monster.level * 5 : 0)
+          + (hasItem(itemIds, "skene-cleat") && nextTurn === 2 ? monster.level * 6 : 0)
+          + (hasItem(itemIds, "tiller") && nextTurn === 3 ? monster.level * 7 : 0),
         monsterActionDeck: nextAction.actionDeck,
         monsterLastAction: nextAction.action,
         monsterMessage: nextAction.text,
@@ -1041,6 +1075,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
                 <span>=</span><strong>{previewResult ?? "?"}</strong>
               </div>
               <button className="submit-attack" onClick={submitExpression} disabled={phase !== "playing"}>Submit Attack</button>
+              {battle.resourcefulnessRemaining > 0 && <button className="resourcefulness-button" onClick={useResourcefulness} disabled={phase !== "playing" || selectedCards.length > 0}>Resourcefulness ({battle.resourcefulnessRemaining})</button>}
             </div>
             {error && <p className="battle-error" role="alert">{error}</p>}
           </div>

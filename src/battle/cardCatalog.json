@@ -1,4 +1,4 @@
-﻿[
+[
     {
         "Card Name":  "1",
         "Type":  "Digit",
@@ -300,7 +300,7 @@
         "Type":  "Upgrade (any)",
         "Rarity":  "Common",
         "Energy Cost":  "n/a",
-        "Effect":  "When used in an expression, heal 1*Stage health",
+        "Effect":  "When used in an expression, heal 1*Level health",
         "Median Purchase Cost at Shop":  "$85"
     }
 ]

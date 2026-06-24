@@ -11,7 +11,7 @@ export type GeneratedReward = {
 };
 
 type RewardRule = {
-  stage: number;
+  level: number;
   slot: 1 | 2 | 3;
   options: RewardKind[];
   valueWeights: number[];
@@ -37,9 +37,9 @@ function parseCsvLine(line: string) {
 }
 
 const rewardRules: RewardRule[] = source.split(/\r?\n/).slice(2, 17).filter(Boolean).map((line) => {
-  const [stage, slot, options, ...weights] = parseCsvLine(line);
+  const [level, slot, options, ...weights] = parseCsvLine(line);
   return {
-    stage: Number(stage),
+    level: Number(level),
     slot: Number(slot) as 1 | 2 | 3,
     options: options.split(",").map((option) => option.trim() as RewardKind),
     valueWeights: weights.slice(0, 7).map((weight) => Number(weight) || 0),
@@ -136,8 +136,8 @@ function makeUpgradedCard(rule: RewardRule, kind: RewardKind, shown: Record<stri
   return { card, budget };
 }
 
-export function generateCombatRewards(stage: number): GeneratedReward[] {
-  const rules = rewardRules.filter((rule) => rule.stage === stage).sort((left, right) => left.slot - right.slot);
+export function generateCombatRewards(level: number): GeneratedReward[] {
+  const rules = rewardRules.filter((rule) => rule.level === level).sort((left, right) => left.slot - right.slot);
   const kinds = rollKinds(rules);
   const shown = loadShownCounts();
   const rewards = rules.map((rule, index): GeneratedReward => {
@@ -153,8 +153,8 @@ export function generateCombatRewards(stage: number): GeneratedReward[] {
   return rewards;
 }
 
-export function generateShopCard(stage: number, rewardSlot: 1 | 2 | 3) {
-  const rule = rewardRules.find((candidate) => candidate.stage === stage && candidate.slot === rewardSlot);
+export function generateShopCard(level: number, rewardSlot: 1 | 2 | 3) {
+  const rule = rewardRules.find((candidate) => candidate.level === level && candidate.slot === rewardSlot);
   if (!rule) throw new Error("Missing shop card reward rule.");
   const shown = loadShownCounts();
   const kind: RewardKind = rule.options.includes("Upgraded Card") && Math.random() < .5 ? "Upgraded Card" : "Card";
@@ -163,11 +163,11 @@ export function generateShopCard(stage: number, rewardSlot: 1 | 2 | 3) {
   return { kind, budget: generated.budget, card: generated.card };
 }
 
-export function generateShopUpgrade(stage: number) {
-  const targetLevel = stage === 1 ? 1 : stage === 2 ? 2 : 1;
+export function generateShopUpgrade(level: number) {
+  const targetLevel = level === 1 ? 1 : level === 2 ? 2 : 1;
   const levels = [1, 2, 3];
-  const level = weightedChoice(levels, levels.map((candidate) => candidate === targetLevel ? 50 : 25));
-  const candidates = rewardUpgrades().filter((upgrade) => rarityValue[upgrade.rarity] === level && upgrade.id !== "card-removal");
+  const upgradeLevel = weightedChoice(levels, levels.map((candidate) => candidate === targetLevel ? 50 : 25));
+  const candidates = rewardUpgrades().filter((upgrade) => rarityValue[upgrade.rarity] === upgradeLevel && upgrade.id !== "card-removal");
   const shown = loadShownCounts();
   const upgrade = pickUpgrade(candidates, shown);
   saveShownCounts(shown);

@@ -26,7 +26,7 @@ export const levelLabels: Record<LevelKind, string> = {
   level1: "Lesson 1",
   level2: "Lesson 2",
   level3: "Lesson 3",
-  boss: "Time Trial",
+  boss: "Speed Challenge",
 };
 
 const levelShape: Record<LevelKind, Pick<LevelConfig, "pairs" | "rows" | "columns" | "maxTurns" | "isBoss">> = {

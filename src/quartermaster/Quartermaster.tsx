@@ -1,4 +1,4 @@
-import { ArrowLeft, FlaskConical, HeartPulse, HelpCircle, RotateCcw, ShieldPlus } from "lucide-react";
+import { ArrowLeft, FlaskConical, HeartPulse, RefreshCw, RotateCcw, ShieldCheck, ShieldPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { allLevels, stageLabels, stages, unitLabels, units } from "../game/levels";
 import { loadProgress, saveProgress } from "../game/progressStore";
@@ -27,6 +27,9 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
   const mendingCost = 50 * (loadout.mendingUpgradeCount + 1);
   const nextMendingIncrease = loadout.mendingUpgradeCount + 2;
   const growCost = 100 * (loadout.growPurchases + 1);
+  const resourcefulnessCost = loadout.resourcefulnessUpgradeCount === 0 ? 250 : 500;
+  const canUpgradeResourcefulness = loadout.dungeonLevel >= 2 && loadout.resourcefulnessUpgradeCount < 2;
+  const canUpgradeHeroicWill = loadout.dungeonLevel >= 4 && loadout.heroicWillUpgradeCount < 1;
 
   useEffect(() => {
     markQuartermasterVisited();
@@ -71,6 +74,22 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
     spend(growCost);
     increaseRunHealth(10, nextMaxHealth);
     saveLoadout({ ...loadout, maxHealth: nextMaxHealth, growPurchases: loadout.growPurchases + 1 });
+  }
+
+  function upgradeResourcefulness() {
+    if (!canUpgradeResourcefulness || !afford(resourcefulnessCost)) return;
+    spend(resourcefulnessCost);
+    saveLoadout({
+      ...loadout,
+      resourcefulnessUses: loadout.resourcefulnessUses + 1,
+      resourcefulnessUpgradeCount: loadout.resourcefulnessUpgradeCount + 1,
+    });
+  }
+
+  function upgradeHeroicWill() {
+    if (!canUpgradeHeroicWill || !afford(1000)) return;
+    spend(1000);
+    saveLoadout({ ...loadout, heroicWillUses: 2, heroicWillUpgradeCount: 1 });
   }
 
   function selectBottle(deckIndex: number) {
@@ -136,8 +155,11 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
         <button className="quartermaster-option" onClick={upgradeBottle}>
           <FlaskConical size={28} /><span><strong>Upgrade Bottle</strong><small>Max Energy Cost {loadout.bottleMaxCost} → {loadout.bottleMaxCost + 1}</small></span><b>${bottleUpgradeCost}</b>
         </button>
-        <button className="quartermaster-option locked" disabled>
-          <HelpCircle size={28} /><span><strong>Locked</strong><small>Requires Level 4</small></span><b>???</b>
+        <button className={`quartermaster-option ${canUpgradeResourcefulness ? "" : "locked"}`} disabled={!canUpgradeResourcefulness} onClick={upgradeResourcefulness}>
+          <RefreshCw size={28} /><span><strong>Resourcefulness</strong><small>{loadout.dungeonLevel < 2 ? "Locked: Level 2" : loadout.resourcefulnessUpgradeCount >= 2 ? "Maximum: 3 uses per fight" : `${loadout.resourcefulnessUses} → ${loadout.resourcefulnessUses + 1} uses per fight`}</small></span><b>{loadout.dungeonLevel < 2 || loadout.resourcefulnessUpgradeCount >= 2 ? "—" : `$${resourcefulnessCost}`}</b>
+        </button>
+        <button className={`quartermaster-option ${canUpgradeHeroicWill ? "" : "locked"}`} disabled={!canUpgradeHeroicWill} onClick={upgradeHeroicWill}>
+          <ShieldCheck size={28} /><span><strong>Heroic Will</strong><small>{loadout.dungeonLevel < 4 ? "Locked: Level 4" : loadout.heroicWillUpgradeCount >= 1 ? "Maximum: 2 uses per fight" : "1 → 2 uses per fight"}</small></span><b>{loadout.dungeonLevel < 4 || loadout.heroicWillUpgradeCount >= 1 ? "—" : "$1000"}</b>
         </button>
         <button className="quartermaster-option" onClick={upgradeMending}>
           <HeartPulse size={28} /><span><strong>Upgrade Mending</strong><small>Heal {loadout.mendingHealing} → {loadout.mendingHealing + nextMendingIncrease} after battle</small></span><b>${mendingCost}</b>

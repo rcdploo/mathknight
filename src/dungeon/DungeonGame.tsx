@@ -6,15 +6,15 @@ import { applyCardUpgrade, canApplyUpgrade, type BattleCard } from "../battle/ba
 import { cardById } from "../battle/cardCatalog";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
-import { generateMonster, generateRoomGold, nextDungeonStage, type DungeonRoom, type DungeonStage, type GeneratedMonster } from "../battle/monsterGenerator";
+import { generateMonster, generateRoomGold, nextDungeonLevel, type DungeonRoom, type DungeonLevel, type GeneratedMonster } from "../battle/monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { totalStars } from "../game/unlockRules";
-import { hasVisitedQuartermaster, loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
+import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
 type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "elite" | "shop" | "treasure" };
 type DungeonState = {
-  stage: DungeonStage;
+  level: DungeonLevel;
   nodes: DungeonNode[];
   completedIds: string[];
   availableIds: string[];
@@ -23,10 +23,10 @@ type DungeonState = {
   notice: string;
 };
 
-const dungeonStorageKey = "mathknight.dungeon.level1.v4";
+const dungeonStorageKey = "mathknight.dungeon.level1.v6";
 const mapWidth = 1280;
 const mapHeight = 480;
-const dungeonStarRequirements: Partial<Record<DungeonStage, Partial<Record<number, number>>>> = {
+const dungeonStarRequirements: Partial<Record<DungeonLevel, Partial<Record<number, number>>>> = {
   1: { 1: 3, 3: 5, 10: 10 },
   2: { 5: 15, 10: 20 },
   3: { 5: 25, 10: 30 },
@@ -34,8 +34,8 @@ const dungeonStarRequirements: Partial<Record<DungeonStage, Partial<Record<numbe
   5: { 5: 45, 10: 50 },
 };
 
-function starRequirement(stage: DungeonStage, step: number) {
-  return dungeonStarRequirements[stage]?.[step];
+function starRequirement(level: DungeonLevel, step: number) {
+  return dungeonStarRequirements[level]?.[step];
 }
 
 function shuffle<T>(items: T[]) {
@@ -47,8 +47,8 @@ function shuffle<T>(items: T[]) {
   return shuffled;
 }
 
-function generateEarlyRooms(stage: DungeonStage) {
-  if (stage === 1) {
+function generateEarlyRooms(level: DungeonLevel) {
+  if (level === 1) {
     const mysteryLanes = new Set(shuffle([0, 1, 2]).slice(0, 2));
     return [0, 1, 2].map((lane) => {
       const outerRooms: RoomType[] = mysteryLanes.has(lane) ? shuffle(["battle", "mystery"]) : ["battle", "battle"];
@@ -72,8 +72,8 @@ function generateEarlyRooms(stage: DungeonStage) {
   }
 }
 
-function generateLaneRooms(stage: DungeonStage) {
-  const earlyRooms = generateEarlyRooms(stage);
+function generateLaneRooms(level: DungeonLevel) {
+  const earlyRooms = generateEarlyRooms(level);
   return [0, 1, 2].map((lane) => {
     const laneRooms: RoomType[] = [];
     laneRooms[1] = "battle";
@@ -99,12 +99,12 @@ function shouldGenerateMonster(type: RoomType) {
   return type === "battle" || type === "elite" || type === "boss";
 }
 
-function generateDungeon(stage: DungeonStage): DungeonState {
-  const laneRooms = generateLaneRooms(stage);
+function generateDungeon(level: DungeonLevel): DungeonState {
+  const laneRooms = generateLaneRooms(level);
   const usedTypeNames: string[] = [];
   const makeMonster = (type: RoomType, step: number) => {
     if (!shouldGenerateMonster(type)) return undefined;
-    const monster = generateMonster(stage, roomNumberForMonster(step), usedTypeNames, type === "elite" ? 2 : 0);
+    const monster = generateMonster(level, roomNumberForMonster(step), usedTypeNames, type === "elite" ? 2 : 0);
     usedTypeNames.push(monster.type.name);
     return monster;
   };
@@ -123,7 +123,7 @@ function generateDungeon(stage: DungeonStage): DungeonState {
   nodes.push({ id: "pre-boss-shop", step: 9.75, lane: 1, type: "shop", next: ["boss"] });
   nodes.push({ id: "boss", step: 10, lane: 1, type: "boss", next: [], monster: makeMonster("boss", 10) });
   return {
-    stage,
+    level,
     nodes,
     completedIds: ["start"],
     availableIds: ["room-1-0", "room-1-1", "room-1-2"],
@@ -138,7 +138,7 @@ function loadDungeon() {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
     const saved = JSON.parse(raw) as DungeonState;
-    return saved.nodes.some((node) => node.id === "pre-boss-shop") ? saved : generateDungeon(saved.stage);
+    return saved.nodes.some((node) => node.id === "pre-boss-shop") ? saved : generateDungeon(saved.level);
   } catch {
     return generateDungeon(1);
   }
@@ -181,11 +181,11 @@ export default function DungeonGame({
   }, [dungeon]);
 
   function enterRoom(node: DungeonNode) {
-    if (dungeon.stage === 1 && node.step === 7 && !quartermasterVisited) {
+    if (dungeon.level === 1 && node.step === 7 && !quartermasterVisited) {
       setQuartermasterLockOpen(true);
       return;
     }
-    const requiredStars = starRequirement(dungeon.stage, node.step);
+    const requiredStars = starRequirement(dungeon.level, node.step);
     if (requiredStars && stars < requiredStars) {
       setStarLockMessage({ required: requiredStars, missing: requiredStars - stars });
       return;
@@ -197,7 +197,7 @@ export default function DungeonGame({
       setDungeon((current) => {
         const usedTypeNames = current.nodes.flatMap((candidate) => candidate.monster ? [candidate.monster.type.name] : []);
         const monster = shouldGenerateMonster(resolvedType)
-          ? generateMonster(current.stage, roomNumberForMonster(node.step), usedTypeNames, resolvedType === "elite" ? 2 : 0)
+          ? generateMonster(current.level, roomNumberForMonster(node.step), usedTypeNames, resolvedType === "elite" ? 2 : 0)
           : undefined;
         return {
           ...current,
@@ -217,7 +217,7 @@ export default function DungeonGame({
 
   function completeRoom(won: boolean) {
     if (!won) {
-      const nextDungeon = generateDungeon(dungeon.stage);
+      const nextDungeon = generateDungeon(dungeon.level);
       nextDungeon.notice = "The dungeon shifted after your defeat. Choose a new path.";
       window.localStorage.setItem(dungeonStorageKey, JSON.stringify(nextDungeon));
       setDungeon(nextDungeon);
@@ -229,15 +229,17 @@ export default function DungeonGame({
       if (!completedNode) return { ...current, view: "map", activeNodeId: null };
       const bossDefeated = completedNode.type === "boss";
       if (bossDefeated) {
-        const nextStage = nextDungeonStage(current.stage);
+        const nextLevel = nextDungeonLevel(current.level);
         const loadout = loadPermanentLoadout();
-        if (nextStage > loadout.dungeonLevel) {
-          savePermanentLoadout({ ...loadout, dungeonLevel: nextStage });
+        const nextStats = characterStatsForLevel(nextLevel, loadout);
+        if (nextLevel > loadout.dungeonLevel) {
+          savePermanentLoadout({ ...loadout, dungeonLevel: nextLevel, maxHealth: nextStats.maxHealth });
         }
-        const nextDungeon = generateDungeon(nextStage);
-        nextDungeon.notice = nextStage === current.stage
-          ? "The final boss is defeated. Stage 5 is mastered."
-          : `Stage ${current.stage} conquered. Stage ${nextStage} begins.`;
+        window.localStorage.setItem(runHealthKey, String(nextStats.maxHealth));
+        const nextDungeon = generateDungeon(nextLevel);
+        nextDungeon.notice = nextLevel === current.level
+          ? "The final boss is defeated. Level 5 is mastered."
+          : `Level ${current.level} conquered. Level ${nextLevel} begins.`;
         return nextDungeon;
       }
       return {
@@ -259,16 +261,16 @@ export default function DungeonGame({
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (!activeNode?.monster) return null;
     const effectiveType = activeNode.resolvedType ?? activeNode.type;
-    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite"} />;
+    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Level ${dungeon.level} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite"} />;
   }
 
   if (dungeon.view === "event") {
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (activeNode) {
       const effectiveType = activeNode.resolvedType ?? activeNode.type;
-      if (effectiveType === "shop") return <ShopRoom node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
-      if (effectiveType === "treasure") return <TreasureReward node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
-      return <RoomEvent node={activeNode} stage={dungeon.stage} eventType={effectiveType} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+      if (effectiveType === "shop") return <ShopRoom node={activeNode} level={dungeon.level} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+      if (effectiveType === "treasure") return <TreasureReward node={activeNode} level={dungeon.level} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+      return <RoomEvent node={activeNode} level={dungeon.level} eventType={effectiveType} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
     }
   }
 
@@ -306,7 +308,7 @@ export default function DungeonGame({
       )}
       <header className="dungeon-map-header">
         <button className="map-back-button" onClick={onExit}>Game Hall</button>
-        <div><p>Dungeon Stage {dungeon.stage}</p><h1>The Verdant Descent</h1></div>
+        <div><p>Dungeon Level {dungeon.level}</p><h1>The Verdant Descent</h1></div>
         <span>Room 5 treasure / Room 10 boss</span>
       </header>
       <div className="dungeon-map-copy"><p>{dungeon.notice}</p></div>
@@ -327,9 +329,9 @@ export default function DungeonGame({
             const position = nodePosition(node);
             const completed = dungeon.completedIds.includes(node.id);
             const pathAvailable = dungeon.availableIds.includes(node.id);
-            const requiredStars = starRequirement(dungeon.stage, node.step);
+            const requiredStars = starRequirement(dungeon.level, node.step);
             const starLocked = requiredStars !== undefined && stars < requiredStars;
-            const quartermasterLocked = dungeon.stage === 1 && node.step === 7 && !quartermasterVisited;
+            const quartermasterLocked = dungeon.level === 1 && node.step === 7 && !quartermasterVisited;
             const available = pathAvailable && !starLocked && !quartermasterLocked;
             return (
               <button
@@ -359,7 +361,7 @@ export default function DungeonGame({
   );
 }
 
-function RoomEvent({ node, stage, eventType, onExit, onComplete }: { node: DungeonNode; stage: DungeonStage; eventType: RoomType; onExit: () => void; onComplete: () => void }) {
+function RoomEvent({ node, level, eventType, onExit, onComplete }: { node: DungeonNode; level: DungeonLevel; eventType: RoomType; onExit: () => void; onComplete: () => void }) {
   const [items] = useState<ItemDefinition[]>(() => surfaceItems(1));
   const [owned, setOwned] = useState(loadRunItems);
   const [message, setMessage] = useState(
@@ -385,7 +387,7 @@ function RoomEvent({ node, stage, eventType, onExit, onComplete }: { node: Dunge
   return (
     <main className="battle-game reward-screen">
       <section className="reward-panel item-room-panel">
-        <p>Stage {stage} / {roomDetails[eventType].label}</p>
+        <p>Level {level} / {roomDetails[eventType].label}</p>
         <h1>{eventType === "treasure" ? "Treasure Cache" : "Curious Discovery"}</h1>
         <p className="room-event-message">{message}</p>
         <div className="item-offers">
@@ -413,16 +415,16 @@ function RoomEvent({ node, stage, eventType, onExit, onComplete }: { node: Dunge
 
 type TreasureState = { rewards: BattleCard[]; itemId: string | null; gold: number; paid: boolean };
 
-function TreasureReward({ node, stage, onExit, onComplete }: { node: DungeonNode; stage: DungeonStage; onExit: () => void; onComplete: () => void }) {
+function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode; level: DungeonLevel; onExit: () => void; onComplete: () => void }) {
   const storageKey = `mathknight.dungeon.treasure.${node.id}.v1`;
   const [state, setState] = useState<TreasureState>(() => {
     try {
       return JSON.parse(window.localStorage.getItem(storageKey) ?? "") as TreasureState;
     } catch {
       const next = {
-        rewards: generateCombatRewards(stage).map((reward) => reward.card),
+        rewards: generateCombatRewards(level).map((reward) => reward.card),
         itemId: surfaceItems(1)[0]?.id ?? null,
-        gold: Math.round(generateRoomGold(stage, node.step) * 1.5),
+        gold: Math.round(generateRoomGold(level, node.step) * 1.5),
         paid: false,
       };
       window.localStorage.setItem(storageKey, JSON.stringify(next));
@@ -496,8 +498,8 @@ function loadRunDeckCards() {
   }
 }
 
-function ShopRoom({ node, stage, onExit, onComplete }: { node: DungeonNode; stage: DungeonStage; onExit: () => void; onComplete: () => void }) {
-  const initial = useMemo(() => loadShop(node.id, stage), [node.id, stage]);
+function ShopRoom({ node, level, onExit, onComplete }: { node: DungeonNode; level: DungeonLevel; onExit: () => void; onComplete: () => void }) {
+  const initial = useMemo(() => loadShop(node.id, level), [node.id, level]);
   const [slots, setSlots] = useState<ShopSlot[]>(initial.slots);
   const [coins, setCoins] = useState(() => loadProgress().coins);
   const [deck, setDeck] = useState(loadRunDeckCards);
@@ -548,7 +550,7 @@ function ShopRoom({ node, stage, onExit, onComplete }: { node: DungeonNode; stag
       persist(slots, deck, coins - price);
       setMessage("Sustenance restores up to 30 HP.");
     } else if (slot.type === "random-reward") {
-      const reward = generateCombatRewards(stage)[Math.floor(Math.random() * 3)].card;
+      const reward = generateCombatRewards(level)[Math.floor(Math.random() * 3)].card;
       if (reward.kind === "upgrade") {
         setTargetSlot({ ...slot, type: "upgrade", card: reward } as ShopSlot);
       } else {
@@ -587,7 +589,7 @@ function ShopRoom({ node, stage, onExit, onComplete }: { node: DungeonNode; stag
   }
 
   return <main className="battle-game reward-screen"><section className="reward-panel dungeon-shop-panel">
-    <p>Stage {stage} / Dungeon Shop</p><h1>Dungeon Merchant</h1>
+    <p>Level {level} / Dungeon Shop</p><h1>Dungeon Merchant</h1>
     <div className="shop-balance">${coins} coins</div><p className="room-event-message">{message}</p>
     <div className="dungeon-shop-grid">
       {orderedSlots.map((slot) => <ShopOffer slot={slot} price={priceFor(slot)} onBuy={() => buy(slot)} key={slot.position} />)}

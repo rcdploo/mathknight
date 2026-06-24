@@ -1,4 +1,4 @@
-export type DungeonStage = 1 | 2 | 3 | 4 | 5;
+export type DungeonLevel = 1 | 2 | 3 | 4 | 5;
 export type DungeonRoom = 1 | 2 | 3 | 4 | 6 | 7 | 8 | 9 | "Boss";
 export type MonsterComplexity = "Basic" | "Medium" | "Tough";
 export type SpellcastingFrequency = "Never" | "Rarely" | "Sometimes" | "Always";
@@ -27,7 +27,7 @@ export type MonsterBuffDefinition = {
 
 export type GeneratedMonster = {
   id: string;
-  stage: DungeonStage;
+  level: DungeonLevel;
   room: DungeonRoom;
   name: string;
   subtitle: string;
@@ -48,23 +48,23 @@ type MonsterUsage = {
 
 const usageKey = "mathknight.monsterUsage.v1";
 
-const baseDamage: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
-  1: { 1: 6, 2: 8, 3: 9, 4: 11, 6: 12, 7: 14, 8: 15, 9: 18, Boss: 23 },
-  2: { 1: 9, 2: 11, 3: 14, 4: 16, 6: 18, 7: 20, 8: 23, 9: 27, Boss: 34 },
-  3: { 1: 14, 2: 17, 3: 20, 4: 24, 6: 27, 7: 30, 8: 34, 9: 41, Boss: 51 },
-  4: { 1: 20, 2: 25, 3: 30, 4: 35, 6: 41, 7: 46, 8: 51, 9: 61, Boss: 76 },
-  5: { 1: 30, 2: 38, 3: 46, 4: 53, 6: 61, 7: 68, 8: 76, 9: 91, Boss: 114 },
+const baseDamage: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
+  1: { 1: 6, 2: 7, 3: 7, 4: 8, 6: 8, 7: 9, 8: 9, 9: 10, Boss: 12 },
+  2: { 1: 9, 2: 11, 3: 11, 4: 12, 6: 12, 7: 14, 8: 14, 9: 15, Boss: 18 },
+  3: { 1: 14, 2: 16, 3: 16, 4: 18, 6: 18, 7: 20, 8: 20, 9: 23, Boss: 27 },
+  4: { 1: 20, 2: 24, 3: 24, 4: 27, 6: 27, 7: 30, 8: 30, 9: 34, Boss: 41 },
+  5: { 1: 30, 2: 35, 3: 35, 4: 41, 6: 41, 7: 46, 8: 46, 9: 51, Boss: 61 },
 };
 
-const baseHp: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
-  1: { 1: 30, 2: 35, 3: 40, 4: 45, 6: 50, 7: 55, 8: 60, 9: 65, Boss: 80 },
-  2: { 1: 60, 2: 70, 3: 80, 4: 90, 6: 100, 7: 110, 8: 120, 9: 130, Boss: 160 },
-  3: { 1: 120, 2: 140, 3: 160, 4: 180, 6: 200, 7: 220, 8: 240, 9: 260, Boss: 320 },
-  4: { 1: 240, 2: 280, 3: 320, 4: 360, 6: 400, 7: 440, 8: 480, 9: 520, Boss: 640 },
-  5: { 1: 480, 2: 560, 3: 640, 4: 720, 6: 800, 7: 880, 8: 960, 9: 1040, Boss: 1280 },
+const baseHp: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
+  1: { 1: 30, 2: 32, 3: 35, 4: 37, 6: 40, 7: 44, 8: 47, 9: 50, Boss: 125 },
+  2: { 1: 45, 2: 48, 3: 53, 4: 56, 6: 60, 7: 66, 8: 71, 9: 75, Boss: 188 },
+  3: { 1: 79, 2: 84, 3: 93, 4: 98, 6: 105, 7: 116, 8: 124, 9: 131, Boss: 329 },
+  4: { 1: 138, 2: 147, 3: 163, 4: 172, 6: 184, 7: 203, 8: 217, 9: 229, Boss: 576 },
+  5: { 1: 276, 2: 294, 3: 326, 4: 344, 6: 368, 7: 406, 8: 434, 9: 458, Boss: 1152 },
 };
 
-const buffBudget: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
+const buffBudget: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
   1: { 1: 0, 2: 0, 3: 0, 4: 0, 6: 0, 7: 0, 8: 0, 9: 0, Boss: 1 },
   2: { 1: 1, 2: 1, 3: 1, 4: 1, 6: 1, 7: 1, 8: 1, 9: 1, Boss: 2 },
   3: { 1: 2, 2: 2, 3: 2, 4: 2, 6: 2, 7: 2, 8: 2, 9: 2, Boss: 3 },
@@ -72,7 +72,7 @@ const buffBudget: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
   5: { 1: 4, 2: 4, 3: 4, 4: 4, 6: 4, 7: 4, 8: 4, 9: 4, Boss: 5 },
 };
 
-const baseReward: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
+const baseReward: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
   1: { 1: 10, 2: 12, 3: 14, 4: 16, 6: 18, 7: 20, 8: 22, 9: 24, Boss: 30 },
   2: { 1: 26, 2: 28, 3: 30, 4: 32, 6: 34, 7: 36, 8: 38, 9: 40, Boss: 50 },
   3: { 1: 42, 2: 44, 3: 46, 4: 48, 6: 50, 7: 52, 8: 54, 9: 56, Boss: 70 },
@@ -101,8 +101,8 @@ export const monsterBuffs: MonsterBuffDefinition[] = [
   { name: "Mighty", symbol: "M", difficulty: 3, effect: "Deal 30% more damage" },
   { name: "Fat", symbol: "F", difficulty: 2, effect: "Start with 30% more health" },
   { name: "Armored", symbol: "A", difficulty: 2, effect: "Each attack adds 20% of that amount in Armor" },
-  { name: "Noxious", symbol: "N", difficulty: 1, effect: "You lose 2*Stage HP at the end of each combat turn" },
-  { name: "Vexxing", symbol: "V", difficulty: 2, effect: "You lose 1*Stage HP for each operator in the expression you submit" },
+  { name: "Noxious", symbol: "N", difficulty: 1, effect: "You lose 2*Level HP at the end of each combat turn" },
+  { name: "Vexxing", symbol: "V", difficulty: 2, effect: "You lose 1*Level HP for each operator in the expression you submit" },
   { name: "Weakening", symbol: "W", difficulty: 1, effect: "If it damages you, your next submission does 10% less damage" },
   { name: "Lobotomizing", symbol: "L", difficulty: 3, effect: "If it damages you, removes your best card for the rest of the fight" },
   { name: "Dazing", symbol: "D", difficulty: 3, effect: "Each turn, shuffles a temporary 0 into your draw pile" },
@@ -111,7 +111,7 @@ export const monsterBuffs: MonsterBuffDefinition[] = [
   { name: "Hypnotic", symbol: "H", difficulty: 3, effect: "Unplayed cards stay in hand between turns" },
   { name: "Swashbuckling", symbol: "S", difficulty: 2, effect: "Splits attacks into two uneven halves" },
   { name: "Eldritch", symbol: "E", difficulty: 2, effect: "N spells are increased by 1" },
-  { name: "Thieving", symbol: "T", difficulty: 1, effect: "If it damages you, steals 5*Stage coins" },
+  { name: "Thieving", symbol: "T", difficulty: 1, effect: "If it damages you, steals 5*Level coins" },
   { name: "Corrosive", symbol: "C", difficulty: 1, effect: "Your armor is 25% less effective" },
 ];
 
@@ -218,7 +218,7 @@ function selectBuffs(totalDifficulty: number, usage: MonsterUsage, type: Monster
   return selected;
 }
 
-export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedTypeNames: string[], buffBonus = 0): GeneratedMonster {
+export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedTypeNames: string[], buffBonus = 0): GeneratedMonster {
   const usage = loadUsage();
   const compatibleTypes = monsterTypes.filter((type) =>
     allowedComplexities(room).includes(type.complexity)
@@ -227,16 +227,16 @@ export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedType
   const unusedCompatibleTypes = compatibleTypes.filter((type) => !usedTypeNames.includes(type.name));
   const type = choice(leastUsed(unusedCompatibleTypes.length > 0 ? unusedCompatibleTypes : compatibleTypes, usage.types));
   const pattern = choice(leastUsed(weightedPatternPool(type, room), usage.patterns));
-  const buffs = selectBuffs((buffBudget[stage][room] ?? 0) + buffBonus, usage, type);
+  const buffs = selectBuffs((buffBudget[level][room] ?? 0) + buffBonus, usage, type);
   const sortedBuffs = [...buffs].sort((left, right) => right.difficulty - left.difficulty || left.name.localeCompare(right.name));
   const highestDifficulty = sortedBuffs[0]?.difficulty;
   const titleBuff = highestDifficulty ? choice(sortedBuffs.filter((buff) => buff.difficulty === highestDifficulty)) : undefined;
   const subtitleBuffs = titleBuff ? [titleBuff, ...sortedBuffs.filter((buff) => buff.name !== titleBuff.name)] : sortedBuffs;
   const fatMultiplier = buffs.some((buff) => buff.name === "Fat") ? 1.3 : 1;
   const mightyMultiplier = buffs.some((buff) => buff.name === "Mighty") ? 1.3 : 1;
-  const hp = Math.round((baseHp[stage][room] ?? 30) * type.hpMultiplier * fatMultiplier);
-  const damage = Math.max(1, Math.round((baseDamage[stage][room] ?? 6) * mightyMultiplier));
-  const reward = Math.max(0, Math.round((baseReward[stage][room] ?? 0) * randomBetween(0.9, 1.1)));
+  const hp = Math.round((baseHp[level][room] ?? 30) * type.hpMultiplier * fatMultiplier);
+  const damage = Math.max(1, Math.round((baseDamage[level][room] ?? 6) * mightyMultiplier));
+  const reward = Math.max(0, Math.round((baseReward[level][room] ?? 0) * randomBetween(0.9, 1.1)));
 
   incrementUsage(usage, "types", type.name);
   incrementUsage(usage, "patterns", pattern.name);
@@ -244,8 +244,8 @@ export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedType
   saveUsage(usage);
 
   return {
-    id: `${stage}-${room}-${type.name}-${Math.random().toString(36).slice(2, 9)}`,
-    stage,
+    id: `${level}-${room}-${type.name}-${Math.random().toString(36).slice(2, 9)}`,
+    level,
     room,
     name: [titleBuff?.name, pattern.name, type.name].filter(Boolean).join(" "),
     subtitle: subtitleBuffs.length > 0 ? subtitleBuffs.map((buff) => `${buff.symbol} ${buff.name}`).join(" / ") : "No buffs",
@@ -259,17 +259,17 @@ export function generateMonster(stage: DungeonStage, room: DungeonRoom, usedType
   };
 }
 
-export function generateRoomGold(stage: DungeonStage, step: number) {
+export function generateRoomGold(level: DungeonLevel, step: number) {
   const lowerRoom = Math.max(1, Math.min(9, Math.floor(step))) as DungeonRoom;
   const upperRoom = Math.max(1, Math.min(9, Math.ceil(step))) as DungeonRoom;
-  const lower = baseReward[stage][lowerRoom] ?? 0;
-  const upper = baseReward[stage][upperRoom] ?? lower;
+  const lower = baseReward[level][lowerRoom] ?? 0;
+  const upper = baseReward[level][upperRoom] ?? lower;
   const base = lowerRoom === upperRoom ? lower : lower + (upper - lower) * (step - Math.floor(step));
   return Math.max(0, Math.round(base * randomBetween(.9, 1.1)));
 }
 
-export function nextDungeonStage(stage: DungeonStage): DungeonStage {
-  return Math.min(5, stage + 1) as DungeonStage;
+export function nextDungeonLevel(level: DungeonLevel): DungeonLevel {
+  return Math.min(5, level + 1) as DungeonLevel;
 }
 
 

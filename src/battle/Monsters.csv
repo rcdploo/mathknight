@@ -1,36 +1,36 @@
 YOUR STATS,,,,,,,,,,
-Stage/Your Level,1,2,3,4,5,,,,,
+Level/Your Room,1,2,3,4,5,,,,,
 Base HP,40,60,100,160,250,,,,,
 Energy,4,5,6,7,8,,,,,
 Hand Size,5,5,6,6,7,,,,,
-Upgrades,Mending Charm,Resilience,Unlock Training Grounds,2nd Bottle,Heroic Will,,,,,
+Upgrades,Mending Charm,Resourcefulness,Unlock Training Grounds,Heroic Will,,,,,,
 ,,,,,,,,,,
-DAMAGE,Levels,,,,,,,,,
-Stage,1,2,3,4,5,6,7,8,9,Boss
-1,6,8,9,11,n/a,12,14,15,18,23
-2,9,11,14,16,n/a,18,20,23,27,34
-3,14,17,20,24,n/a,27,30,34,41,51
-4,20,25,30,35,n/a,41,46,51,61,76
-5,30,38,46,53,n/a,61,68,76,91,114
+DAMAGE,Rooms,,,,,,,,,
+Level,1,2,3,4,5,6,7,8,9,Boss
+1,6,7,7,8,n/a,8,9,9,10,12
+2,9,11,11,12,n/a,12,14,14,15,18
+3,14,16,16,18,n/a,18,20,20,23,27
+4,20,24,24,27,n/a,27,30,30,34,41
+5,30,35,35,41,n/a,41,46,46,51,61
 ,,,,,,,,,,
-HP,Levels,,,,,,,,,
-Stage,1,2,3,4,5,6,7,8,9,Boss
-1,30,35,40,45,n/a,50,55,60,65,80
-2,60,70,80,90,n/a,100,110,120,130,160
-3,120,140,160,180,n/a,200,220,240,260,320
-4,240,280,320,360,n/a,400,440,480,520,640
-5,480,560,640,720,n/a,800,880,960,1040,1280
+HP,Rooms,,,,,,,,,
+Level,1,2,3,4,5,6,7,8,9,Boss
+1,30,32,35,37,n/a,40,44,47,50,125
+2,45,48,53,56,n/a,60,66,71,75,188
+3,79,84,93,98,n/a,105,116,124,131,329
+4,138,147,163,172,n/a,184,203,217,229,576
+5,276,294,326,344,n/a,368,406,434,458,1152
 ,,,,,,,,,,
-Buffs,Levels,,,,,,,,,
-Stage,1,2,3,4,5,6,7,8,9,Boss
+Buffs,Rooms,,,,,,,,,
+Level,1,2,3,4,5,6,7,8,9,Boss
 1,0,0,0,0,n/a,0,0,0,0,1
 2,1,1,1,1,n/a,1,1,1,1,2
 3,2,2,2,2,n/a,2,2,2,2,3
 4,3,3,3,3,n/a,3,3,3,3,4
 5,4,4,4,4,n/a,4,4,4,4,5
 ,,,,,,,,,,
-$ Reward,Levels,,,,,,,,,
-Stage,1,2,3,4,5,6,7,8,9,Boss
+$ Reward,Rooms,,,,,,,,,
+Level,1,2,3,4,5,6,7,8,9,Boss
 1,10,12,14,16,n/a,18,20,22,24,30
 2,26,28,30,32,n/a,34,36,38,40,50
 3,42,44,46,48,n/a,50,52,54,56,70
@@ -61,8 +61,8 @@ Regenerating,R,1,Heal 3% of Max HP every turn,,,,,,,
 Mighty,M,3,Deal 30% more damage,,,,,,,
 Fat,F,2,Start with 30% more health,,,,,,,
 Armored,A,2,Each attack adds 20% of that amount in Armor,,,,,,,
-Noxious,N,1,You lose 2*Stage HP at the end of each combat turn (if the monster is still alive),,,,,,,
-Vexxing,V,2,You lose 1*Stage HP for each operator in the expression you submit,,,,,,,
+Noxious,N,1,You lose 2*Level HP at the end of each combat turn (if the monster is still alive),,,,,,,
+Vexxing,V,2,You lose 1*Level HP for each operator in the expression you submit,,,,,,,
 Weakening,W,1,"If it damages you, you are weakened on your next turn (your submission does 10% less damage)",,,,,,,
 Lobotomizing,L,3,"If it damanges you, it removes your best card from your deck for the rest of the fight (order by # upgrades then by rarity)",,,,,,,
 Dazing,D,3,"Each turn, it shuffles a temporary ""0"" Digit card into your draw pile, that evaporates at the end of the turn that you drew it (whether you use it or not)",,,,,,,
@@ -71,7 +71,7 @@ Guileful,G,3,Shows two different attack numbers. Only one is the real attack but
 Hypnotic,H,3,"You do not discard unplayed cards at the end of the turn. Draw up to Max hand size, keeping those cards.",,,,,,,
 Swashbuckling,S,2,Splits their attack into two halves that are nor exactly equal. Only one can be countered. [cannot be combined with guileful],,,,,,,
 Eldritch,E,2,[Only monsters that spell cast and have at least one N spell] This Monster's N spells are increased by 1,,,,,,,
-Thieving,T,1,"If it damages you, Steals 5*Stage $ from you.",,,,,,,
+Thieving,T,1,"If it damages you, Steals 5*Level $ from you.",,,,,,,
 Corrosive,C,1,Your armor is 25% less effective,,,,,,,
 ,,,,,,,,,,
 ,,,,,,,,,,
@@ -82,7 +82,7 @@ Cripple (n),6,1+n,You can only use 1 operator next n turns,,,,,,,
 Enrage,8,2,Plus 10% Damage rest of fight (stacking),,,,,,,
 Brainrot (n),4,n,Shuffle n 0s into your draw pile,,,,,,,
 Weaken (n),8,n-1,You do 10% less damage for the next n turns,,,,,,,
-Thorns,4,2,You take 2*Stage Damage each time you attack (stacking),,,,,,,
+Thorns,4,2,You take 2*Level Damage each time you attack (stacking),,,,,,,
 Addle (n),4,n,Your Maximum Handsize is reduced by 20% (round to nearest int) for the next n turns,,,,,,,
 Perplex (n),4,1+n,You cannot use your bottled card for the next n turns,,,,,,,
 Mana Drain (n),6,n,Your max energy is reduced by 25% for the next n turns (round the reduction amount to the nearest integer) ,,,,,,,

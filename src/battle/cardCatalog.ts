@@ -47,7 +47,7 @@ const descriptions: Record<string, string> = {
   "Weaken": "Reduce the monster's current and next attack by 10%.",
   "Crit": "20% chance to deal 1.5x damage.",
   "Reflecting": "Return half the damage you take this turn.",
-  "Healing": "When used in an expression, heal 1 HP per Stage.",
+  "Healing": "When used in an expression, heal 1 HP per Level.",
 };
 
 type SourceRow = {

@@ -21,16 +21,16 @@ function cardPrice(card: BattleCard) {
   return numericPrice(card.shopCostRaw) + card.upgrades.reduce((sum, id) => sum + numericPrice(cardById.get(id)?.shopCostRaw ?? ""), 0);
 }
 
-function generateShop(stage: number): ShopSlot[] {
+function generateShop(level: number): ShopSlot[] {
   const owned = new Set(loadRunItems());
   const availableItems = itemCatalog.filter((item) => !owned.has(item.id)).sort(() => Math.random() - .5);
   return [
     ...cardPositions.map(([position, rewardSlot]) => {
-      const card = generateShopCard(stage, rewardSlot).card;
+      const card = generateShopCard(level, rewardSlot).card;
       return { position, type: "card" as const, card, price: cardPrice(card), sold: false };
     }),
     ...["U1", "U2", "U3"].map((position) => {
-      const card = generateShopUpgrade(stage);
+      const card = generateShopUpgrade(level);
       return { position, type: "upgrade" as const, card, price: numericPrice(card.shopCostRaw), sold: false };
     }),
     ...["I1", "I2", "I3", "I4"].map((position, index) => {
@@ -38,12 +38,12 @@ function generateShop(stage: number): ShopSlot[] {
       return { position, type: "item" as const, item, price: item.cost, sold: false };
     }),
     { position: "S1", type: "sustenance", price: 50, sold: false },
-    { position: "S2", type: "random-reward", price: 75 * stage, sold: false },
+    { position: "S2", type: "random-reward", price: 75 * level, sold: false },
     { position: "S3", type: "remove-card", price: 100, sold: false },
   ];
 }
 
-export function loadShop(shopId: string, stage: number) {
+export function loadShop(shopId: string, level: number) {
   const key = `mathknight.dungeon.shop.${shopId}.v1`;
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) ?? "") as ShopSlot[];
@@ -53,7 +53,7 @@ export function loadShop(shopId: string, stage: number) {
       slots: parsed,
     };
   } catch {
-    const slots = generateShop(stage);
+    const slots = generateShop(level);
     window.localStorage.setItem(key, JSON.stringify(slots));
     return { key, slots };
   }
