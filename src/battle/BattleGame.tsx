@@ -908,9 +908,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <div className="reward-cards">
             {rewards.map((card) => (
               <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
-                <em>Slot {card.rewardSlot}</em>
                 <strong>{card.label}</strong>
-                <span>{card.rewardKind}{card.rewardBudget ? ` · Value ${card.rewardBudget}` : ""}</span>
+                <span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
                 {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
                 <small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
               </button>

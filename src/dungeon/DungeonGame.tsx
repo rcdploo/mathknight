@@ -301,8 +301,10 @@ function ShopRoom({ node, stage, onExit, onComplete }: { node: DungeonNode; stag
   const [coins, setCoins] = useState(() => loadProgress().coins);
   const [deck, setDeck] = useState(loadRunDeckCards);
   const [targetSlot, setTargetSlot] = useState<ShopSlot | null>(null);
-  const [message, setMessage] = useState("Everything but Sustenance can be purchased once.");
+  const [message, setMessage] = useState("Need more gold? Return to the Training Grounds to earn more.");
   const discount = loadRunItems().includes("loyalty-card") ? .8 : 1;
+  const shopPositionOrder = ["C1", "C2", "C3", "I1", "C4", "C5", "C6", "I2", "U1", "U2", "U3", "I3", "S1", "S2", "S3", "I4"];
+  const orderedSlots = [...slots].sort((left, right) => shopPositionOrder.indexOf(left.position) - shopPositionOrder.indexOf(right.position));
 
   function priceFor(slot: ShopSlot) {
     if (slot.type === "sustenance") return slot.price;
@@ -387,7 +389,7 @@ function ShopRoom({ node, stage, onExit, onComplete }: { node: DungeonNode; stag
     <p>Stage {stage} / Dungeon Shop</p><h1>Dungeon Merchant</h1>
     <div className="shop-balance">${coins} coins</div><p className="room-event-message">{message}</p>
     <div className="dungeon-shop-grid">
-      {slots.map((slot) => <ShopOffer slot={slot} price={priceFor(slot)} onBuy={() => buy(slot)} key={slot.position} />)}
+      {orderedSlots.map((slot) => <ShopOffer slot={slot} price={priceFor(slot)} onBuy={() => buy(slot)} key={slot.position} />)}
     </div>
     <div className="battle-actions"><button onClick={onComplete}>Leave shop</button><button onClick={onExit}>Return to map</button></div>
   </section></main>;
@@ -400,7 +402,16 @@ function ShopOffer({ slot, price, onBuy }: { slot: ShopSlot; price: number; onBu
   const description = slot.type === "card" ? `${slot.card.rarity} card${slot.card.upgrades.length ? ` · ${slot.card.upgrades.join(" + ")}` : ""}`
     : slot.type === "upgrade" ? slot.card.effect : slot.type === "item" ? slot.item.effect
       : slot.type === "sustenance" ? "Heal up to 30 HP. Repeatable." : slot.type === "random-reward" ? "Generate one random combat reward." : "Permanently remove a card from your run deck.";
-  return <button className={`shop-offer ${slot.sold ? "sold" : ""}`} disabled={slot.sold} onClick={onBuy}>
-    <em>{slot.position}</em><strong>{slot.sold ? "Sold" : name}</strong><small>{description}</small><b>${price}</b>
+  const cardType = slot.type === "card" || slot.type === "upgrade" ? slot.card.type.toLowerCase() : "";
+  const rarity = slot.type === "card" || slot.type === "upgrade" ? slot.card.rarity.toLowerCase() : slot.type === "item" ? slot.item.rarity.toLowerCase() : "common";
+  const tone = slot.type === "item" ? "item"
+    : slot.type === "upgrade" ? "upgrade"
+      : slot.type === "card" ? cardType.includes("variable") ? "variable" : cardType.includes("combo") ? "combo" : cardType.includes("upgrade") ? "upgrade" : "digit"
+        : "service";
+  return <button className={`shop-offer tone-${tone} rarity-${rarity} ${slot.sold ? "sold" : ""}`} disabled={slot.sold} onClick={onBuy}>
+    <strong>{slot.sold ? "Sold" : name}</strong>
+    {(slot.type === "card" || slot.type === "upgrade") && <span>{slot.type === "upgrade" ? slot.card.type : `${slot.card.energy} energy`}</span>}
+    <b>${price}</b>
+    <span className="shop-offer-tooltip"><strong>{name}</strong>{description}</span>
   </button>;
 }
