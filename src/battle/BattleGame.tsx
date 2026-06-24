@@ -1021,7 +1021,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <h1>{removable ? "Choose a card to remove" : `Choose a card for ${chosenReward.label}`}</h1>
           {error && <p className="battle-error" role="alert">{error}</p>}
           <div className="pile-card-grid">
-            {eligibleCards.map((card) => <CardButton key={card.id} card={card} onClick={() => applyRewardUpgrade(card)} disabled={false} preview />)}
+            {eligibleCards.map((card) => <CardButton key={card.id} card={card} onClick={() => applyRewardUpgrade(card)} disabled={false} preview bottled={battle.bottledCard.id === card.id} />)}
           </div>
           {eligibleCards.length === 0 && <p>No valid targets are available.</p>}
           <div className="battle-actions"><button onClick={() => setPhase("reward")}>Back</button><button onClick={onExit}>Game Hall</button></div>

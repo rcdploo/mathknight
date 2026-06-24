@@ -101,13 +101,12 @@ export function isLevelUnlocked(progress: PlayerProgress, level: LevelConfig, du
 }
 
 export function findNextUnlocked(progress: PlayerProgress, current: LevelConfig, dungeonLevel = 1) {
-  const currentKindIndex = levelKinds.indexOf(current.kind);
-  const candidates = [
-    ...levelKinds.slice(currentKindIndex + 1).map((kind) => makeLevelConfig(current.unit, current.stage, kind)),
-    ...stages.flatMap((stage) =>
-      units.flatMap((unit) => levelKinds.map((kind) => makeLevelConfig(unit, stage, kind))),
+  const currentUnitIndex = units.indexOf(current.unit);
+  const candidates = units.slice(currentUnitIndex).flatMap((unit) =>
+    stages.flatMap((stage) =>
+      levelKinds.map((kind) => makeLevelConfig(unit, stage, kind)),
     ),
-  ];
+  );
 
   return candidates.find((level) => !isCompleted(progress, level.id) && isLevelUnlocked(progress, level, dungeonLevel));
 }

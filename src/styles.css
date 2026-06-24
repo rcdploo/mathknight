@@ -945,6 +945,10 @@ button {
 .shop-offer.sold { border-color: #494b47; background: #252724; color: #777; cursor: not-allowed; }
 .shop-target-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; margin: 20px 0; }
 .shop-target-grid button { display: grid; gap: 5px; min-height: 90px; border: 1px solid #6cb5a1; border-radius: 6px; background: #214c43; color: white; cursor: pointer; }
+.shop-target-grid .removal-target-card { position: relative; align-content: center; justify-items: center; padding: 10px; }
+.removal-target-card.bottled { border-color: #73c8dc; box-shadow: 0 0 0 3px rgba(115,200,220,.25); }
+.removal-bottled-badge { padding: 2px 6px; border-radius: 999px; background: #28677a; color: #dffaff; font-size: .58rem; font-weight: 900; text-transform: uppercase; }
+.removal-upgrade-list { color: #9ee0bd; font-size: .65rem; line-height: 1.25; text-align: center; }
 
 .battlefield {
   display: grid;
