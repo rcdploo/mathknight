@@ -311,6 +311,10 @@ export function generateBoss(level: DungeonLevel, usedBossNames: string[]): Gene
 }
 
 export function generateRoomGold(level: DungeonLevel, step: number) {
+  if (step === 5) {
+    const treasureBase = (baseReward[level][4] ?? 0) + 1;
+    return Math.max(0, Math.round(treasureBase * randomBetween(.9, 1.1)));
+  }
   const lowerRoom = Math.max(1, Math.min(9, Math.floor(step))) as DungeonRoom;
   const upperRoom = Math.max(1, Math.min(9, Math.ceil(step))) as DungeonRoom;
   const lower = baseReward[level][lowerRoom] ?? 0;
