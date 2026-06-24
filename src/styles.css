@@ -742,11 +742,29 @@ button {
 .map-back-button { min-height: 40px; padding: 0 13px; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; background: rgba(255,255,255,.08); color: #f8f1e4; cursor: pointer; font-weight: 800; }
 .dungeon-map-copy { width: min(1120px, calc(100% - 32px)); margin: 22px auto 4px; }
 .dungeon-map-copy p { margin: 0; color: #e2dacb; }
-.dungeon-map-scroll { width: 100%; overflow-x: auto; padding: 12px max(16px, calc((100vw - 1160px) / 2)) 6px; scrollbar-color: #78643a #171815; }
+.dungeon-star-lock-modal {
+  width: min(460px, 100%);
+  padding: 28px;
+  border: 1px solid rgba(240,202,115,.5);
+  border-radius: 10px;
+  background: #242019;
+  box-shadow: 0 24px 70px rgba(0,0,0,.58);
+  text-align: center;
+}
+.dungeon-star-lock-modal > p:first-child { margin: 0 0 6px; color: #f0ca73; font-size: .75rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.dungeon-star-lock-modal h2 { margin: 0; font-family: Georgia,serif; font-size: 2rem; }
+.dungeon-star-lock-modal > p { color: #d8d0c3; line-height: 1.5; }
+.dungeon-star-requirement { display: grid; gap: 2px; margin: 22px auto 14px; color: #f0ca73; }
+.dungeon-star-requirement strong { font-size: 2.4rem; }
+.dungeon-star-requirement span { color: #bdb8ad; font-size: .75rem; font-weight: 800; text-transform: uppercase; }
+.dungeon-star-lock-actions { display: grid; gap: 9px; margin-top: 22px; }
+.dungeon-star-lock-actions button { min-height: 46px; border: 1px solid rgba(240,202,115,.48); border-radius: 8px; background: #6b5425; color: #fff8e8; cursor: pointer; font-weight: 900; }
+.dungeon-star-lock-actions button:last-child { border-color: rgba(255,255,255,.14); background: #34322d; color: #d8d0c3; }
+.dungeon-map-scroll { width: 100%; overflow-x: auto; padding: 12px max(16px, calc((100vw - 1280px) / 2)) 6px; scrollbar-color: #78643a #171815; }
 
 .dungeon-map {
   position: relative;
-  min-width: 1160px;
+  min-width: 1280px;
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 8px;
   background:
@@ -781,6 +799,9 @@ button {
 .hex-room::before { content: ""; position: absolute; inset: 5px; z-index: -1; background: #242723; clip-path: inherit; }
 .hex-room span { max-width: 64px; font-size: .62rem; font-weight: 900; text-transform: uppercase; overflow-wrap: anywhere; }
 .hex-room.locked { cursor: not-allowed; opacity: .5; }
+.hex-room.star-locked { cursor: pointer; opacity: .82; background: #56452a; color: #f0ca73; }
+.hex-room.star-locked::before { background: #292318; }
+.hex-room small { color: #ffe19a; font-size: .62rem; font-weight: 900; }
 .hex-room.available { background: #e5bd62; color: #fff4d3; animation: room-ready 1.8s ease-in-out infinite; }
 .hex-room.available::before { background: #514220; }
 .hex-room.completed { background: #6cb5a1; color: #dff8ef; }

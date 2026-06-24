@@ -7,10 +7,11 @@ import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
 import { generateMonster, nextDungeonStage, type DungeonRoom, type DungeonStage, type GeneratedMonster } from "../battle/monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
-import { loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
+import { totalStars } from "../game/unlockRules";
+import { hasVisitedQuartermaster, loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
-type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "shop" | "treasure" };
+type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "elite" | "shop" | "treasure" };
 type DungeonState = {
   stage: DungeonStage;
   nodes: DungeonNode[];
@@ -22,8 +23,19 @@ type DungeonState = {
 };
 
 const dungeonStorageKey = "mathknight.dungeon.level1.v4";
-const mapWidth = 1160;
+const mapWidth = 1280;
 const mapHeight = 480;
+const dungeonStarRequirements: Partial<Record<DungeonStage, Partial<Record<number, number>>>> = {
+  1: { 1: 3, 3: 5, 10: 10 },
+  2: { 5: 15, 10: 20 },
+  3: { 5: 25, 10: 30 },
+  4: { 5: 35, 10: 40 },
+  5: { 5: 45, 10: 50 },
+};
+
+function starRequirement(stage: DungeonStage, step: number) {
+  return dungeonStarRequirements[stage]?.[step];
+}
 
 function shuffle<T>(items: T[]) {
   const shuffled = [...items];
@@ -34,22 +46,48 @@ function shuffle<T>(items: T[]) {
   return shuffled;
 }
 
-function generateLaneRooms() {
-  const flexibleRoom = Math.random() < 0.5 ? "mystery" : "battle";
-  const rareRoll = Math.random();
-  const rareRoom = rareRoll < 0.5 ? "mystery" : rareRoll < 0.75 ? "shop" : "elite";
-  const laneRooms: RoomType[] = [];
-  laneRooms[1] = "battle";
-  const earlyRooms: RoomType[] = shuffle(["battle", flexibleRoom]);
-  laneRooms[2] = earlyRooms[0];
-  laneRooms[3] = earlyRooms[1];
-  const middleRooms: RoomType[] = shuffle(["elite", "shop", "battle", "mystery"]);
-  [4, 6, 7, 8].forEach((step, index) => {
-    laneRooms[step] = middleRooms[index];
+function generateEarlyRooms(stage: DungeonStage) {
+  if (stage === 1) {
+    const mysteryLanes = new Set(shuffle([0, 1, 2]).slice(0, 2));
+    return [0, 1, 2].map((lane) => {
+      const outerRooms: RoomType[] = mysteryLanes.has(lane) ? shuffle(["battle", "mystery"]) : ["battle", "battle"];
+      return { 2: outerRooms[0], 3: "shop" as RoomType, 4: outerRooms[1] };
+    });
+  }
+
+  for (;;) {
+    const rooms = shuffle<RoomType>([
+      "battle", "battle", "battle", "battle",
+      "elite",
+      "shop", "shop",
+      "mystery", "mystery",
+    ]);
+    const lanes = [0, 1, 2].map((lane) => rooms.slice(lane * 3, lane * 3 + 3));
+    const everyLaneHasFight = lanes.every((lane) => lane.includes("battle"));
+    const shopLanes = lanes.map((lane, index) => lane.includes("shop") ? index : -1).filter((lane) => lane >= 0);
+    if (everyLaneHasFight && new Set(shopLanes).size === 2) {
+      return lanes.map((lane) => ({ 2: lane[0], 3: lane[1], 4: lane[2] }));
+    }
+  }
+}
+
+function generateLaneRooms(stage: DungeonStage) {
+  const earlyRooms = generateEarlyRooms(stage);
+  return [0, 1, 2].map((lane) => {
+    const laneRooms: RoomType[] = [];
+    laneRooms[1] = "battle";
+    laneRooms[2] = earlyRooms[lane][2];
+    laneRooms[3] = earlyRooms[lane][3];
+    laneRooms[4] = earlyRooms[lane][4];
+    laneRooms[5] = "treasure";
+    const lateFlexibleRoom: RoomType = Math.random() < 0.5 ? "shop" : "mystery";
+    const lateRooms = shuffle<RoomType>(["elite", "battle", lateFlexibleRoom]);
+    [6, 7, 8].forEach((step, index) => {
+      laneRooms[step] = lateRooms[index];
+    });
+    laneRooms[9] = "battle";
+    return laneRooms;
   });
-  laneRooms[5] = "treasure";
-  laneRooms[9] = rareRoom;
-  return laneRooms;
 }
 
 function roomNumberForMonster(step: number): DungeonRoom {
@@ -61,7 +99,7 @@ function shouldGenerateMonster(type: RoomType) {
 }
 
 function generateDungeon(stage: DungeonStage): DungeonState {
-  const laneRooms = [generateLaneRooms(), generateLaneRooms(), generateLaneRooms()];
+  const laneRooms = generateLaneRooms(stage);
   const usedTypeNames: string[] = [];
   const makeMonster = (type: RoomType, step: number) => {
     if (!shouldGenerateMonster(type)) return undefined;
@@ -74,13 +112,14 @@ function generateDungeon(stage: DungeonStage): DungeonState {
     for (let lane = 0; lane < 3; lane += 1) {
       const type = laneRooms[lane][step];
       const next = step === 9
-        ? ["boss"]
+        ? ["pre-boss-shop"]
         : [lane, ...(Math.random() < 0.62 ? [lane + (Math.random() < 0.5 ? -1 : 1)] : [])]
             .filter((nextLane, index, lanes) => nextLane >= 0 && nextLane <= 2 && lanes.indexOf(nextLane) === index)
             .map((nextLane) => `room-${step + 1}-${nextLane}`);
       nodes.push({ id: `room-${step}-${lane}`, step, lane, type, next, monster: makeMonster(type, step) });
     }
   }
+  nodes.push({ id: "pre-boss-shop", step: 9.75, lane: 1, type: "shop", next: ["boss"] });
   nodes.push({ id: "boss", step: 10, lane: 1, type: "boss", next: [], monster: makeMonster("boss", 10) });
   return {
     stage,
@@ -97,13 +136,16 @@ function loadDungeon() {
   try {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
-    return JSON.parse(raw) as DungeonState;
+    const saved = JSON.parse(raw) as DungeonState;
+    return saved.nodes.some((node) => node.id === "pre-boss-shop") ? saved : generateDungeon(saved.stage);
   } catch {
     return generateDungeon(1);
   }
 }
 
 function nodePosition(node: DungeonNode) {
+  if (node.id === "pre-boss-shop") return { x: 1080, y: 227 };
+  if (node.id === "boss") return { x: 1190, y: 227 };
   return { x: 58 + node.step * 104, y: 82 + node.lane * 145 };
 }
 
@@ -117,8 +159,20 @@ const roomDetails: Record<RoomType, { label: string; Icon: typeof Swords }> = {
   boss: { label: "Dungeon Boss", Icon: Crown },
 };
 
-export default function DungeonGame({ onExit }: { onExit: () => void }) {
+export default function DungeonGame({
+  onExit,
+  onTraining,
+  onQuartermaster,
+}: {
+  onExit: () => void;
+  onTraining: () => void;
+  onQuartermaster: () => void;
+}) {
   const [dungeon, setDungeon] = useState<DungeonState>(loadDungeon);
+  const [starLockMessage, setStarLockMessage] = useState<{ required: number; missing: number } | null>(null);
+  const [quartermasterLockOpen, setQuartermasterLockOpen] = useState(false);
+  const stars = totalStars(loadProgress());
+  const quartermasterVisited = hasVisitedQuartermaster();
   const nodeById = useMemo(() => new Map(dungeon.nodes.map((node) => [node.id, node])), [dungeon.nodes]);
 
   useEffect(() => {
@@ -126,19 +180,30 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
   }, [dungeon]);
 
   function enterRoom(node: DungeonNode) {
+    if (dungeon.stage === 1 && node.step === 7 && !quartermasterVisited) {
+      setQuartermasterLockOpen(true);
+      return;
+    }
+    const requiredStars = starRequirement(dungeon.stage, node.step);
+    if (requiredStars && stars < requiredStars) {
+      setStarLockMessage({ required: requiredStars, missing: requiredStars - stars });
+      return;
+    }
     if (!dungeon.availableIds.includes(node.id)) return;
     if (node.type === "mystery" && !node.resolvedType) {
       const roll = Math.random();
-      const resolvedType = roll < .45 ? "battle" : roll < .8 ? "shop" : "treasure";
+      const resolvedType = roll < .3 ? "battle" : roll < .6 ? "shop" : roll < .8 ? "elite" : "treasure";
       setDungeon((current) => {
         const usedTypeNames = current.nodes.flatMap((candidate) => candidate.monster ? [candidate.monster.type.name] : []);
-        const monster = resolvedType === "battle" ? generateMonster(current.stage, roomNumberForMonster(node.step), usedTypeNames) : undefined;
+        const monster = shouldGenerateMonster(resolvedType)
+          ? generateMonster(current.stage, roomNumberForMonster(node.step), usedTypeNames)
+          : undefined;
         return {
           ...current,
           nodes: current.nodes.map((candidate) => candidate.id === node.id ? { ...candidate, resolvedType, monster } : candidate),
           availableIds: [node.id],
           activeNodeId: node.id,
-          view: resolvedType === "battle" ? "battle" : "event",
+          view: shouldGenerateMonster(resolvedType) ? "battle" : "event",
           notice: `The unknown room revealed a ${roomDetails[resolvedType].label.toLowerCase()}.`,
         };
       });
@@ -206,6 +271,36 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
 
   return (
     <main className="dungeon-map-screen">
+      {starLockMessage && (
+        <div className="modal-backdrop">
+          <section className="dungeon-star-lock-modal" role="dialog" aria-modal="true" aria-labelledby="star-lock-title">
+            <p>Dungeon Path Locked</p>
+            <h2 id="star-lock-title">More training required</h2>
+            <div className="dungeon-star-requirement">
+              <strong>★ {starLockMessage.required}</strong>
+              <span>stars required</span>
+            </div>
+            <p>You need {starLockMessage.missing} more {starLockMessage.missing === 1 ? "star" : "stars"} to enter this room.</p>
+            <div className="dungeon-star-lock-actions">
+              <button onClick={onTraining}>Go to Training Grounds</button>
+              <button onClick={() => setStarLockMessage(null)}>Stay in Dungeon</button>
+            </div>
+          </section>
+        </div>
+      )}
+      {quartermasterLockOpen && (
+        <div className="modal-backdrop">
+          <section className="dungeon-star-lock-modal" role="dialog" aria-modal="true" aria-labelledby="quartermaster-lock-title">
+            <p>Dungeon Path Locked</p>
+            <h2 id="quartermaster-lock-title">Visit the Quartermaster</h2>
+            <p>Before entering this room, meet the Quartermaster and learn about permanent upgrades.</p>
+            <div className="dungeon-star-lock-actions">
+              <button onClick={onQuartermaster}>Go to Quartermaster</button>
+              <button onClick={() => setQuartermasterLockOpen(false)}>Stay in Dungeon</button>
+            </div>
+          </section>
+        </div>
+      )}
       <header className="dungeon-map-header">
         <button className="map-back-button" onClick={onExit}>Game Hall</button>
         <div><p>Dungeon Stage {dungeon.stage}</p><h1>The Verdant Descent</h1></div>
@@ -228,18 +323,24 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
             const { Icon, label } = roomDetails[node.type];
             const position = nodePosition(node);
             const completed = dungeon.completedIds.includes(node.id);
-            const available = dungeon.availableIds.includes(node.id);
+            const pathAvailable = dungeon.availableIds.includes(node.id);
+            const requiredStars = starRequirement(dungeon.stage, node.step);
+            const starLocked = requiredStars !== undefined && stars < requiredStars;
+            const quartermasterLocked = dungeon.stage === 1 && node.step === 7 && !quartermasterVisited;
+            const available = pathAvailable && !starLocked && !quartermasterLocked;
             return (
               <button
-                className={`hex-room ${node.type} ${completed ? "completed" : available ? "available" : "locked"}`}
+                className={`hex-room ${node.type} ${completed ? "completed" : available ? "available" : starLocked || quartermasterLocked ? "star-locked" : "locked"}`}
                 style={{ left: position.x, top: position.y }}
                 key={node.id}
                 onClick={() => enterRoom(node)}
-                disabled={!available}
-                aria-label={`${label}: ${completed ? "completed" : available ? "available" : "locked"}`}
+                disabled={!available && !starLocked && !quartermasterLocked}
+                aria-label={`${label}: ${completed ? "completed" : available ? "available" : starLocked ? `requires ${requiredStars} stars` : quartermasterLocked ? "requires visiting the Quartermaster" : "locked"}`}
               >
                 <Icon size={23} />
                 <span>{node.type === "battle" ? "Fight" : node.type === "mystery" ? "?" : node.type === "boss" ? "Boss" : node.type}</span>
+                {starLocked && <small>{requiredStars} ★</small>}
+                {quartermasterLocked && <small>Quartermaster</small>}
               </button>
             );
           })}

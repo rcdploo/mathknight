@@ -15,6 +15,7 @@ export type PermanentLoadout = {
 };
 
 const loadoutKey = "mathknight.permanentLoadout.v1";
+const quartermasterVisitedKey = "mathknight.quartermaster.visited.v1";
 const dungeonKey = "mathknight.dungeon.level1.v4";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const runHealthKey = "mathknight.dungeon.runHealth.v1";
@@ -59,6 +60,14 @@ export function loadPermanentLoadout(): PermanentLoadout {
 
 export function savePermanentLoadout(loadout: PermanentLoadout) {
   window.localStorage.setItem(loadoutKey, JSON.stringify(loadout));
+}
+
+export function markQuartermasterVisited() {
+  window.localStorage.setItem(quartermasterVisitedKey, "true");
+}
+
+export function hasVisitedQuartermaster() {
+  return window.localStorage.getItem(quartermasterVisitedKey) === "true";
 }
 
 export function printedEnergyCost(card: BattleCard, maxEnergy = 3) {

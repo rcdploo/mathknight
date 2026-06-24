@@ -20,7 +20,15 @@ export default function App() {
   }
 
   if (destination === "memory") return <TrainingGrounds onExit={() => setDestination("hub")} />;
-  if (destination === "battle") return <DungeonGame onExit={() => setDestination("hub")} />;
+  if (destination === "battle") {
+    return (
+      <DungeonGame
+        onExit={() => setDestination("hub")}
+        onTraining={() => setDestination("memory")}
+        onQuartermaster={() => setDestination("quartermaster")}
+      />
+    );
+  }
   if (destination === "quartermaster") {
     return <Quartermaster onExit={() => setDestination("hub")} onTraining={() => setDestination("memory")} />;
   }

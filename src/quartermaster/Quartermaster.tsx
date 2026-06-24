@@ -1,10 +1,10 @@
 import { ArrowLeft, FlaskConical, HeartPulse, HelpCircle, RotateCcw, ShieldPlus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { allLevels, stageLabels, stages, unitLabels, units } from "../game/levels";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { isLevelUnlocked } from "../game/unlockRules";
 import type { PlayerProgress, Stage, Unit } from "../game/types";
-import { increaseRunHealth, loadPermanentLoadout, printedEnergyCost, savePermanentLoadout, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
+import { increaseRunHealth, loadPermanentLoadout, markQuartermasterVisited, printedEnergyCost, savePermanentLoadout, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
 
 type SelectionMode = "bottle" | null;
 
@@ -27,6 +27,10 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
   const mendingCost = 50 * (loadout.mendingUpgradeCount + 1);
   const nextMendingIncrease = loadout.mendingUpgradeCount + 2;
   const growCost = 100 * (loadout.growPurchases + 1);
+
+  useEffect(() => {
+    markQuartermasterVisited();
+  }, []);
 
   function afford(cost: number) {
     if (progress.coins >= cost) return true;
