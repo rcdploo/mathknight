@@ -10,7 +10,7 @@ import { loadProgress, saveProgress } from "../game/progressStore";
 import { loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
-type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster };
+type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "shop" | "treasure" };
 type DungeonState = {
   stage: DungeonStage;
   nodes: DungeonNode[];
@@ -127,8 +127,26 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
 
   function enterRoom(node: DungeonNode) {
     if (!dungeon.availableIds.includes(node.id)) return;
-    const view = shouldGenerateMonster(node.type) ? "battle" : "event";
-    setDungeon((current) => ({ ...current, availableIds: [node.id], activeNodeId: node.id, view, notice: `Entered ${roomDetails[node.type].label}.` }));
+    if (node.type === "mystery" && !node.resolvedType) {
+      const roll = Math.random();
+      const resolvedType = roll < .45 ? "battle" : roll < .8 ? "shop" : "treasure";
+      setDungeon((current) => {
+        const usedTypeNames = current.nodes.flatMap((candidate) => candidate.monster ? [candidate.monster.type.name] : []);
+        const monster = resolvedType === "battle" ? generateMonster(current.stage, roomNumberForMonster(node.step), usedTypeNames) : undefined;
+        return {
+          ...current,
+          nodes: current.nodes.map((candidate) => candidate.id === node.id ? { ...candidate, resolvedType, monster } : candidate),
+          availableIds: [node.id],
+          activeNodeId: node.id,
+          view: resolvedType === "battle" ? "battle" : "event",
+          notice: `The unknown room revealed a ${roomDetails[resolvedType].label.toLowerCase()}.`,
+        };
+      });
+      return;
+    }
+    const effectiveType = node.resolvedType ?? node.type;
+    const view = shouldGenerateMonster(effectiveType) ? "battle" : "event";
+    setDungeon((current) => ({ ...current, availableIds: [node.id], activeNodeId: node.id, view, notice: `Entered ${roomDetails[effectiveType].label}.` }));
   }
 
   function completeRoom(won: boolean) {
@@ -176,8 +194,9 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
   if (dungeon.view === "event") {
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (activeNode) {
-      if (activeNode.type === "shop") return <ShopRoom node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
-      return <RoomEvent node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+      const effectiveType = activeNode.resolvedType ?? activeNode.type;
+      if (effectiveType === "shop") return <ShopRoom node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+      return <RoomEvent node={activeNode} stage={dungeon.stage} eventType={effectiveType} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
     }
   }
 
@@ -232,11 +251,11 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
   );
 }
 
-function RoomEvent({ node, stage, onExit, onComplete }: { node: DungeonNode; stage: DungeonStage; onExit: () => void; onComplete: () => void }) {
+function RoomEvent({ node, stage, eventType, onExit, onComplete }: { node: DungeonNode; stage: DungeonStage; eventType: RoomType; onExit: () => void; onComplete: () => void }) {
   const [items] = useState<ItemDefinition[]>(() => surfaceItems(1));
   const [owned, setOwned] = useState(loadRunItems);
   const [message, setMessage] = useState(
-    node.type === "treasure" ? "The chest contains a strange and useful relic."
+    eventType === "treasure" ? "The chest contains a strange and useful relic."
         : "Something glints in the dark.",
   );
   const progress = loadProgress();
@@ -258,8 +277,8 @@ function RoomEvent({ node, stage, onExit, onComplete }: { node: DungeonNode; sta
   return (
     <main className="battle-game reward-screen">
       <section className="reward-panel item-room-panel">
-        <p>Stage {stage} / {roomDetails[node.type].label}</p>
-        <h1>{node.type === "shop" ? "Dungeon Merchant" : node.type === "treasure" ? "Treasure Cache" : "Curious Discovery"}</h1>
+        <p>Stage {stage} / {roomDetails[eventType].label}</p>
+        <h1>{eventType === "treasure" ? "Treasure Cache" : "Curious Discovery"}</h1>
         <p className="room-event-message">{message}</p>
         <div className="item-offers">
           {items.map((item) => {
