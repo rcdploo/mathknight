@@ -6,7 +6,7 @@ import { applyCardUpgrade, canApplyUpgrade, type BattleCard } from "../battle/ba
 import { cardById } from "../battle/cardCatalog";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
-import { generateMonster, generateRoomGold, nextDungeonLevel, type DungeonRoom, type DungeonLevel, type GeneratedMonster } from "../battle/monsterGenerator";
+import { generateBoss, generateMonster, generateRoomGold, nextDungeonLevel, type DungeonRoom, type DungeonLevel, type GeneratedMonster } from "../battle/monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { totalStars } from "../game/unlockRules";
 import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
@@ -21,6 +21,7 @@ type DungeonState = {
   activeNodeId: string | null;
   view: "map" | "battle" | "event";
   notice: string;
+  bossNames: string[];
 };
 
 const dungeonStorageKey = "mathknight.dungeon.level1.v6";
@@ -99,12 +100,14 @@ function shouldGenerateMonster(type: RoomType) {
   return type === "battle" || type === "elite" || type === "boss";
 }
 
-function generateDungeon(level: DungeonLevel): DungeonState {
+function generateDungeon(level: DungeonLevel, bossNames: string[] = []): DungeonState {
   const laneRooms = generateLaneRooms(level);
   const usedTypeNames: string[] = [];
   const makeMonster = (type: RoomType, step: number) => {
     if (!shouldGenerateMonster(type)) return undefined;
-    const monster = generateMonster(level, roomNumberForMonster(step), usedTypeNames, type === "elite" ? 2 : 0);
+    const monster = type === "boss"
+      ? generateBoss(level, bossNames)
+      : generateMonster(level, roomNumberForMonster(step), usedTypeNames, type === "elite" ? 2 : 0);
     usedTypeNames.push(monster.type.name);
     return monster;
   };
@@ -122,6 +125,7 @@ function generateDungeon(level: DungeonLevel): DungeonState {
   }
   nodes.push({ id: "pre-boss-shop", step: 9.75, lane: 1, type: "shop", next: ["boss"] });
   nodes.push({ id: "boss", step: 10, lane: 1, type: "boss", next: [], monster: makeMonster("boss", 10) });
+  const bossName = nodes.find((node) => node.type === "boss")?.monster?.name;
   return {
     level,
     nodes,
@@ -130,6 +134,7 @@ function generateDungeon(level: DungeonLevel): DungeonState {
     activeNodeId: null,
     view: "map",
     notice: "Choose a connected room and press deeper into the dungeon.",
+    bossNames: bossName ? [...bossNames, bossName] : bossNames,
   };
 }
 
@@ -138,7 +143,9 @@ function loadDungeon() {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
     const saved = JSON.parse(raw) as DungeonState;
-    return saved.nodes.some((node) => node.id === "pre-boss-shop") ? saved : generateDungeon(saved.level);
+    return saved.nodes.some((node) => node.id === "pre-boss-shop")
+      ? { ...saved, bossNames: saved.bossNames ?? saved.nodes.filter((node) => node.type === "boss" && node.monster).map((node) => node.monster!.name) }
+      : generateDungeon(saved.level);
   } catch {
     return generateDungeon(1);
   }
@@ -217,7 +224,8 @@ export default function DungeonGame({
 
   function completeRoom(won: boolean) {
     if (!won) {
-      const nextDungeon = generateDungeon(dungeon.level);
+      const previousBosses = dungeon.bossNames.slice(0, -1);
+      const nextDungeon = generateDungeon(dungeon.level, previousBosses);
       nextDungeon.notice = "The dungeon shifted after your defeat. Choose a new path.";
       window.localStorage.setItem(dungeonStorageKey, JSON.stringify(nextDungeon));
       setDungeon(nextDungeon);
@@ -236,7 +244,7 @@ export default function DungeonGame({
           savePermanentLoadout({ ...loadout, dungeonLevel: nextLevel, maxHealth: nextStats.maxHealth });
         }
         window.localStorage.setItem(runHealthKey, String(nextStats.maxHealth));
-        const nextDungeon = generateDungeon(nextLevel);
+        const nextDungeon = generateDungeon(nextLevel, current.bossNames);
         nextDungeon.notice = nextLevel === current.level
           ? "The final boss is defeated. Level 5 is mastered."
           : `Level ${current.level} conquered. Level ${nextLevel} begins.`;

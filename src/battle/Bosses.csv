@@ -1,0 +1,42 @@
+Name,Attack Pattern,Special Ability
+Dr. TiqToq,"Cycle in order: 
+1) Weaken (infinite)
+2) 50% attack, 50% block
+3) Enrage
+4) 125% attack",After every 3rd cycle add one turn to spellcast heal for 35%
+Sir Passive-Aggressive,"Cycle A in order, two times: 
+1) Cast Brainrot 1
+2) 50% attack
+3) Cast thorns, 75% block
+
+Then Switch to B) 3 attacks in a row: 70%, 80%, 90% (increasing 10% each time)
+
+Then back to A, then B again picking up +10% of the last value (e.g start at 100% the 2nd time). Keep repeating this cycle",none
+ScriinTyme,"Shuffle between: 
+1) 50% attack, 50% block
+2) Spell cast: Addle 2
+3) Spel cast Perplex 2
+4) Spell cast Energy Drain 2
+5) 125% Attack",Each time you add a card to your expression (even if not submitting) lose 1 HP
+SlothMage,"Cycle between:
+1) 50% Block, Spellcast Brainrot 1
+2) 50% Attack, Spellcast Weaken 3
+3) 50% Block, Spellcast Cripple 1
+4) 75% Attack + Lobotomizing (this turn only)
+5) Nap (do nothing, pass turn)","Starts with a ""Fat"" Buff (does not count towards Level-Room base buff value)"
+KareBear,"Cycle between:
+1) 75% attack
+2) Cast Enrage
+3) 100% Attack, 25% Block
+4) Cast Immolation 1","The Immolation debuff Karen puts on you doesnt wear off. Your cards have -1 for the hole fight, per debuff. Special effects can stil remove these debuffs"
+NightMayor,"Cycle between:
+1) Usurp 3
+2) 75% Attack 25% Block
+3) Usurp 3
+4) 125% Attack","Starts with a ""Guileful"" Buff (does not count towards Level-Room base buff value)"
+The Vortex,"Shuffle between: 
+1) 50% attack, 25% block
+2) Spell cast: Lobotomize
+3) Spell cast: Weaken 3
+4) 75% attack
+5) 75% block","Starts with a ""Hypnotic"" Buff (does not count towards Level-Room base buff value)"

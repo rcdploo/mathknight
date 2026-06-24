@@ -120,6 +120,7 @@ function makeMonsterActionDeck(monster: GeneratedMonster) {
 }
 
 function monsterAction(monster: GeneratedMonster, turn: number, deck: string[], lastAction: string | null) {
+  if (monster.bossId) return bossAction(monster, turn, deck);
   let nextDeck = deck.length > 0 ? [...deck] : makeMonsterActionDeck(monster);
   let action = nextDeck.shift() ?? "attack";
   if (monster.attackPattern.name === "Wild") {
@@ -183,6 +184,71 @@ function monsterAction(monster: GeneratedMonster, turn: number, deck: string[], 
   }
 
   return { ...detail, intent, secondaryIntent, fakeIntent, text, actionDeck: nextDeck, action };
+}
+
+function bossAction(monster: GeneratedMonster, turn: number, deck: string[]) {
+  const attack = rollAttack(monster.baseAttack);
+  const action = (intent: number, armor: number, text: string, spells: string[] = [], marker = "") => ({
+    intent, secondaryIntent: 0, fakeIntent: null as number | null, armor, text, spells,
+    actionDeck: deck, action: marker || `boss-${turn}`,
+  });
+  if (monster.bossId === "dr-tiqtoq") {
+    const step = (turn - 1) % 13;
+    if (step === 12) {
+      return action(0, 0, `${monster.name} rewinds its wounds.`, ["Heal 35"]);
+    }
+    const cycleStep = step % 4;
+    if (cycleStep === 0) return action(0, 0, `${monster.name} locks weakness in place.`, ["Weaken 999"]);
+    if (cycleStep === 1) return action(Math.round(attack * .5), Math.round(attack * .5), `${monster.name} attacks behind a ticking guard.`);
+    if (cycleStep === 2) return action(0, 0, `${monster.name} accelerates.`, ["Enrage"]);
+    return action(Math.round(attack * 1.25), 0, `${monster.name} strikes ahead of schedule.`);
+  }
+  if (monster.bossId === "sir-passive-aggressive") {
+    const cycleLength = 9;
+    const step = (turn - 1) % cycleLength;
+    const bCycle = Math.floor((turn - 1) / cycleLength);
+    if (step < 6) {
+      const aStep = step % 3;
+      if (aStep === 0) return action(0, 0, `${monster.name} makes a pointed suggestion.`, ["Brainrot 1"]);
+      if (aStep === 1) return action(Math.round(attack * .5), 0, `${monster.name} lands a restrained blow.`);
+      return action(0, Math.round(attack * .75), `${monster.name} bristles behind a guard.`, ["Thorns"]);
+    }
+    return action(Math.round(attack * (.7 + (step - 6) * .1 + bCycle * .3)), 0, `${monster.name} drops the pretense.`);
+  }
+  if (monster.bossId === "scriintyme") {
+    let nextDeck = deck.length ? [...deck] : shuffle(["half", "Addle 2", "Perplex 2", "Mana Drain 2", "heavy"]);
+    const picked = nextDeck.shift() ?? "half";
+    if (picked === "half") return { ...action(Math.round(attack * .5), Math.round(attack * .5), `${monster.name} splits your attention.`), actionDeck: nextDeck };
+    if (picked === "heavy") return { ...action(Math.round(attack * 1.25), 0, `${monster.name} demands your full attention.`), actionDeck: nextDeck };
+    return { ...action(0, 0, `${monster.name} floods the screen.`, [picked]), actionDeck: nextDeck };
+  }
+  if (monster.bossId === "slothmage") {
+    const step = (turn - 1) % 5;
+    if (step === 0) return action(0, Math.round(attack * .5), `${monster.name} mutters from behind a pillow.`, ["Brainrot 1"]);
+    if (step === 1) return action(Math.round(attack * .5), 0, `${monster.name} waves a tired hand.`, ["Weaken 3"]);
+    if (step === 2) return action(0, Math.round(attack * .5), `${monster.name} yawns out a curse.`, ["Cripple 1"]);
+    if (step === 3) return action(Math.round(attack * .75), 0, `${monster.name} briefly wakes up.`, [], "sloth-lobotomize");
+    return action(0, 0, `${monster.name} takes a nap.`);
+  }
+  if (monster.bossId === "karebear") {
+    const step = (turn - 1) % 4;
+    if (step === 0) return action(Math.round(attack * .75), 0, `${monster.name} asks to speak to your manager.`);
+    if (step === 1) return action(0, 0, `${monster.name} becomes more indignant.`, ["Enrage"]);
+    if (step === 2) return action(attack, Math.round(attack * .25), `${monster.name} advances behind righteous certainty.`);
+    return action(0, 0, `${monster.name} files a permanent complaint.`, ["Immolation 1"]);
+  }
+  if (monster.bossId === "nightmayor") {
+    const step = (turn - 1) % 4;
+    if (step === 0 || step === 2) return action(0, 0, `${monster.name} drafts a compulsory ordinance.`, ["Usurp 3"]);
+    if (step === 1) return action(Math.round(attack * .75), Math.round(attack * .25), `${monster.name} governs by force.`);
+    return action(Math.round(attack * 1.25), 0, `${monster.name} invokes emergency powers.`);
+  }
+  let nextDeck = deck.length ? [...deck] : shuffle(["hybrid", "Lobotomize", "Weaken 3", "attack", "block"]);
+  const picked = nextDeck.shift() ?? "hybrid";
+  if (picked === "hybrid") return { ...action(Math.round(attack * .5), Math.round(attack * .25), `${monster.name} bends attack and defense together.`), actionDeck: nextDeck };
+  if (picked === "attack") return { ...action(Math.round(attack * .75), 0, `${monster.name} pulls you inward.`), actionDeck: nextDeck };
+  if (picked === "block") return { ...action(0, Math.round(attack * .75), `${monster.name} folds space into a shield.`), actionDeck: nextDeck };
+  return { ...action(0, 0, `${monster.name} distorts your deck.`, [picked]), actionDeck: nextDeck };
 }
 
 function spellNumber(spell: string) {
@@ -263,7 +329,8 @@ function applyMonsterSpells<T extends ReturnType<typeof createBattle>>(battle: T
     const rawPower = spellNumber(spell);
     const power = hasBuff(monster, "Eldritch") && /\d+/.test(spell) ? rawPower + 1 : rawPower;
     if (name === "Heal") {
-      const healed = Math.min(next.enemyMaxHealth, next.enemyHealth + Math.round(next.enemyMaxHealth * 0.25));
+      const healPercent = /\d+/.test(spell) ? rawPower / 100 : .25;
+      const healed = Math.min(next.enemyMaxHealth, next.enemyHealth + Math.round(next.enemyMaxHealth * healPercent));
       messages.push(`heals ${healed - next.enemyHealth}`);
       next = { ...next, enemyHealth: healed };
     } else if (name === "Enrage") {
@@ -295,7 +362,14 @@ function applyMonsterSpells<T extends ReturnType<typeof createBattle>>(battle: T
       next = { ...next, usurpDraws: next.usurpDraws + power };
     } else if (name === "Immolation") {
       messages.push(`burns digits for ${power} turns`);
-      next = { ...next, immolationTurns: Math.max(next.immolationTurns, power) };
+      next = {
+        ...next,
+        immolationTurns: monster.bossId === "karebear"
+          ? next.immolationTurns + power
+          : Math.max(next.immolationTurns, power),
+      };
+    } else if (name === "Lobotomize") {
+      messages.push("prepares to remove your strongest card");
     }
   });
   return { battle: next, messages };
@@ -534,6 +608,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
   }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, monster.id]);
 
+  useEffect(() => {
+    if (monster.bossId !== "scriintyme" || phase !== "playing" || battle.playerHealth > 0) return;
+    stopBattleMusic();
+    playBattleSound("defeat");
+    setImpact("defeat");
+    setPhase("defeat");
+    setMessage(`${monster.name}'s screen drain finishes you. The dungeon returns you to its entrance.`);
+  }, [battle.playerHealth, monster.bossId, monster.name, phase]);
+
   function wakeAudio() {
     if (musicOn) startBattleMusic();
   }
@@ -555,6 +638,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       return;
     }
     setSelectedCards((current) => [...current, playedCard]);
+    if (monster.bossId === "scriintyme") {
+      setBattle((current) => ({ ...current, playerHealth: Math.max(0, current.playerHealth - 1) }));
+    }
     if (card.label === "()") {
       const closingCard: BattleCard = { ...card, id: `${card.id}-close`, label: ")", token: ")", energy: 0, generatedById: card.id };
       setBattle((current) => ({ ...current, hand: [...current.hand, closingCard] }));
@@ -714,7 +800,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       addleTurns: Math.max(0, battle.addleTurns - 1),
       confoundTurns: Math.max(0, battle.confoundTurns - 1),
       energyDrainTurns: Math.max(0, battle.energyDrainTurns - 1),
-      immolationTurns: Math.max(0, battle.immolationTurns - 1),
+      immolationTurns: monster.bossId === "karebear" ? battle.immolationTurns : Math.max(0, battle.immolationTurns - 1),
       heroicWillRemaining: battle.heroicWillRemaining - (heroicWillTriggered ? 1 : 0),
     };
     const survivedBattle = heroicWillTriggered ? clearPlayerDebuffs(expiredDebuffs) : expiredDebuffs;
@@ -735,7 +821,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       pendingSpellResult.battle = { ...clearPlayerDebuffs(pendingSpellResult.battle), phoenixUsed: true };
     }
     const enemyHealthAfterCurrentTurn = pendingSpellResult.battle.enemyHealth;
-    const lobotomy = !monsterEffectsCanceled && playerHit.damage > 0 && hasBuff(monster, "Lobotomizing") ? removeBestFightCard(runDeck) : null;
+    const spellLobotomy = battle.pendingMonsterSpells.some((spell) => spellName(spell) === "Lobotomize");
+    const turnLobotomy = battle.monsterLastAction === "sloth-lobotomize";
+    const lobotomy = !monsterEffectsCanceled && (spellLobotomy || (playerHit.damage > 0 && (hasBuff(monster, "Lobotomizing") || turnLobotomy))) ? removeBestFightCard(runDeck) : null;
     if (lobotomy?.removed) {
       setRunDeck(lobotomy.cards);
       saveRunDeck(lobotomy.cards);

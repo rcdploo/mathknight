@@ -38,7 +38,20 @@ export type GeneratedMonster = {
   maxHealth: number;
   baseAttack: number;
   reward: number;
+  bossId?: BossId;
 };
+
+export type BossId = "dr-tiqtoq" | "sir-passive-aggressive" | "scriintyme" | "slothmage" | "karebear" | "nightmayor" | "vortex";
+
+const bossDefinitions: Array<{ id: BossId; name: string; spells: string[]; bonusBuff?: string }> = [
+  { id: "dr-tiqtoq", name: "Dr. TiqToq", spells: ["Weaken 999", "Enrage", "Heal 35"] },
+  { id: "sir-passive-aggressive", name: "Sir Passive-Aggressive", spells: ["Brainrot 1", "Thorns"] },
+  { id: "scriintyme", name: "ScriinTyme", spells: ["Addle 2", "Perplex 2", "Mana Drain 2"] },
+  { id: "slothmage", name: "SlothMage", spells: ["Brainrot 1", "Weaken 3", "Cripple 1"], bonusBuff: "Fat" },
+  { id: "karebear", name: "KareBear", spells: ["Enrage", "Immolation 1"] },
+  { id: "nightmayor", name: "NightMayor", spells: ["Usurp 3"], bonusBuff: "Guileful" },
+  { id: "vortex", name: "The Vortex", spells: ["Lobotomize", "Weaken 3"], bonusBuff: "Hypnotic" },
+];
 
 type MonsterUsage = {
   types: Record<string, number>;
@@ -256,6 +269,44 @@ export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedType
     maxHealth: hp,
     baseAttack: damage,
     reward,
+  };
+}
+
+export function generateBoss(level: DungeonLevel, usedBossNames: string[]): GeneratedMonster {
+  const available = bossDefinitions.filter((boss) => !usedBossNames.includes(boss.name));
+  const boss = choice(available.length > 0 ? available : bossDefinitions);
+  const usage = loadUsage();
+  const type: MonsterTypeDefinition = {
+    name: "Boss",
+    hpMultiplier: 1,
+    complexity: "Tough",
+    spellcasting: boss.spells.length > 0 ? "Always" : "Never",
+    spells: boss.spells,
+  };
+  const selectedRandomBuffs = selectBuffs(buffBudget[level].Boss ?? 0, usage, type);
+  const bonusBuff = boss.bonusBuff ? monsterBuffs.find((buff) => buff.name === boss.bonusBuff) : undefined;
+  const randomBuffs = bonusBuff?.name === "Guileful"
+    ? selectedRandomBuffs.filter((buff) => buff.name !== "Swashbuckling")
+    : selectedRandomBuffs;
+  const buffs = bonusBuff && !randomBuffs.some((buff) => buff.name === bonusBuff.name)
+    ? [...randomBuffs, bonusBuff]
+    : randomBuffs;
+  const fatMultiplier = buffs.some((buff) => buff.name === "Fat") ? 1.3 : 1;
+  const mightyMultiplier = buffs.some((buff) => buff.name === "Mighty") ? 1.3 : 1;
+  return {
+    id: `${level}-Boss-${boss.id}-${Math.random().toString(36).slice(2, 9)}`,
+    level,
+    room: "Boss",
+    name: boss.name,
+    subtitle: buffs.length > 0 ? buffs.map((buff) => `${buff.symbol} ${buff.name}`).join(" / ") : "Dungeon Boss",
+    type,
+    attackPattern: { name: `Boss: ${boss.name}`, hasSpells: boss.spells.length > 0, difficulty: 4, description: "Unique scripted boss pattern" },
+    buffs,
+    spells: boss.spells,
+    maxHealth: Math.round((baseHp[level].Boss ?? 125) * fatMultiplier),
+    baseAttack: Math.max(1, Math.round((baseDamage[level].Boss ?? 12) * mightyMultiplier)),
+    reward: Math.max(0, Math.round((baseReward[level].Boss ?? 0) * randomBetween(0.9, 1.1))),
+    bossId: boss.id,
   };
 }
 
