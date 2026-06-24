@@ -1,41 +1,106 @@
 import { getLevelId, levelKinds, makeLevelConfig, stages, units } from "./levels";
-import type { LevelConfig, LevelKind, PlayerProgress, Stage } from "./types";
+import type { LevelConfig, PlayerProgress, Stage, Unit } from "./types";
+
+export type UnlockState = {
+  unlocked: boolean;
+  reason?: string;
+};
+
+const unitStarRequirements: Partial<Record<Unit, number>> = {
+  division: 30,
+  fractions: 50,
+  geometry: 50,
+  algebra: 75,
+};
 
 function isCompleted(progress: PlayerProgress, id: string) {
   return progress.puzzles[id]?.completed ?? false;
 }
 
-function stageAvailable(progress: PlayerProgress, stage: Stage) {
-  if (stage === "1" || stage === "2") return true;
+function levelStars(progress: PlayerProgress, id: string) {
+  return progress.puzzles[id]?.bestStars ?? 0;
+}
 
-  const anyStage2Boss = units.some((unit) => isCompleted(progress, getLevelId(unit, "2", "boss")));
-  if (stage === "3a" || stage === "3b") return anyStage2Boss;
+export function totalStars(progress: PlayerProgress) {
+  return Object.values(progress.puzzles).reduce((total, puzzle) => total + puzzle.bestStars, 0);
+}
 
-  return units.some(
-    (unit) => isCompleted(progress, getLevelId(unit, "3a", "boss")) || isCompleted(progress, getLevelId(unit, "3b", "boss")),
+function starsForUnits(progress: PlayerProgress, includedUnits: Unit[]) {
+  const included = new Set(includedUnits);
+  return Object.entries(progress.puzzles).reduce((total, [id, puzzle]) => {
+    const unit = units.find((candidate) => id.startsWith(`${candidate}_stage`));
+    return unit && included.has(unit) ? total + puzzle.bestStars : total;
+  }, 0);
+}
+
+function starsForStages(progress: PlayerProgress, unit: Unit, includedStages: Stage[]) {
+  return includedStages.reduce(
+    (total, stage) =>
+      total + levelKinds.reduce((stageTotal, kind) => stageTotal + levelStars(progress, getLevelId(unit, stage, kind)), 0),
+    0,
   );
 }
 
-function samePathUnlocked(progress: PlayerProgress, level: LevelConfig) {
-  if (level.kind === "level1") return true;
-  if (level.kind === "level2") return isCompleted(progress, getLevelId(level.unit, level.stage, "level1")) || globalKindUnlocked(progress, "level2");
-  if (level.kind === "level3") return isCompleted(progress, getLevelId(level.unit, level.stage, "level2")) || globalKindUnlocked(progress, "level3");
-  return isCompleted(progress, getLevelId(level.unit, level.stage, "level3"));
+export function getUnitUnlockState(progress: PlayerProgress, unit: Unit): UnlockState {
+  const requirement = unitStarRequirements[unit];
+  if (!requirement) return { unlocked: true };
+
+  const unitIndex = units.indexOf(unit);
+  const earned = starsForUnits(progress, units.slice(0, unitIndex));
+  return earned >= requirement
+    ? { unlocked: true }
+    : { unlocked: false, reason: `${requirement} Stars` };
 }
 
-function globalKindUnlocked(progress: PlayerProgress, kind: Extract<LevelKind, "level2" | "level3">) {
-  const prerequisite = kind === "level2" ? "level2" : "level3";
-  return units.some((unit) =>
-    stages.some((stage) => stageAvailable(progress, stage) && isCompleted(progress, getLevelId(unit, stage, prerequisite))),
-  );
+export function getStageUnlockState(progress: PlayerProgress, unit: Unit, stage: Stage): UnlockState {
+  if (stage === "1" || stage === "2") return { unlocked: true };
+
+  const requirement = stage === "4" ? 15 : 7;
+  const includedStages: Stage[] = stage === "4" ? ["1", "2", "3a", "3b"] : ["1", "2"];
+  const earned = starsForStages(progress, unit, includedStages);
+  return earned >= requirement
+    ? { unlocked: true }
+    : { unlocked: false, reason: `${requirement} Stars` };
 }
 
-export function isLevelUnlocked(progress: PlayerProgress, level: LevelConfig) {
-  if (level.unit === "fractions" || level.unit === "geometry" || level.unit === "algebra") return true;
-  return stageAvailable(progress, level.stage) && samePathUnlocked(progress, level);
+function lessonUnlockState(progress: PlayerProgress, level: LevelConfig, dungeonLevel: number): UnlockState {
+  if (level.kind === "level1") return { unlocked: true };
+  if (level.kind === "level2") {
+    return isCompleted(progress, getLevelId(level.unit, level.stage, "level1"))
+      ? { unlocked: true }
+      : { unlocked: false, reason: "Requires completing Lesson 1" };
+  }
+  if (level.kind === "level3") {
+    if (!isCompleted(progress, getLevelId(level.unit, level.stage, "level2"))) {
+      return { unlocked: false, reason: "Requires completing Lesson 2" };
+    }
+    return dungeonLevel >= 3
+      ? { unlocked: true }
+      : { unlocked: false, reason: "Requires Dungeon Level 3" };
+  }
+  if (!isCompleted(progress, getLevelId(level.unit, level.stage, "level3"))) {
+    return { unlocked: false, reason: "Requires completing Lesson 3" };
+  }
+  return dungeonLevel >= 3
+    ? { unlocked: true }
+    : { unlocked: false, reason: "Requires Dungeon Level 3" };
 }
 
-export function findNextUnlocked(progress: PlayerProgress, current: LevelConfig) {
+export function getLevelUnlockState(progress: PlayerProgress, level: LevelConfig, dungeonLevel: number): UnlockState {
+  const unitState = getUnitUnlockState(progress, level.unit);
+  if (!unitState.unlocked) return unitState;
+
+  const stageState = getStageUnlockState(progress, level.unit, level.stage);
+  if (!stageState.unlocked) return stageState;
+
+  return lessonUnlockState(progress, level, dungeonLevel);
+}
+
+export function isLevelUnlocked(progress: PlayerProgress, level: LevelConfig, dungeonLevel = 1) {
+  return getLevelUnlockState(progress, level, dungeonLevel).unlocked;
+}
+
+export function findNextUnlocked(progress: PlayerProgress, current: LevelConfig, dungeonLevel = 1) {
   const currentKindIndex = levelKinds.indexOf(current.kind);
   const candidates = [
     ...levelKinds.slice(currentKindIndex + 1).map((kind) => makeLevelConfig(current.unit, current.stage, kind)),
@@ -44,5 +109,5 @@ export function findNextUnlocked(progress: PlayerProgress, current: LevelConfig)
     ),
   ];
 
-  return candidates.find((level) => !isCompleted(progress, level.id) && isLevelUnlocked(progress, level));
+  return candidates.find((level) => !isCompleted(progress, level.id) && isLevelUnlocked(progress, level, dungeonLevel));
 }

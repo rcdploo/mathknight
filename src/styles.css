@@ -59,6 +59,7 @@ button {
 }
 
 .coin-pill,
+.star-total,
 .pairs-pill {
   display: inline-flex;
   align-items: center;
@@ -69,6 +70,19 @@ button {
   background: rgba(55, 46, 26, 0.74);
   color: #f5d98d;
   font-weight: 700;
+}
+
+.star-total {
+  border-color: rgba(240, 202, 115, 0.72);
+  background: rgba(83, 60, 18, 0.9);
+  color: #fff1bd;
+  box-shadow: 0 0 18px rgba(240, 202, 115, 0.12);
+}
+
+.star-total strong {
+  margin-right: 6px;
+  color: #f0ca73;
+  font-size: 1.15rem;
 }
 
 .icon-button {
@@ -231,10 +245,47 @@ button {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
 }
 
-.unit-panel h2 {
-  margin: 0 0 16px;
+.unit-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0 0 14px;
+  border: 0;
+  background: transparent;
   color: #f8f1e4;
+  cursor: pointer;
+  text-align: left;
+}
+
+.unit-toggle > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit-toggle strong {
   font-size: 1.1rem;
+}
+
+.unit-toggle small {
+  color: #d99a8f;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.unit-toggle:disabled {
+  color: #8c887f;
+  cursor: not-allowed;
+}
+
+.unit-panel.unit-locked {
+  background: rgba(26, 25, 23, 0.7);
+}
+
+.unit-panel.unit-locked .unit-toggle {
+  padding-bottom: 0;
 }
 
 .stage-row {
@@ -256,6 +307,18 @@ button {
   text-align: right;
 }
 
+.stage-label strong {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.stage-label .stage-lock {
+  color: #d99a8f;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
 .lesson-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -263,7 +326,7 @@ button {
 }
 
 .lesson-button {
-  min-height: 58px;
+  min-height: 68px;
   padding: 8px;
   border: 1px solid rgba(108, 181, 161, 0.4);
   border-radius: 8px;
@@ -328,6 +391,11 @@ button {
   background: rgba(255, 255, 255, 0.05);
   color: #8c887f;
   cursor: not-allowed;
+}
+
+.lesson-button.locked small {
+  color: #aaa59a;
+  line-height: 1.2;
 }
 
 .hud {

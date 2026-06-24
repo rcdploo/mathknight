@@ -164,6 +164,10 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
       const bossDefeated = completedNode.type === "boss";
       if (bossDefeated) {
         const nextStage = nextDungeonStage(current.stage);
+        const loadout = loadPermanentLoadout();
+        if (nextStage > loadout.dungeonLevel) {
+          savePermanentLoadout({ ...loadout, dungeonLevel: nextStage });
+        }
         const nextDungeon = generateDungeon(nextStage);
         nextDungeon.notice = nextStage === current.stage
           ? "The final boss is defeated. Stage 5 is mastered."

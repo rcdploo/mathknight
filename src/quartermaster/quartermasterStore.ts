@@ -15,6 +15,7 @@ export type PermanentLoadout = {
 };
 
 const loadoutKey = "mathknight.permanentLoadout.v1";
+const dungeonKey = "mathknight.dungeon.level1.v4";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const runHealthKey = "mathknight.dungeon.runHealth.v1";
 
@@ -36,7 +37,21 @@ export function loadPermanentLoadout(): PermanentLoadout {
       savePermanentLoadout(initial);
       return initial;
     }
-    return JSON.parse(raw) as PermanentLoadout;
+    const loadout = JSON.parse(raw) as PermanentLoadout;
+    let savedDungeonLevel = 1;
+    try {
+      const dungeon = JSON.parse(window.localStorage.getItem(dungeonKey) ?? "null") as { stage?: number } | null;
+      savedDungeonLevel = dungeon?.stage ?? 1;
+    } catch {
+      // A damaged dungeon map should not invalidate permanent upgrades.
+    }
+    const reachedDungeonLevel = Math.max(loadout.dungeonLevel, savedDungeonLevel);
+    if (reachedDungeonLevel !== loadout.dungeonLevel) {
+      const migrated = { ...loadout, dungeonLevel: reachedDungeonLevel };
+      savePermanentLoadout(migrated);
+      return migrated;
+    }
+    return loadout;
   } catch {
     return startingLoadout();
   }

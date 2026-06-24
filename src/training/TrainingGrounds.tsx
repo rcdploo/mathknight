@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, Home, KeyRound, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Home, KeyRound, LockKeyhole, Volume2, VolumeX, X } from "lucide-react";
 import { allLevels, levelLabels, makeLevelConfig, stageLabels, stages, unitLabels, units } from "../game/levels";
 import { generatePuzzle } from "../game/puzzleGenerator";
 import {
@@ -12,8 +12,9 @@ import {
   setMuted,
 } from "../game/progressStore";
 import { calculateCoins, calculateStars, getUnitValue } from "../game/scoring";
-import { findNextUnlocked, isLevelUnlocked } from "../game/unlockRules";
+import { findNextUnlocked, getLevelUnlockState, getStageUnlockState, getUnitUnlockState, totalStars } from "../game/unlockRules";
 import type { GeometryVisual, LevelConfig, LevelResult, PlayerProgress, PuzzleCard } from "../game/types";
+import { loadPermanentLoadout } from "../quartermaster/quartermasterStore";
 
 type Screen = "map" | "game" | "result";
 type GameMode = "playing" | "reviewing";
@@ -89,9 +90,14 @@ export default function TrainingGrounds({ onExit }: { onExit: () => void }) {
   const [saveCodeInput, setSaveCodeInput] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [canAutoSave] = useState(() => localStorageAvailable());
+  const [dungeonLevel] = useState(() => loadPermanentLoadout().dungeonLevel);
+  const [expandedUnits, setExpandedUnits] = useState<Set<(typeof units)[number]>>(
+    () => new Set(units.filter((unit) => getUnitUnlockState(loadProgress(), unit).unlocked)),
+  );
   const hasEndedRef = useRef(false);
 
   const allLevelConfigs = useMemo(() => allLevels(), []);
+  const earnedStars = totalStars(progress);
   const matchColorByPair = useMemo(() => {
     const colorByPair = new Map<string, string>();
     cards.forEach((card) => {
@@ -102,6 +108,16 @@ export default function TrainingGrounds({ onExit }: { onExit: () => void }) {
   const matchedPairs = useMemo(() => new Set(cards.filter((card) => card.matched).map((card) => card.pairId)).size, [cards]);
   const pairsRemaining = selectedLevel.pairs - matchedPairs;
   const currentProgress = progress.puzzles[selectedLevel.id] ?? blankPuzzleProgress();
+
+  function toggleUnit(unit: (typeof units)[number]) {
+    if (!getUnitUnlockState(progress, unit).unlocked) return;
+    setExpandedUnits((current) => {
+      const next = new Set(current);
+      if (next.has(unit)) next.delete(unit);
+      else next.add(unit);
+      return next;
+    });
+  }
 
   function startLevel(level: LevelConfig) {
     hasEndedRef.current = false;
@@ -235,7 +251,7 @@ export default function TrainingGrounds({ onExit }: { onExit: () => void }) {
     return () => window.clearInterval(timer);
   }, [bossPhase, screen, selectedLevel.isBoss, turnsUsed]);
 
-  const nextLevel = result?.completed ? findNextUnlocked(progress, selectedLevel) : undefined;
+  const nextLevel = result?.completed ? findNextUnlocked(progress, selectedLevel, dungeonLevel) : undefined;
 
   return (
     <main className="app">
@@ -247,6 +263,9 @@ export default function TrainingGrounds({ onExit }: { onExit: () => void }) {
           Mathknight
         </button>
         <div className="topbar-actions">
+          <span className="star-total" aria-label={`${earnedStars} total stars`}>
+            <strong>★</strong> {earnedStars} stars
+          </span>
           <span className="coin-pill">${progress.coins} coins</span>
           <button
             className="icon-button"
@@ -319,20 +338,45 @@ export default function TrainingGrounds({ onExit }: { onExit: () => void }) {
             <h1>Arithmetic Memory Trials</h1>
           </div>
           <div className="unit-grid">
-            {units.map((unit) => (
-              <section className="unit-panel" key={unit}>
-                <h2>{unitLabels[unit]}</h2>
-                {stages.map((stage) => (
-                  <div className="stage-row" key={`${unit}_${stage}`}>
-                    <div className="stage-label">
-                      <strong>{stageLabels[stage]}</strong>
-                      <span>{formatStageDescription(stage, unit)}</span>
-                    </div>
+            {units.map((unit) => {
+              const unitUnlockState = getUnitUnlockState(progress, unit);
+              const expanded = unitUnlockState.unlocked && expandedUnits.has(unit);
+              return (
+              <section className={`unit-panel ${unitUnlockState.unlocked ? "" : "unit-locked"}`} key={unit}>
+                <button
+                  className="unit-toggle"
+                  type="button"
+                  disabled={!unitUnlockState.unlocked}
+                  aria-expanded={expanded}
+                  onClick={() => toggleUnit(unit)}
+                >
+                  <span>
+                    {unitUnlockState.unlocked
+                      ? expanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />
+                      : <LockKeyhole size={18} />}
+                    <strong>{unitLabels[unit]}</strong>
+                  </span>
+                  {!unitUnlockState.unlocked && <small>Locked: {unitUnlockState.reason}</small>}
+                </button>
+                {expanded && stages.map((stage) => {
+                  const stageUnlockState = getStageUnlockState(progress, unit, stage);
+                  return (
+                    <div className="stage-row" key={`${unit}_${stage}`}>
+                      <div className="stage-label">
+                        <strong>
+                          {stageLabels[stage]}
+                          {!stageUnlockState.unlocked && (
+                            <small className="stage-lock">Locked: {stageUnlockState.reason}</small>
+                          )}
+                        </strong>
+                        <span>{formatStageDescription(stage, unit)}</span>
+                      </div>
                     <div className="lesson-row">
                       {allLevelConfigs
                         .filter((level) => level.unit === unit && level.stage === stage)
                         .map((level) => {
-                          const unlocked = isLevelUnlocked(progress, level);
+                          const unlockState = getLevelUnlockState(progress, level, dungeonLevel);
+                          const unlocked = unlockState.unlocked;
                           const entry = progress.puzzles[level.id];
                           const nextWinCount = (entry?.wins ?? 0) + 1;
                           const minimumReward = calculateCoins(level, 1, nextWinCount);
@@ -361,15 +405,23 @@ export default function TrainingGrounds({ onExit }: { onExit: () => void }) {
                                   </span>
                                 )}
                               </span>
-                              <small>{unlocked ? `$${minimumReward}-$${maximumReward}` : "Locked"}</small>
+                              <small>
+                                {unlocked
+                                  ? `$${minimumReward}-$${maximumReward}`
+                                  : unlockState.reason === "Requires Dungeon Level 3"
+                                    ? "Locked: Requires Dungeon Level 3+"
+                                    : "Locked"}
+                              </small>
                             </button>
                           );
                         })}
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </section>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
