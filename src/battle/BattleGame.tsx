@@ -30,7 +30,7 @@ type BattleSession = {
 type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff"; effect: string };
 type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string; tone?: "buff" | "debuff" };
 
-const battleSessionKey = "mathknight.battle.session.v1";
+const battleSessionKey = "mathknight.battle.session.v2";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const runHealthKey = "mathknight.dungeon.runHealth.v1";
 const fallbackMonster: GeneratedMonster = {
@@ -751,7 +751,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     setPhase("resolving");
     const countered = value === displayedIntent || (hasItem(itemIds, "horseshoes") && Math.abs(value - displayedIntent) === 1);
     const criticalHit = rollAny(upgradeEffects.critAttempts, 0.2);
-    const isWeakened = (hasBuff(monster, "Weakening") && battle.weakenNext > 0) || battle.playerWeakenTurns > 0;
+    const isWeakened = battle.playerWeakenTurns > 0;
     const weakenedValue = isWeakened ? Math.max(0, value - Math.max(1, Math.ceil(value * 0.1))) : value;
     const baseDamage = countered ? displayedIntent : weakenedValue;
     const parityBonus = value % 2 !== 0 && hasItem(itemIds, "oddjob") ? 1.15 : 1;
@@ -812,6 +812,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           enemyHealth: reflectedHit.health,
           playerHealth: playerHit.health,
         }, monster, battle.pendingMonsterSpells);
+    if (!monsterEffectsCanceled && playerHit.damage > 0 && hasBuff(monster, "Weakening")) {
+      pendingSpellResult.battle.playerWeakenTurns = Math.max(pendingSpellResult.battle.playerWeakenTurns, 1);
+    }
     if (heroicWillTriggered) pendingSpellResult.battle = clearPlayerDebuffs(pendingSpellResult.battle);
     if (countered && hasItem(itemIds, "tripwire")) pendingSpellResult.battle.weakenNext = Math.max(pendingSpellResult.battle.weakenNext, 2);
     if (countered && hasItem(itemIds, "reverser")) pendingSpellResult.battle.playerHealth = Math.min(pendingSpellResult.battle.playerMaxHealth, pendingSpellResult.battle.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth / 2 ? 2 : 1));
@@ -864,7 +867,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         const progress = loadProgress();
         const goldReward = Math.round(monster.reward * (premiumReward ? 1.5 : 1) * (hasItem(itemIds, "signet") ? 1.3 : 1)) + (countered && hasItem(itemIds, "pursestring-cutter") ? monster.level * 5 : 0);
         saveProgress({ ...progress, coins: progress.coins + goldReward });
-        if (bonusItemId) addRunItem(bonusItemId);
         saveRunHealth(healedHealth);
         setBattle((current) => ({ ...current, playerHealth: healedHealth }));
         stopBattleMusic();
@@ -873,8 +875,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         setPhase("victory");
         setMessage(
           healingReceived > 0
-            ? `${monster.name} falls. You gain $${goldReward}${bonusItemId ? ` and ${itemById.get(bonusItemId)?.name ?? "an item"}` : ""}. Healing restores ${healingReceived} HP.`
-            : `${monster.name} falls. You gain $${goldReward}${bonusItemId ? ` and ${itemById.get(bonusItemId)?.name ?? "an item"}` : ""}. Your health is already full.`,
+            ? `${monster.name} falls. You gain $${goldReward}. Healing restores ${healingReceived} HP.`
+            : `${monster.name} falls. You gain $${goldReward}. Your health is already full.`,
         );
         return;
       }
@@ -975,6 +977,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       resetRunItems();
       saveRunHealth(loadPermanentLoadout().maxHealth);
     }
+    if (won && bonusItemId) addRunItem(bonusItemId);
     clearBattleSession();
     onComplete(won);
   }
@@ -1032,7 +1035,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       <main className="battle-game reward-screen">
         <div className="reward-panel">
           <p>Battle Spoils</p><h1>Choose one card</h1>
-          {bonusItemId && itemById.get(bonusItemId) && <p className="premium-item-earned">Item acquired: <strong>{itemById.get(bonusItemId)?.name}</strong></p>}
           <div className="reward-cards">
             {rewards.map((card) => (
               <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
@@ -1043,6 +1045,16 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
               </button>
             ))}
           </div>
+          {bonusItemId && itemById.get(bonusItemId) && (
+            <div className="reward-item-row">
+              <div className={`reward-item-square rarity-${itemById.get(bonusItemId)?.rarity.toLowerCase()}`}>
+                <strong>{itemSymbol(itemById.get(bonusItemId)!)}</strong>
+                <span>Bonus Item</span>
+                <b>{itemById.get(bonusItemId)?.name}</b>
+                <small>{itemById.get(bonusItemId)?.effect}</small>
+              </div>
+            </div>
+          )}
           <div className="battle-actions">
             <button onClick={claimReward}>{chosenReward ? `Choose ${chosenReward.label}` : "Continue without a card"}</button>
             <button onClick={onExit}>Game Hall</button>

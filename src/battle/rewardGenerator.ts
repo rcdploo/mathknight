@@ -107,29 +107,43 @@ function rollBudget(rule: RewardRule) {
   return weightedChoice([1, 2, 3, 4, 5, 6, 7], rule.valueWeights);
 }
 
-function makeUpgradedCard(rule: RewardRule, kind: RewardKind, shown: Record<string, number>) {
+function makeUpgradedCard(
+  rule: RewardRule,
+  kind: RewardKind,
+  shown: Record<string, number>,
+  usedCardIds = new Set<string>(),
+  usedUpgradeIds = new Set<string>(),
+) {
   const budget = rollBudget(rule);
   const eligibleCards = playableCards().filter((definition) => {
+    if (usedCardIds.has(definition.id)) return false;
     const card = makeCatalogEntry(definition.name);
     if (rarityValue[definition.rarity] > budget) return false;
     if (kind === "Card") return true;
     const remaining = budget - rarityValue[definition.rarity];
     return remaining > 0 && attachableUpgrades().some((upgrade) =>
+      !usedUpgradeIds.has(upgrade.id)
+      &&
       rarityValue[upgrade.rarity] <= remaining && canApplyUpgrade(card, upgrade.id),
     );
   });
+  if (eligibleCards.length === 0) throw new Error("No unique card fits this reward slot.");
   const definition = choice(eligibleCards);
+  usedCardIds.add(definition.id);
   let card = makeCatalogEntry(definition.name);
   if (kind === "Card") return { card, budget };
 
   let remaining = budget - rarityValue[definition.rarity];
   for (let upgradeNumber = 0; upgradeNumber < 2 && remaining > 0; upgradeNumber += 1) {
     const eligibleUpgrades = attachableUpgrades().filter((upgrade) =>
+      !usedUpgradeIds.has(upgrade.id)
+      &&
       rarityValue[upgrade.rarity] <= remaining
       && canApplyUpgrade(card, upgrade.id),
     );
     if (eligibleUpgrades.length === 0) break;
     const upgrade = pickUpgrade(eligibleUpgrades, shown);
+    usedUpgradeIds.add(upgrade.id);
     card = applyCardUpgrade(card, upgrade.id);
     remaining -= rarityValue[upgrade.rarity];
   }
@@ -138,19 +152,31 @@ function makeUpgradedCard(rule: RewardRule, kind: RewardKind, shown: Record<stri
 
 export function generateCombatRewards(level: number): GeneratedReward[] {
   const rules = rewardRules.filter((rule) => rule.level === level).sort((left, right) => left.slot - right.slot);
-  const kinds = rollKinds(rules);
-  const shown = loadShownCounts();
-  const rewards = rules.map((rule, index): GeneratedReward => {
-    const kind = kinds[index];
-    if (kind === "Upgrade") {
-      const upgrade = pickUpgrade(rewardUpgrades(), shown);
-      return { slot: rule.slot, kind, budget: null, card: makeCatalogEntry(upgrade.name) };
+  const originalShown = loadShownCounts();
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const kinds = rollKinds(rules);
+    const shown = { ...originalShown };
+    const usedCardIds = new Set<string>();
+    const usedUpgradeIds = new Set<string>();
+    try {
+      const rewards = rules.map((rule, index): GeneratedReward => {
+        const kind = kinds[index];
+        if (kind === "Upgrade") {
+          const candidates = rewardUpgrades().filter((upgrade) => !usedUpgradeIds.has(upgrade.id));
+          const upgrade = pickUpgrade(candidates, shown);
+          usedUpgradeIds.add(upgrade.id);
+          return { slot: rule.slot, kind, budget: null, card: makeCatalogEntry(upgrade.name) };
+        }
+        const generated = makeUpgradedCard(rule, kind, shown, usedCardIds, usedUpgradeIds);
+        return { slot: rule.slot, kind, budget: generated.budget, card: generated.card };
+      });
+      saveShownCounts(shown);
+      return rewards;
+    } catch {
+      // Try another valid category/budget combination.
     }
-    const generated = makeUpgradedCard(rule, kind, shown);
-    return { slot: rule.slot, kind, budget: generated.budget, card: generated.card };
-  });
-  saveShownCounts(shown);
-  return rewards;
+  }
+  throw new Error("Unable to generate a unique combat reward selection.");
 }
 
 export function generateShopCard(level: number, rewardSlot: 1 | 2 | 3) {

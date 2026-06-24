@@ -269,14 +269,14 @@ export default function DungeonGame({
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (!activeNode?.monster) return null;
     const effectiveType = activeNode.resolvedType ?? activeNode.type;
-    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Level ${dungeon.level} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite"} />;
+    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Level ${dungeon.level} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite" || effectiveType === "boss"} />;
   }
 
   if (dungeon.view === "event") {
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (activeNode) {
       const effectiveType = activeNode.resolvedType ?? activeNode.type;
-      if (effectiveType === "shop") return <ShopRoom node={activeNode} level={dungeon.level} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+      if (effectiveType === "shop") return <ShopRoom node={activeNode} level={dungeon.level} onExit={returnToMap} onTraining={onTraining} />;
       if (effectiveType === "treasure") return <TreasureReward node={activeNode} level={dungeon.level} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
       return <RoomEvent node={activeNode} level={dungeon.level} eventType={effectiveType} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
     }
@@ -506,7 +506,7 @@ function loadRunDeckCards() {
   }
 }
 
-function ShopRoom({ node, level, onExit, onComplete }: { node: DungeonNode; level: DungeonLevel; onExit: () => void; onComplete: () => void }) {
+function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; level: DungeonLevel; onExit: () => void; onTraining: () => void }) {
   const initial = useMemo(() => loadShop(node.id, level), [node.id, level]);
   const [slots, setSlots] = useState<ShopSlot[]>(initial.slots);
   const [coins, setCoins] = useState(() => loadProgress().coins);
@@ -602,7 +602,7 @@ function ShopRoom({ node, level, onExit, onComplete }: { node: DungeonNode; leve
     <div className="dungeon-shop-grid">
       {orderedSlots.map((slot) => <ShopOffer slot={slot} price={priceFor(slot)} onBuy={() => buy(slot)} key={slot.position} />)}
     </div>
-    <div className="battle-actions"><button onClick={onComplete}>Leave shop</button><button onClick={onExit}>Return to map</button></div>
+    <div className="battle-actions"><button onClick={onTraining}>Training Grounds</button><button onClick={onExit}>Return to map</button></div>
   </section></main>;
 }
 

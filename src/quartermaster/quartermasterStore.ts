@@ -71,11 +71,11 @@ export function loadPermanentLoadout(): PermanentLoadout {
 }
 
 const characterStats = {
-  1: { maxHealth: 40, energy: 4, handSize: 5 },
-  2: { maxHealth: 60, energy: 5, handSize: 5 },
-  3: { maxHealth: 100, energy: 6, handSize: 6 },
-  4: { maxHealth: 160, energy: 7, handSize: 6 },
-  5: { maxHealth: 250, energy: 8, handSize: 7 },
+  1: { maxHealth: 40, energy: 3, handSize: 5 },
+  2: { maxHealth: 60, energy: 4, handSize: 5 },
+  3: { maxHealth: 100, energy: 5, handSize: 6 },
+  4: { maxHealth: 160, energy: 6, handSize: 6 },
+  5: { maxHealth: 250, energy: 7, handSize: 7 },
 } as const;
 
 export function characterStatsForLevel(level: number, loadout = loadPermanentLoadout()) {
