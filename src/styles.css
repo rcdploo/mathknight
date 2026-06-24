@@ -1110,6 +1110,10 @@ button {
 .battle-card.operator small { background: #f0ca73; color: #33270f; }
 .battle-card strong { align-self: center; font-size: clamp(2rem, 5vw, 3.5rem); }
 .battle-card em { font-size: .58rem; font-style: normal; line-height: 1.2; text-transform: uppercase; }
+.battle-card .card-price { position: absolute; right: 7px; top: 8px; color: #f0ca73; font-size: .72rem; }
+.shop-card-offer { display: grid; place-items: center; min-height: 142px; }
+.shop-card-offer .battle-card { width: 104px; }
+.shop-card-offer.sold { opacity: .4; }
 .card-upgrade-icons { display: flex; flex-wrap: wrap; align-content: end; gap: 2px; min-height: 14px; }
 .card-upgrade-icons span { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #55b879; color: #102d1b; font-size: .55rem; font-weight: 900; }
 .card-upgrade-icons .upgrade-defense { background: #5aa8df; color: #102936; }

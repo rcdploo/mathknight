@@ -4,6 +4,7 @@ import BattleGame from "../battle/BattleGame";
 import { addRunItem, itemById, itemSymbol, loadRunItems, surfaceItems, type ItemDefinition } from "../battle/itemCatalog";
 import { applyCardUpgrade, canApplyUpgrade, type BattleCard } from "../battle/battleEngine";
 import { cardById } from "../battle/cardCatalog";
+import GameCard from "../battle/GameCard";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
 import { generateBoss, generateMonster, generateRoomGold, nextDungeonLevel, type DungeonRoom, type DungeonLevel, type GeneratedMonster } from "../battle/monsterGenerator";
@@ -477,7 +478,7 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
     const eligible = removable ? deck : deck.filter((card) => canApplyUpgrade(card, chosen.catalogId));
     return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
       <p>Treasure Upgrade</p><h1>{removable ? "Choose a card to remove" : `Choose a card for ${chosen.label}`}</h1>
-      <div className="shop-target-grid">{eligible.map((card) => <RemovalTargetCard card={card} onClick={() => finishWithDeck(removable ? deck.filter((entry) => entry.id !== card.id) : deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, chosen.catalogId) : entry))} key={card.id} />)}</div>
+      <div className="shop-target-grid">{eligible.map((card) => <GameCard card={card} bottled={loadPermanentLoadout().bottledCard.id === card.id} preview onClick={() => finishWithDeck(removable ? deck.filter((entry) => entry.id !== card.id) : deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, chosen.catalogId) : entry))} key={card.id} />)}</div>
       <div className="battle-actions"><button onClick={() => setTargeting(false)}>Back</button></div>
     </section></main>;
   }
@@ -591,7 +592,7 @@ function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; leve
     const eligible = targetSlot.type === "remove-card" ? deck : targetSlot.type === "upgrade" ? deck.filter((card) => canApplyUpgrade(card, targetSlot.card.catalogId)) : [];
     return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
       <p>Shop purchase</p><h1>{targetSlot.type === "remove-card" ? "Choose a card to remove" : `Choose a card for ${targetSlot.type === "upgrade" ? targetSlot.card.label : "upgrade"}`}</h1>
-      <div className="shop-target-grid">{eligible.map((card) => <RemovalTargetCard card={card} onClick={() => chooseTarget(card)} key={card.id} />)}</div>
+      <div className="shop-target-grid">{eligible.map((card) => <GameCard card={card} bottled={loadPermanentLoadout().bottledCard.id === card.id} preview onClick={() => chooseTarget(card)} key={card.id} />)}</div>
       <div className="battle-actions"><button onClick={() => setTargetSlot(null)}>Cancel</button></div>
     </section></main>;
   }
@@ -606,45 +607,22 @@ function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; leve
   </section></main>;
 }
 
-function RemovalTargetCard({ card, onClick }: { card: BattleCard; onClick: () => void }) {
-  const bottled = loadPermanentLoadout().bottledCard.id === card.id;
-  const upgrades = card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade);
-  return <button className={`removal-target-card ${bottled ? "bottled" : ""}`} onClick={onClick}>
-    <strong>{card.label}</strong>
-    <small>{card.rarity}</small>
-    {bottled && <span className="removal-bottled-badge">Bottled</span>}
-    <span className="removal-upgrade-list">{upgrades.length ? upgrades.join(" · ") : "No upgrades"}</span>
-  </button>;
-}
 function ShopOffer({ slot, price, onBuy }: { slot: ShopSlot; price: number; onBuy: () => void }) {
-  const name = slot.type === "card" || slot.type === "upgrade" ? slot.card.label
-    : slot.type === "item" ? slot.item.name : slot.type === "sustenance" ? "Sustenance"
-      : slot.type === "random-reward" ? "Random Card Reward" : "Remove a Card";
-  let description: string;
-  if (slot.type === "card") {
-    const upgradeNames = slot.card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade);
-    description = slot.card.type === "Digit"
-      ? `Digit card${upgradeNames.length ? ` · ${upgradeNames.join(" + ")}` : ""}`
-      : `${cardById.get(slot.card.catalogId)?.displayDescription ?? slot.card.effect}${upgradeNames.length ? ` Upgrades: ${upgradeNames.join(", ")}.` : ""}`;
-  } else if (slot.type === "upgrade") {
-    description = cardById.get(slot.card.catalogId)?.displayDescription ?? slot.card.effect;
-  } else if (slot.type === "item") {
-    description = slot.item.effect;
-  } else if (slot.type === "sustenance") {
-    description = "Heal up to 30 HP. Repeatable.";
-  } else if (slot.type === "random-reward") {
-    description = "Generate one random combat reward.";
-  } else {
-    description = "Permanently remove a card from your run deck.";
-  }  const cardType = slot.type === "card" || slot.type === "upgrade" ? slot.card.type.toLowerCase() : "";
-  const rarity = slot.type === "card" || slot.type === "upgrade" ? slot.card.rarity.toLowerCase() : slot.type === "item" ? slot.item.rarity.toLowerCase() : "common";
-  const tone = slot.type === "item" ? "item"
-    : slot.type === "upgrade" ? "upgrade"
-      : slot.type === "card" ? cardType.includes("variable") ? "variable" : cardType.includes("combo") ? "combo" : cardType.includes("upgrade") ? "upgrade" : "digit"
-        : "service";
+  if (slot.type === "card" || slot.type === "upgrade") {
+    return <div className={`shop-card-offer ${slot.sold ? "sold" : ""}`}>
+      <GameCard card={slot.card} onClick={onBuy} disabled={slot.sold} price={price} />
+    </div>;
+  }
+  const name = slot.type === "item" ? slot.item.name : slot.type === "sustenance" ? "Sustenance"
+    : slot.type === "random-reward" ? "Random Card Reward" : "Remove a Card";
+  const description = slot.type === "item" ? slot.item.effect
+    : slot.type === "sustenance" ? "Heal up to 30 HP. Repeatable."
+      : slot.type === "random-reward" ? "Generate one random combat reward."
+        : "Permanently remove a card from your run deck.";
+  const rarity = slot.type === "item" ? slot.item.rarity.toLowerCase() : "common";
+  const tone = slot.type === "item" ? "item" : "service";
   return <button className={`shop-offer tone-${tone} rarity-${rarity} ${slot.sold ? "sold" : ""}`} disabled={slot.sold} onClick={onBuy}>
     <strong>{slot.sold ? "Sold" : name}</strong>
-    {(slot.type === "card" || slot.type === "upgrade") && <span>{slot.type === "upgrade" ? slot.card.type : `${slot.card.energy} energy`}</span>}
     <b>${price}</b>
     <span className="shop-offer-tooltip"><strong>{name}</strong>{description}</span>
   </button>;

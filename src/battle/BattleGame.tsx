@@ -7,6 +7,7 @@ import { loadProgress, saveProgress } from "../game/progressStore";
 import { characterStatsForLevel, loadPermanentLoadout } from "../quartermaster/quartermasterStore";
 import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, resetRunItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
+import GameCard from "./GameCard";
 import {
   applyCardUpgrade, applyDamage, canApplyUpgrade, drawHand, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
   makeCard, makeCatalogEntry, resolveExpressionTokens, rollAny, shuffle, type BattleCard,
@@ -1021,7 +1022,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <h1>{removable ? "Choose a card to remove" : `Choose a card for ${chosenReward.label}`}</h1>
           {error && <p className="battle-error" role="alert">{error}</p>}
           <div className="pile-card-grid">
-            {eligibleCards.map((card) => <CardButton key={card.id} card={card} onClick={() => applyRewardUpgrade(card)} disabled={false} preview bottled={battle.bottledCard.id === card.id} />)}
+            {eligibleCards.map((card) => <GameCard key={card.id} card={card} onClick={() => applyRewardUpgrade(card)} preview bottled={battle.bottledCard.id === card.id} />)}
           </div>
           {eligibleCards.length === 0 && <p>No valid targets are available.</p>}
           <div className="battle-actions"><button onClick={() => setPhase("reward")}>Back</button><button onClick={onExit}>Game Hall</button></div>
@@ -1120,7 +1121,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             </div>
             <p>{pileView === "deck" ? "Earliest acquired to latest acquired." : "Most recently discarded first."}</p>
             <div className="pile-card-grid">
-              {viewedPile.map((card) => <CardButton key={card.id} card={card} onClick={() => undefined} disabled={false} preview />)}
+              {viewedPile.map((card) => <GameCard key={card.id} card={card} onClick={() => undefined} preview />)}
             </div>
           </section>
         </div>
@@ -1181,11 +1182,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           </div>
 
           <div className="hand-area">
-            <div className="bottle-slot"><span>Bottled</span><CardButton card={battle.bottledCard} onClick={() => addCard(battle.bottledCard, true)} disabled={bottleUsed || battle.confoundTurns > 0 || phase !== "playing"} bottled /></div>
+            <div className="bottle-slot"><span>Bottled</span><GameCard card={battle.bottledCard} onClick={() => addCard(battle.bottledCard, true)} disabled={bottleUsed || battle.confoundTurns > 0 || phase !== "playing"} bottled /></div>
             <div className="hand-cards">
               {visibleHand.map((card) => (
                 <div className="hand-card-slot" key={card.id}>
-                  <CardButton
+                  <GameCard
                     card={card}
                     onClick={() => addCard(card)}
                     disabled={card.consumedThisTurn || selectedCards.some((selected) => selected.id === card.id) || cardLockedByPolarizing(card, monster, turn) || phase !== "playing"}
@@ -1227,40 +1228,3 @@ function Combatant({ name, buffs = [], statusBuffs = [], sprite, health, maxHeal
 function cardSequence(card: BattleCard) {
   return Number(card.id.match(/(\d+)$/)?.[1] ?? Number.MAX_SAFE_INTEGER);
 }
-
-function CardButton({ card, onClick, disabled, bottled = false, preview = false, forced = false }: { card: BattleCard; onClick: () => void; disabled: boolean; bottled?: boolean; preview?: boolean; forced?: boolean }) {
-  const typeClass = card.type.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
-  const upgradeCount = Math.min(card.upgrades.length, 5);
-  return <button
-    className={`battle-card ${card.kind} type-${typeClass} rarity-${card.rarity.toLowerCase()} upgrades-${upgradeCount} ${preview ? "preview" : ""} ${forced ? "forced" : ""}`}
-    onClick={onClick}
-    disabled={!preview && disabled}
-  >
-    <small>{card.energy}</small><strong>{card.label}</strong>
-    <div className="card-upgrade-icons">
-      {card.upgrades.map((upgradeId, index) => {
-        const visual = upgradeVisuals[upgradeId] ?? { label: "U", category: "special" };
-        return <span className={`upgrade-${visual.category}`} key={`${upgradeId}-${index}`} aria-label={cardById.get(upgradeId)?.name ?? upgradeId}>{visual.label}</span>;
-      })}
-    </div>
-    {forced && <em>Required</em>}
-    {bottled && <em>Every turn</em>}
-    <span className="card-explainer">
-      <strong>{card.label}</strong>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}
-      {card.upgrades.map((upgradeId) => {
-        const upgrade = cardById.get(upgradeId);
-        return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {upgrade?.displayDescription ?? "Card upgrade"}</span>;
-      })}
-    </span>
-  </button>;
-}
-
-const upgradeVisuals: Record<string, { label: string; category: "defense" | "offense" | "stats" | "energy" | "special" | "healing" }> = {
-  armor: { label: "A", category: "defense" }, weaken: { label: "W", category: "defense" },
-  crit: { label: "C", category: "offense" }, bash: { label: "B", category: "offense" },
-  "1": { label: "1", category: "stats" }, "3": { label: "3", category: "stats" },
-  efficiency: { label: "E", category: "energy" }, consumable: { label: "C", category: "energy" },
-  cycling: { label: "C", category: "special" }, reflecting: { label: "R", category: "special" },
-  healing: { label: "H", category: "healing" },
-};
-
