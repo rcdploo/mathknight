@@ -65,11 +65,11 @@ const baseHp: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
 };
 
 const buffBudget: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
-  1: { 1: 0, 2: 0, 3: 0, 4: 1, 6: 1, 7: 2, 8: 2, 9: 2, Boss: 3 },
-  2: { 1: 1, 2: 1, 3: 1, 4: 2, 6: 2, 7: 3, 8: 3, 9: 3, Boss: 4 },
-  3: { 1: 2, 2: 2, 3: 2, 4: 3, 6: 3, 7: 4, 8: 4, 9: 4, Boss: 5 },
-  4: { 1: 3, 2: 3, 3: 3, 4: 4, 6: 4, 7: 5, 8: 5, 9: 5, Boss: 6 },
-  5: { 1: 4, 2: 4, 3: 4, 4: 5, 6: 5, 7: 6, 8: 6, 9: 6, Boss: 7 },
+  1: { 1: 0, 2: 0, 3: 0, 4: 0, 6: 0, 7: 0, 8: 0, 9: 0, Boss: 1 },
+  2: { 1: 1, 2: 1, 3: 1, 4: 1, 6: 1, 7: 1, 8: 1, 9: 1, Boss: 2 },
+  3: { 1: 2, 2: 2, 3: 2, 4: 2, 6: 2, 7: 2, 8: 2, 9: 2, Boss: 3 },
+  4: { 1: 3, 2: 3, 3: 3, 4: 3, 6: 3, 7: 3, 8: 3, 9: 3, Boss: 4 },
+  5: { 1: 4, 2: 4, 3: 4, 4: 4, 6: 4, 7: 4, 8: 4, 9: 4, Boss: 5 },
 };
 
 const baseReward: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
@@ -83,7 +83,7 @@ const baseReward: Record<DungeonStage, Record<DungeonRoom, number | null>> = {
 export const monsterAttackPatterns: MonsterAttackPatternDefinition[] = [
   { name: "Brutish", hasSpells: false, difficulty: 1, description: "Normal attack every turn" },
   { name: "Prime", hasSpells: false, difficulty: 3, description: "Attack with rising prime numbers" },
-  { name: "Explosive", hasSpells: false, difficulty: 2, description: "Countdown, then escalating combined attacks" },
+  { name: "Explosive", hasSpells: false, difficulty: 3, description: "Countdown, then escalating combined attacks" },
   { name: "Stalwart", hasSpells: false, difficulty: 1, description: "Shuffle attacks with attack-and-block turns" },
   { name: "Magical", hasSpells: true, difficulty: 1, description: "Shuffle attacks with single spellcasts" },
   { name: "Casting", hasSpells: true, difficulty: 2, description: "Shuffle attacks with block-and-spell turns" },
@@ -92,6 +92,8 @@ export const monsterAttackPatterns: MonsterAttackPatternDefinition[] = [
   { name: "Arcane", hasSpells: true, difficulty: 3, description: "Shuffle hybrid attacks, blocks, and spell bursts" },
   { name: "Defensive", hasSpells: false, difficulty: 2, description: "Shuffle partial attacks and blocks" },
   { name: "Wild", hasSpells: true, difficulty: 2, description: "Randomize attacks, spellcasts, and blocks" },
+  { name: "Strategic", hasSpells: true, difficulty: 2, description: "Cycle through spellcast, attack-and-block, then attack" },
+  { name: "Careful", hasSpells: false, difficulty: 2, description: "Randomize defensive attacks and heavy blocks" },
 ];
 
 export const monsterBuffs: MonsterBuffDefinition[] = [

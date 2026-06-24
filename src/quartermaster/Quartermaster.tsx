@@ -1,4 +1,4 @@
-import { ArrowLeft, FlaskConical, HeartPulse, HelpCircle, RotateCcw, Scissors, ShieldPlus } from "lucide-react";
+import { ArrowLeft, FlaskConical, HeartPulse, HelpCircle, RotateCcw, ShieldPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { allLevels, stageLabels, stages, unitLabels, units } from "../game/levels";
 import { loadProgress, saveProgress } from "../game/progressStore";
@@ -6,7 +6,7 @@ import { isLevelUnlocked } from "../game/unlockRules";
 import type { PlayerProgress, Stage, Unit } from "../game/types";
 import { increaseRunHealth, loadPermanentLoadout, printedEnergyCost, savePermanentLoadout, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
 
-type SelectionMode = "bottle" | "remove" | null;
+type SelectionMode = "bottle" | null;
 
 const resetPrices: Record<Unit, Record<Stage, number>> = {
   addition: { "1": 50, "2": 75, "3a": 100, "3b": 100, "4": 150 },
@@ -24,7 +24,6 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(null);
   const levels = useMemo(allLevels, []);
   const bottleUpgradeCost = 100 * (loadout.bottleUpgradeCount + 1);
-  const removalCost = 50 * (loadout.removalPurchases + 1);
   const mendingCost = 50 * (loadout.mendingUpgradeCount + 1);
   const nextMendingIncrease = loadout.mendingUpgradeCount + 2;
   const growCost = 100 * (loadout.growPurchases + 1);
@@ -87,23 +86,6 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
     setSelectionMode(null);
   }
 
-  function removeCard(deckIndex: number) {
-    if (!afford(removalCost)) return;
-    const selected = loadout.deck[deckIndex];
-    if (!selected) return;
-    const nextDeck = [...loadout.deck];
-    nextDeck.splice(deckIndex, 1);
-    spend(removalCost);
-    saveLoadout({ ...loadout, deck: nextDeck, removalPurchases: loadout.removalPurchases + 1 });
-    syncRunDeck((deck) => {
-      const next = [...deck];
-      const runIndex = next.findIndex((card) => card.id === selected.id);
-      if (runIndex >= 0) next.splice(runIndex, 1);
-      return next;
-    });
-    setSelectionMode(null);
-  }
-
   function resetTraining(unit: Unit, stage: Stage) {
     const cost = resetPrices[unit][stage];
     if (!afford(cost)) return;
@@ -120,7 +102,7 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
 
   const selectableCards = loadout.deck
     .map((card, deckIndex) => ({ card, deckIndex }))
-    .filter(({ card }) => selectionMode !== "bottle" || printedEnergyCost(card) <= loadout.bottleMaxCost);
+    .filter(({ card }) => printedEnergyCost(card) <= loadout.bottleMaxCost);
 
   return (
     <main className="quartermaster-screen">
@@ -132,10 +114,10 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
 
       {selectionMode && (
         <section className="quartermaster-picker">
-          <div><p>{selectionMode === "bottle" ? "Choose a card that fits the bottle." : "Choose a card to remove forever."}</p><button onClick={() => setSelectionMode(null)}>Cancel</button></div>
+          <div><p>Choose a card that fits the bottle.</p><button onClick={() => setSelectionMode(null)}>Cancel</button></div>
           <div className="quartermaster-card-grid">
             {selectableCards.map(({ card, deckIndex }) => (
-              <button key={`${card.id}-${deckIndex}`} onClick={() => selectionMode === "bottle" ? selectBottle(deckIndex) : removeCard(deckIndex)}>
+              <button key={`${card.id}-${deckIndex}`} onClick={() => selectBottle(deckIndex)}>
                 <strong>{card.label}</strong><span>{printedEnergyCost(card)} printed Energy</span><small>{card.rarity}</small>
               </button>
             ))}
@@ -152,9 +134,6 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
         </button>
         <button className="quartermaster-option locked" disabled>
           <HelpCircle size={28} /><span><strong>Locked</strong><small>Requires Level 4</small></span><b>???</b>
-        </button>
-        <button className="quartermaster-option" onClick={() => setSelectionMode("remove")}>
-          <Scissors size={28} /><span><strong>Remove a Card</strong><small>Permanently thin your base deck</small></span><b>${removalCost}</b>
         </button>
         <button className="quartermaster-option" onClick={upgradeMending}>
           <HeartPulse size={28} /><span><strong>Upgrade Mending</strong><small>Heal {loadout.mendingHealing} → {loadout.mendingHealing + nextMendingIncrease} after battle</small></span><b>${mendingCost}</b>

@@ -294,5 +294,13 @@
         "Energy Cost":  "n/a",
         "Effect":  "When used in an expression, 50% of the damage you suffer this turn is dealt back to the monster [When purchased, permanently enhance a digit card in the deck that doesn\u0027t have this upgrade] \u003ccan only occur once each turn\u003e",
         "Median Purchase Cost at Shop":  "$230"
+    },
+    {
+        "Card Name":  "Healing",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Common",
+        "Energy Cost":  "n/a",
+        "Effect":  "When used in an expression, heal 1*Stage health",
+        "Median Purchase Cost at Shop":  "$85"
     }
 ]

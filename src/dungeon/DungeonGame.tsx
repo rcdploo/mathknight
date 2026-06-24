@@ -1,7 +1,13 @@
 import { Crown, Flag, Gem, HelpCircle, ShoppingBag, Skull, Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import BattleGame from "../battle/BattleGame";
+import { addRunItem, itemSymbol, loadRunItems, surfaceItems, type ItemDefinition } from "../battle/itemCatalog";
+import { applyCardUpgrade, canApplyUpgrade, type BattleCard } from "../battle/battleEngine";
+import { generateCombatRewards } from "../battle/rewardGenerator";
+import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
 import { generateMonster, nextDungeonStage, type DungeonRoom, type DungeonStage, type GeneratedMonster } from "../battle/monsterGenerator";
+import { loadProgress, saveProgress } from "../game/progressStore";
+import { loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
 type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster };
@@ -11,7 +17,7 @@ type DungeonState = {
   completedIds: string[];
   availableIds: string[];
   activeNodeId: string | null;
-  view: "map" | "battle";
+  view: "map" | "battle" | "event";
   notice: string;
 };
 
@@ -121,7 +127,8 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
 
   function enterRoom(node: DungeonNode) {
     if (!dungeon.availableIds.includes(node.id)) return;
-    setDungeon((current) => ({ ...current, availableIds: [node.id], activeNodeId: node.id, view: "battle", notice: `Entered ${roomDetails[node.type].label}.` }));
+    const view = shouldGenerateMonster(node.type) ? "battle" : "event";
+    setDungeon((current) => ({ ...current, availableIds: [node.id], activeNodeId: node.id, view, notice: `Entered ${roomDetails[node.type].label}.` }));
   }
 
   function completeRoom(won: boolean) {
@@ -164,6 +171,14 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (!activeNode?.monster) return null;
     return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Stage ${dungeon.stage} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} />;
+  }
+
+  if (dungeon.view === "event") {
+    const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
+    if (activeNode) {
+      if (activeNode.type === "shop") return <ShopRoom node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+      return <RoomEvent node={activeNode} stage={dungeon.stage} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
+    }
   }
 
   return (
@@ -215,4 +230,177 @@ export default function DungeonGame({ onExit }: { onExit: () => void }) {
       </div>
     </main>
   );
+}
+
+function RoomEvent({ node, stage, onExit, onComplete }: { node: DungeonNode; stage: DungeonStage; onExit: () => void; onComplete: () => void }) {
+  const [items] = useState<ItemDefinition[]>(() => surfaceItems(1));
+  const [owned, setOwned] = useState(loadRunItems);
+  const [message, setMessage] = useState(
+    node.type === "treasure" ? "The chest contains a strange and useful relic."
+        : "Something glints in the dark.",
+  );
+  const progress = loadProgress();
+  const discount = owned.includes("loyalty-card") ? 0.8 : 1;
+
+  function take(item: ItemDefinition, purchased: boolean) {
+    const price = Math.round(item.cost * discount);
+    const current = loadProgress();
+    if (purchased && current.coins < price) {
+      setMessage(`You need $${price - current.coins} more.`);
+      return;
+    }
+    if (purchased) saveProgress({ ...current, coins: current.coins - price });
+    setOwned(addRunItem(item.id));
+    setMessage(`${item.name} was added to your item line.`);
+    window.setTimeout(onComplete, 450);
+  }
+
+  return (
+    <main className="battle-game reward-screen">
+      <section className="reward-panel item-room-panel">
+        <p>Stage {stage} / {roomDetails[node.type].label}</p>
+        <h1>{node.type === "shop" ? "Dungeon Merchant" : node.type === "treasure" ? "Treasure Cache" : "Curious Discovery"}</h1>
+        <p className="room-event-message">{message}</p>
+        <div className="item-offers">
+          {items.map((item) => {
+            const price = Math.round(item.cost * discount);
+            return (
+              <button className={`item-offer rarity-${item.rarity.toLowerCase()}`} key={item.id} onClick={() => take(item, node.type === "shop")}>
+                <span className="item-offer-symbol">{itemSymbol(item)}</span>
+                <strong>{item.name}</strong>
+                <small>{item.rarity} · {item.tags.join(", ")}</small>
+                <p>{item.effect}</p>
+                <b>{node.type === "shop" ? `$${price}` : "Take item"}</b>
+              </button>
+            );
+          })}
+        </div>
+        <div className="battle-actions">
+          <button onClick={onComplete}>Leave</button>
+          <button onClick={onExit}>Return to map</button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+const runDeckKey = "mathknight.dungeon.runDeck.v1";
+const runHealthKey = "mathknight.dungeon.runHealth.v1";
+
+function loadRunDeckCards() {
+  try {
+    return JSON.parse(window.localStorage.getItem(runDeckKey) ?? "[]") as BattleCard[];
+  } catch {
+    return [];
+  }
+}
+
+function ShopRoom({ node, stage, onExit, onComplete }: { node: DungeonNode; stage: DungeonStage; onExit: () => void; onComplete: () => void }) {
+  const initial = useMemo(() => loadShop(node.id, stage), [node.id, stage]);
+  const [slots, setSlots] = useState<ShopSlot[]>(initial.slots);
+  const [coins, setCoins] = useState(() => loadProgress().coins);
+  const [deck, setDeck] = useState(loadRunDeckCards);
+  const [targetSlot, setTargetSlot] = useState<ShopSlot | null>(null);
+  const [message, setMessage] = useState("Everything but Sustenance can be purchased once.");
+  const discount = loadRunItems().includes("loyalty-card") ? .8 : 1;
+
+  function priceFor(slot: ShopSlot) {
+    if (slot.type === "sustenance") return slot.price;
+    if (slot.type === "remove-card") return slot.price * (loadPermanentLoadout().removalPurchases + 1);
+    return Math.round(slot.price * discount);
+  }
+
+  function persist(nextSlots: ShopSlot[], nextDeck = deck, nextCoins = coins) {
+    setSlots(nextSlots);
+    saveShop(initial.key, nextSlots);
+    setDeck(nextDeck);
+    window.localStorage.setItem(runDeckKey, JSON.stringify(nextDeck));
+    setCoins(nextCoins);
+    const progress = loadProgress();
+    saveProgress({ ...progress, coins: nextCoins });
+  }
+
+  function markSold(slot: ShopSlot) {
+    return slots.map((entry) => entry.position === slot.position ? { ...entry, sold: true } as ShopSlot : entry);
+  }
+
+  function buy(slot: ShopSlot) {
+    if (slot.sold) return;
+    const price = priceFor(slot);
+    if (coins < price) {
+      setMessage(`You need $${price - coins} more.`);
+      return;
+    }
+    if (slot.type === "card") {
+      persist(markSold(slot), [...deck, slot.card], coins - price);
+      setMessage(`${slot.card.label} was added to your deck.`);
+    } else if (slot.type === "item") {
+      addRunItem(slot.item.id);
+      persist(markSold(slot), deck, coins - price);
+      setMessage(`${slot.item.name} was added to your item line.`);
+    } else if (slot.type === "sustenance") {
+      const maxHealth = loadPermanentLoadout().maxHealth;
+      const current = Number(window.localStorage.getItem(runHealthKey)) || maxHealth;
+      window.localStorage.setItem(runHealthKey, String(Math.min(maxHealth, current + 30)));
+      persist(slots, deck, coins - price);
+      setMessage("Sustenance restores up to 30 HP.");
+    } else if (slot.type === "random-reward") {
+      const reward = generateCombatRewards(stage)[Math.floor(Math.random() * 3)].card;
+      if (reward.kind === "upgrade") {
+        setTargetSlot({ ...slot, type: "upgrade", card: reward } as ShopSlot);
+      } else {
+        persist(markSold(slot), [...deck, reward], coins - price);
+        setMessage(`${reward.label} was added to your deck.`);
+      }
+    } else {
+      setTargetSlot(slot);
+    }
+  }
+
+  function chooseTarget(card: BattleCard) {
+    if (!targetSlot) return;
+    const price = priceFor(targetSlot);
+    const nextDeck = targetSlot.type === "remove-card"
+      ? deck.filter((entry) => entry.id !== card.id)
+      : targetSlot.type === "upgrade"
+        ? deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, targetSlot.card.catalogId) : entry)
+        : deck;
+    if (targetSlot.type === "remove-card") {
+      const loadout = loadPermanentLoadout();
+      savePermanentLoadout({ ...loadout, removalPurchases: loadout.removalPurchases + 1 });
+    }
+    persist(markSold(targetSlot), nextDeck, coins - price);
+    setMessage(targetSlot.type === "remove-card" ? `${card.label} was removed.` : `${targetSlot.type === "upgrade" ? targetSlot.card.label : "Upgrade"} was applied to ${card.label}.`);
+    setTargetSlot(null);
+  }
+
+  if (targetSlot) {
+    const eligible = targetSlot.type === "remove-card" ? deck : targetSlot.type === "upgrade" ? deck.filter((card) => canApplyUpgrade(card, targetSlot.card.catalogId)) : [];
+    return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
+      <p>Shop purchase</p><h1>{targetSlot.type === "remove-card" ? "Choose a card to remove" : `Choose a card for ${targetSlot.type === "upgrade" ? targetSlot.card.label : "upgrade"}`}</h1>
+      <div className="shop-target-grid">{eligible.map((card) => <button key={card.id} onClick={() => chooseTarget(card)}><strong>{card.label}</strong><small>{card.rarity}</small></button>)}</div>
+      <div className="battle-actions"><button onClick={() => setTargetSlot(null)}>Cancel</button></div>
+    </section></main>;
+  }
+
+  return <main className="battle-game reward-screen"><section className="reward-panel dungeon-shop-panel">
+    <p>Stage {stage} / Dungeon Shop</p><h1>Dungeon Merchant</h1>
+    <div className="shop-balance">${coins} coins</div><p className="room-event-message">{message}</p>
+    <div className="dungeon-shop-grid">
+      {slots.map((slot) => <ShopOffer slot={slot} price={priceFor(slot)} onBuy={() => buy(slot)} key={slot.position} />)}
+    </div>
+    <div className="battle-actions"><button onClick={onComplete}>Leave shop</button><button onClick={onExit}>Return to map</button></div>
+  </section></main>;
+}
+
+function ShopOffer({ slot, price, onBuy }: { slot: ShopSlot; price: number; onBuy: () => void }) {
+  const name = slot.type === "card" || slot.type === "upgrade" ? slot.card.label
+    : slot.type === "item" ? slot.item.name : slot.type === "sustenance" ? "Sustenance"
+      : slot.type === "random-reward" ? "Random Card Reward" : "Remove a Card";
+  const description = slot.type === "card" ? `${slot.card.rarity} card${slot.card.upgrades.length ? ` · ${slot.card.upgrades.join(" + ")}` : ""}`
+    : slot.type === "upgrade" ? slot.card.effect : slot.type === "item" ? slot.item.effect
+      : slot.type === "sustenance" ? "Heal up to 30 HP. Repeatable." : slot.type === "random-reward" ? "Generate one random combat reward." : "Permanently remove a card from your run deck.";
+  return <button className={`shop-offer ${slot.sold ? "sold" : ""}`} disabled={slot.sold} onClick={onBuy}>
+    <em>{slot.position}</em><strong>{slot.sold ? "Sold" : name}</strong><small>{description}</small><b>${price}</b>
+  </button>;
 }

@@ -15,6 +15,9 @@ export type BattleCard = {
   lockedValue?: number;
   generatedById?: string;
   consumedThisTurn?: boolean;
+  rewardSlot?: 1 | 2 | 3;
+  rewardKind?: "Card" | "Upgrade" | "Upgraded Card";
+  rewardBudget?: number | null;
 };
 
 export type DrawState = {
@@ -189,6 +192,7 @@ export function applyDamage(health: number, armor: number, incomingDamage: numbe
 export type ExpressionUpgradeEffects = {
   armor: number;
   weaken: number;
+  healing: number;
   bashAttempts: number;
   critAttempts: number;
   reflecting: boolean;
@@ -197,17 +201,19 @@ export type ExpressionUpgradeEffects = {
 export function expressionUpgradeEffects(cards: BattleCard[]): ExpressionUpgradeEffects {
   let armor = 0;
   let weaken = 0;
+  let healing = 0;
   let bashAttempts = 0;
   let critAttempts = 0;
   let reflecting = false;
   cards.forEach((card) => {
     if (card.upgrades.includes("armor") && card.kind === "number") armor += upgradedValue(card, Number(card.token));
     if (card.upgrades.includes("weaken")) weaken += 1;
+    if (card.upgrades.includes("healing")) healing += 1;
     if (card.upgrades.includes("bash")) bashAttempts += 1;
     if (card.upgrades.includes("crit")) critAttempts += 1;
     if (card.upgrades.includes("reflecting")) reflecting = true;
   });
-  return { armor, weaken, bashAttempts, critAttempts, reflecting };
+  return { armor, weaken, healing, bashAttempts, critAttempts, reflecting };
 }
 
 export function rollAny(attempts: number, chance: number) {
