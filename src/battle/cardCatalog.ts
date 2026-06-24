@@ -33,7 +33,7 @@ const descriptions: Record<string, string> = {
   "o^2": "Equals the square of the number of operators played.",
   "3p": "Equals three times the number of other prime values played.",
   "2e": "Equals twice the number of other even values played.",
-  "2U": "Equals twice the number of upgraded cards played.",
+  "2U": "Equals twice the number of upgraded cards in your whole deck.",
   "U^2": "Equals the square of the number of upgraded cards played.",
   "L": "Equals your current dungeon level.",
   "Armor": "Gain Armor equal to this digit when played.",

@@ -106,7 +106,7 @@ export function expressionEnergy(cards: BattleCard[]) {
   return cards.reduce((total, card) => total + card.energy, 0);
 }
 
-export type ExpressionContext = { turn: number; level: number };
+export type ExpressionContext = { turn: number; level: number; deckUpgradedCount?: number };
 type ResolvedToken = { kind: "number" | "operator" | "left" | "right"; value?: number; operator?: string; sourceIds: string[] };
 
 function upgradedValue(card: BattleCard, value: number) {
@@ -168,7 +168,7 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
       else if (card.label === "o^2") value = operatorCount ** 2;
       else if (card.label === "3p") value = 3 * resolvedNumbers.filter(isPrime).length;
       else if (card.label === "2e") value = 2 * resolvedNumbers.filter((number) => number % 2 === 0).length;
-      else if (card.label === "2U") value = 2 * upgradedCount;
+      else if (card.label === "2U") value = 2 * (context.deckUpgradedCount ?? upgradedCount);
       else if (card.label === "U^2") value = upgradedCount ** 2;
       if (card.upgrades.includes("3") || card.upgrades.includes("plus-3")) value += 3;
       tokens.push({ kind: "number", value, sourceIds: [card.id] });

@@ -22,7 +22,7 @@ T,Variable,Uncommon,0,Value is equal to the turn number of the current fight,$13
 o^2,Variable,Rare,2,Value is equal to the square of the number of operators in your expression,$195
 3p,Variable,Rare,2,"Value is equal to three times the number of prime other numbers in your expression. [For 2 digit combos, count the resulting two digit number not the individual digit card]",$185
 2e,Variable,Uncommon,1,Value is equal to twice the number of even numbers in your expression,$140
-2U,Variable,Uncommon,1,Value is equal to twice the number of upgraded cards in your expression,$165
+2U,Variable,Uncommon,1,Value is equal to twice the number of upgraded cards in your whole deck (including discarded cards),$165
 U^2,Variable,Rare,2,Value is equal to the square of the number of upgraded cards in your expression,$225
 Armor,Upgrade (Digit),Common,n/a,"When used in an expression, increase your armor by this amount. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$95
 +1,Upgrade (Digit),Common,n/a,"Change the value of a 1-8 digit card by 1. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$65

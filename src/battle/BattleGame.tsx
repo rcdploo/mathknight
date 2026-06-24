@@ -510,6 +510,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | "victory" | "defeat" | null>(null);
   const [pileView, setPileView] = useState<"deck" | "discard" | null>(null);
   const [runDeck, setRunDeck] = useState<BattleCard[]>(loadRunDeck);
+  const deckUpgradedCount = useMemo(() => runDeck.filter((card) => card.upgrades.length > 0).length, [runDeck]);
   const itemIds = battle.itemIds;
   const effectiveCardEnergy = (card: BattleCard, cards: BattleCard[]) => {
     if (card.kind === "variable" && hasItem(itemIds, "catalyst") && cards.filter((item) => item.kind === "variable")[0]?.id === card.id) return Math.max(0, card.energy - 1);
@@ -541,11 +542,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const displayedBlock = battle.enemyStunned ? 0 : battle.enemyArmor;
   const rawPreviewResult = useMemo(() => {
     try {
-      return evaluateExpression(selectedCards, { turn, level: dungeonLevel });
+      return evaluateExpression(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount });
     } catch {
       return null;
     }
-  }, [dungeonLevel, selectedCards, turn]);
+  }, [deckUpgradedCount, dungeonLevel, selectedCards, turn]);
   const playerIsWeakened = battle.playerWeakenTurns > 0;
   const previewResult = rawPreviewResult === null
     ? null
@@ -555,14 +556,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const counterReady = rawPreviewResult !== null && rawPreviewResult === displayedIntent;
   const expressionItems = useMemo(() => {
     try {
-      return resolveExpressionTokens(selectedCards, { turn, level: dungeonLevel }).map((token) => ({
+      return resolveExpressionTokens(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount }).map((token) => ({
         label: token.kind === "number" ? String(token.value) : token.kind === "left" ? "(" : token.kind === "right" ? ")" : token.operator ?? "",
         sourceIds: token.sourceIds,
       }));
     } catch {
       return selectedCards.map((card) => ({ label: card.lockedValue === undefined ? card.label : `^${card.lockedValue}`, sourceIds: [card.id] }));
     }
-  }, [dungeonLevel, selectedCards, turn]);
+  }, [deckUpgradedCount, dungeonLevel, selectedCards, turn]);
   const viewedPile = pileView === "deck"
     ? [...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
     : [...battle.discardPile].reverse();
@@ -734,7 +735,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }
     let value: number;
     try {
-      value = evaluateExpression(selectedCards, { turn, level: dungeonLevel });
+      value = evaluateExpression(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Try a different expression.");
       return;

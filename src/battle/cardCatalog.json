@@ -188,7 +188,7 @@
         "Type":  "Variable",
         "Rarity":  "Uncommon",
         "Energy Cost":  "1",
-        "Effect":  "Value is equal to twice the number of upgraded cards in your expression",
+        "Effect":  "Value is equal to twice the number of upgraded cards in your whole deck (including discarded cards)",
         "Median Purchase Cost at Shop":  "$165"
     },
     {
