@@ -35,7 +35,7 @@ const descriptions: Record<string, string> = {
   "2e": "Equals twice the number of other even values played.",
   "2U": "Equals twice the number of upgraded cards in your whole deck.",
   "U^2": "Equals the square of the number of upgraded cards played.",
-  "L": "Equals your current dungeon level.",
+  "R": "Equals the current room number (1-10).",
   "Armor": "Gain Armor equal to this digit when played.",
   "+1": "Permanently increase a digit by 1.",
   "Card Removal": "Permanently remove one card from your deck.",

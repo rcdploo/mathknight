@@ -163,7 +163,7 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
     if (card.kind === "variable") {
       let value = 0;
       if (card.label === "T") value = context.turn;
-      else if (card.label === "L") value = context.level;
+      else if (card.label === "R" || card.label === "L") value = context.level;
       else if (card.label === "2o") value = 2 * operatorCount;
       else if (card.label === "o^2") value = operatorCount ** 2;
       else if (card.label === "3p") value = 3 * resolvedNumbers.filter(isPrime).length;

@@ -8,7 +8,7 @@ Card Name,Type,Rarity,Energy Cost,Effect,Median Purchase Cost at Shop
 7,Digit,Common,2,7,$80
 8,Digit,Common,2,8,$90
 9,Digit,Uncommon,2,9,$120
-1_,Combo,Uncommon,3,Combines with another digit card in hand to make a two digit number (10+ that digit),$150
+1_,Combo,Uncommon,2,Combines with another digit card in hand to make a two digit number (10+ that digit),$150
 2_,Combo,Rare,4,Combines with another digit card in hand to make a two digit number (20+ that digit),$200
 +,Operator,Starter,1,<addition operator>,$75
 -,Operator,Uncommon,0,<subtraction operator>,$85
@@ -27,7 +27,7 @@ U^2,Variable,Rare,2,Value is equal to the square of the number of upgraded cards
 Armor,Upgrade (Digit),Common,n/a,"When used in an expression, increase your armor by this amount. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$95
 +1,Upgrade (Digit),Common,n/a,"Change the value of a 1-8 digit card by 1. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$65
 Card Removal,Upgrade,Rare,n/a,"When acquired, immediately remove a card from your deck forever","$100, increasing in cost by $100 for each card you've removed"
-L,Variable,Rare,0,"Value is equal to the level you are currently on. (1st run has levels 1-10. After than 11-20, then 21-30 etc.).",$240
+R,Variable,Rare,0,Value is equal to the current room number (1-10 and resets each Level).,$240
 +3,Upgrade (Variable),Uncommon,n/a,"Change the resulting value of any variable card by +3. [When purchased, permanently enhance a variable card in the deck that doesn't have this upgrade]",$155
 Cycling,Upgrade (any),Uncommon,n/a,"When this card is in hand, you may discard it to draw a replacement card at no cost (cannot be undone). [When purchased, permanently enhance a card in the deck that doesn't have this upgrade]",$180
 Consumable,Upgrade (any),Rare,n/a,"When this card is in hand, you may discard it to gain 1 energy this turn (can be undone). [When purchased, permanently enhance a card in the deck that doesn't have this upgrade]",$210

@@ -609,7 +609,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const statusTiles: Array<StatusTile | null> = [
     battle.resourcefulnessRemaining > 0 ? { name: "Resourcefulness", symbol: "R", value: battle.resourcefulnessRemaining, tone: "buff" as const, effect: "Discard your hand to draw one fewer card." } : null,
     battle.heroicWillRemaining > 0 ? { name: "Heroic Will", symbol: "H", value: battle.heroicWillRemaining, tone: "buff" as const, effect: "Lethal damage leaves you at 25% HP and removes all debuffs." } : null,
-    battle.discardDamageStacks > 0 ? { name: "Fertilizer", symbol: "F", value: battle.discardDamageStacks, tone: "buff" as const, effect: `Your damage is increased by ${battle.discardDamageStacks * 20}% this turn.` } : null,
+    battle.discardDamageStacks > 0 ? { name: "Fertilizer", symbol: "F", value: battle.discardDamageStacks, tone: "buff" as const, effect: `Your damage is increased by ${battle.discardDamageStacks * 10}% this turn.` } : null,
     battle.crippleTurns > 0 ? { name: "Cripple", symbol: "C", value: battle.crippleTurns, tone: "debuff" as const, effect: "You can use at most one operator." } : null,
     battle.playerWeakenTurns > 0 ? { name: "Weaken", symbol: "W", value: battle.playerWeakenTurns, tone: "debuff" as const, effect: "Your submitted expression deals 10% less damage, rounded up." } : null,
     battle.addleTurns > 0 ? { name: "Addle", symbol: "A", value: battle.addleTurns, tone: "debuff" as const, effect: "Your maximum hand size is reduced by 20%." } : null,
@@ -747,7 +747,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }));
     flashItems("compost-juicer", "fertilizer", "dung-pellets");
     if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
-    if (hasItem(itemIds, "fertilizer")) setMessage(`Fertilizer activates: +${(battle.discardDamageStacks + 1) * 20}% damage this turn.`);
+    if (hasItem(itemIds, "fertilizer")) setMessage(`Fertilizer activates: +${(battle.discardDamageStacks + 1) * 10}% damage this turn.`);
     playBattleSound("card");
   }
 
@@ -843,13 +843,25 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const baseDamage = countered ? matchedCounterIntent : weakenedValue;
     const parityBonus = value % 2 !== 0 && hasItem(itemIds, "oddjob") ? 1.15 : 1;
     const healthBonus = hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .25 ? 1.2 : hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? 1.1 : 1;
-    const outgoingDamage = Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * (1 + battle.discardDamageStacks * .2));
+    const fertilizerBonus = 1 + battle.discardDamageStacks * .1;
+    const outgoingDamage = Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * fertilizerBonus);
     if (value % 2 !== 0) flashItems("oddjob");
     if (value % 2 === 0) flashItems("evensteven");
     if (healthBonus > 1) flashItems("adrenaline");
     if (battle.discardDamageStacks > 0) flashItems("fertilizer");
     const enemyArmorForHit = countered ? 0 : battle.enemyArmor;
+    const baseEnemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, baseDamage);
     const enemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, outgoingDamage);
+    const additionalDamage = Math.max(0, enemyHit.damage - baseEnemyHit.damage);
+    const damageSources = [
+      ...(criticalHit ? ["Crit"] : []),
+      ...(parityBonus > 1 ? ["Oddjob"] : []),
+      ...(healthBonus > 1 ? ["Adrenaline"] : []),
+      ...(fertilizerBonus > 1 ? ["Fertilizer"] : []),
+    ];
+    const damageText = additionalDamage > 0
+      ? `${baseEnemyHit.damage} + ${additionalDamage} (${damageSources.join(", ")})`
+      : `${enemyHit.damage}`;
     const monsterDefeated = enemyHit.health === 0;
     const armorAfterExpression = battle.playerArmor + upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.round(Math.abs(value) * .15) : 0);
     const healingMultiplier = hasItem(itemIds, "second-wind") && battle.playerHealth <= battle.playerMaxHealth / 2 ? 2 : 1;
@@ -931,8 +943,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     setMessage(heroicWillTriggered
       ? `Heroic Will saves you at ${playerHit.health} HP and removes all debuffs.`
       : countered
-      ? `Perfect counter! ${outgoingDamage} damage reflected${criticalHit ? " with a critical hit" : ""}${healingReceived ? ` and you heal ${healingReceived}` : ""}. ${monster.name}'s turn is canceled.`
-      : `You strike for ${enemyHit.damage}${criticalHit ? " with a critical hit" : ""}${healingReceived ? ` and heal ${healingReceived}` : ""}. ${monster.name} answers for ${playerHit.damage}${reflectedDamage ? ` and suffers ${reflectedDamage} reflected` : ""}${stolenCoins ? ` and steals $${stolenCoins}` : ""}${lobotomy?.removed ? ` and removes ${lobotomy.removed.label} for this fight` : ""}.`);
+      ? `Perfect counter! You deal ${damageText} damage. ${monster.name}'s turn is canceled${healingReceived ? ` and you heal ${healingReceived}` : ""}.`
+      : `You deal ${damageText} damage to ${monster.name}${healingReceived ? ` and heal ${healingReceived}` : ""}. ${monster.name} answers for ${playerHit.damage}${reflectedDamage ? ` and suffers ${reflectedDamage} reflected` : ""}${stolenCoins ? ` and steals $${stolenCoins}` : ""}${lobotomy?.removed ? ` and removes ${lobotomy.removed.label} for this fight` : ""}.`);
     wakeAudio();
     setImpact(countered ? "counter" : "enemy");
     playBattleSound(countered ? "counter" : "enemy-hit");
@@ -1069,7 +1081,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       }
 
       advanceToNextIntent();
-    }, 900);
+    }, 1000);
   }
 
   function finishRoom(won: boolean) {
