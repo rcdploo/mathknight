@@ -102,6 +102,10 @@ export function printedEnergyCost(card: BattleCard, maxEnergy = 3) {
   return card.energy;
 }
 
+export function bottleCapacityCost(card: BattleCard, maxEnergy = 3) {
+  return printedEnergyCost(card, maxEnergy) + card.upgrades.length;
+}
+
 export function loadRunDeck() {
   try {
     const raw = window.localStorage.getItem(runDeckKey);

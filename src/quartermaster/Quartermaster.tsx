@@ -5,7 +5,7 @@ import { allLevels, stageLabels, stages, unitLabels, units } from "../game/level
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { isLevelUnlocked } from "../game/unlockRules";
 import type { PlayerProgress, Stage, Unit } from "../game/types";
-import { increaseRunHealth, loadPermanentLoadout, loadRunBottle, loadRunDeck, markQuartermasterVisited, printedEnergyCost, savePermanentLoadout, saveRunBottle, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
+import { bottleCapacityCost, increaseRunHealth, loadPermanentLoadout, loadRunBottle, loadRunDeck, markQuartermasterVisited, savePermanentLoadout, saveRunBottle, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
 
 type SelectionMode = "bottle" | null;
 
@@ -144,7 +144,7 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
           <div><p>Choose any card costing up to {loadout.bottleMaxCost} Energy.</p><button onClick={() => setSelectionMode(null)}>Cancel</button></div>
           <div className="quartermaster-card-grid">
             {bottleCandidates.map(({ card, bottled }) => {
-              const cost = printedEnergyCost(card);
+              const cost = bottleCapacityCost(card);
               const tooExpensive = cost > loadout.bottleMaxCost;
               return (
                 <div className={`bottle-candidate ${bottled ? "current" : ""}`} key={`${card.id}-${bottled ? "bottled" : "deck"}`}>
@@ -155,7 +155,7 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
                     }}
                     disabled={tooExpensive}
                     bottled={bottled}
-                    badge={tooExpensive ? `${cost} Energy: too expensive` : `${cost} Energy`}
+                    badge={tooExpensive ? `${cost} capacity: too expensive` : `${cost} capacity`}
                   />
                 </div>
               );

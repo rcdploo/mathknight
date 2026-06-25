@@ -4,7 +4,7 @@ import { playBattleSound, startBattleMusic, stopBattleMusic } from "./battleAudi
 import { cardById } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
-import { characterStatsForLevel, loadPermanentLoadout, loadRunBottle, resetRunBottle } from "../quartermaster/quartermasterStore";
+import { bottleCapacityCost, characterStatsForLevel, loadPermanentLoadout, loadRunBottle, resetRunBottle, saveRunBottle } from "../quartermaster/quartermasterStore";
 import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, resetRunItems, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import GameCard from "./GameCard";
@@ -35,14 +35,6 @@ type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: s
 const battleSessionKey = "mathknight.battle.session.v3";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const runHealthKey = "mathknight.dungeon.runHealth.v1";
-const monsterIconModules = import.meta.glob(
-  ["../assets/monster-icons/*.png", "!../assets/monster-icons/*-key.png"],
-  { eager: true, import: "default" },
-) as Record<string, string>;
-const monsterIcons = new Map(
-  Object.entries(monsterIconModules)
-    .map(([path, url]) => [path.match(/\/([^/]+)\.png$/)?.[1] ?? path, url]),
-);
 const fallbackMonster: GeneratedMonster = {
   id: "fallback-monster",
   level: 1,
@@ -89,9 +81,11 @@ function hasBuff(monster: GeneratedMonster, name: string) {
   return monster.buffs.some((buff) => buff.name === name);
 }
 
-function monsterIcon(monster: GeneratedMonster) {
-  const key = monster.bossId ?? monster.type.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return monsterIcons.get(key);
+function monsterChessPiece(monster: GeneratedMonster) {
+  if (monster.bossId || monster.room === "Boss") return "\u265A";
+  if (monster.type.complexity === "Basic") return "\u265F";
+  if (monster.type.complexity === "Tough") return "\u265B";
+  return monster.attackPattern.hasSpells ? "\u265D" : "\u265C";
 }
 
 function primeAtLeast(value: number) {
@@ -1120,6 +1114,16 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   function applyRewardUpgrade(target: BattleCard) {
     if (!chosenReward) return;
     try {
+      if (target.id === battle.bottledCard.id && chosenReward.catalogId !== "card-removal") {
+        const upgradedBottle = applyCardUpgrade(target, chosenReward.catalogId);
+        if (bottleCapacityCost(upgradedBottle) > loadPermanentLoadout().bottleMaxCost) {
+          throw new Error("That upgrade would exceed the bottle's capacity.");
+        }
+        saveRunBottle(upgradedBottle);
+        setBattle((current) => ({ ...current, bottledCard: upgradedBottle }));
+        finishRoom(true);
+        return;
+      }
       const nextDeck = chosenReward.catalogId === "card-removal"
         ? runDeck.filter((card) => card.id !== target.id)
         : runDeck.map((card) => card.id === target.id ? applyCardUpgrade(card, chosenReward.catalogId) : card);
@@ -1133,7 +1137,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
   if (phase === "upgrade" && chosenReward) {
     const removable = chosenReward.catalogId === "card-removal";
-    const eligibleCards = removable ? runDeck : runDeck.filter((card) => canApplyUpgrade(card, chosenReward.catalogId));
+    const bottleCanTakeUpgrade = !removable && canApplyUpgrade(battle.bottledCard, chosenReward.catalogId)
+      && bottleCapacityCost(applyCardUpgrade(battle.bottledCard, chosenReward.catalogId)) <= loadPermanentLoadout().bottleMaxCost;
+    const eligibleCards = removable
+      ? runDeck
+      : [
+          ...runDeck.filter((card) => canApplyUpgrade(card, chosenReward.catalogId)),
+          ...(bottleCanTakeUpgrade ? [battle.bottledCard] : []),
+        ];
     return (
       <main className="battle-game reward-screen">
         <div className="reward-panel upgrade-target-panel">
@@ -1292,7 +1303,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <p className="combat-message">{message}</p>
           {combatCallout && <div className="combat-callout" role="status">{combatCallout}</div>}
         </div>
-        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} sprite={"\u265C"} icon={monsterIcon(monster)} health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
+        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} sprite={monsterChessPiece(monster)} health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
       </section>
 
       {phase === "victory" || phase === "defeat" ? (
@@ -1354,15 +1365,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   );
 }
 
-function Combatant({ name, buffs = [], statusBuffs = [], sprite, icon, health, maxHealth, armor, enemy = false, hit = false }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: Array<MonsterBuffTile | StatusTile>; sprite: string; icon?: string; health: number; maxHealth: number; armor: number; enemy?: boolean; hit?: boolean }) {
+function Combatant({ name, buffs = [], statusBuffs = [], sprite, health, maxHealth, armor, enemy = false, hit = false }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: Array<MonsterBuffTile | StatusTile>; sprite: string; health: number; maxHealth: number; armor: number; enemy?: boolean; hit?: boolean }) {
   const allBuffs: Array<MonsterBuffTile | StatusTile> = [
     ...buffs.map((buff) => ({ name: buff.name, symbol: buff.name[0], effect: buff.effect, value: undefined, tone: "buff" as const })),
     ...statusBuffs,
   ];
   return <div className={`combatant ${enemy ? "enemy-combatant" : "hero-combatant"} ${hit ? "taking-hit" : ""}`}>
-    <div className={`pixel-sprite ${enemy ? "enemy-sprite" : "hero-sprite"} ${icon ? "has-monster-icon" : ""}`} aria-label={name}>
-      {icon ? <img src={icon} alt="" /> : sprite}
-    </div>
+    <div className={`pixel-sprite ${enemy ? "enemy-sprite" : "hero-sprite"}`} aria-label={name}>{sprite}</div>
     <h2>{name}</h2><div className={`health-bar ${enemy ? "enemy" : ""}`}><span style={{ width: `${(health / maxHealth) * 100}%` }} /></div>
     <strong>{health} / {maxHealth} HP</strong>
     {allBuffs.length > 0 && <div className="monster-buff-badges combatant-status-badges" aria-label={`${name} status effects: ${allBuffs.map((buff) => buff.name).join(", ")}`}>
