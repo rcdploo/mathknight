@@ -1,6 +1,7 @@
 import source from "./Items.csv?raw";
-import { canApplyUpgrade, makeCatalogEntry, shuffle, type BattleCard } from "./battleEngine";
-import { cardsEligibleForRewards } from "./cardCatalog";
+import { canApplyUpgrade, shuffle, type BattleCard } from "./battleEngine";
+import { generateCombatRewards } from "./rewardGenerator";
+import { loadProgress, saveProgress } from "../game/progressStore";
 
 export type ItemRarity = "Common" | "Uncommon" | "Rare" | "Boss";
 export type ItemDefinition = {
@@ -16,7 +17,14 @@ const itemKey = "mathknight.dungeon.runItems.v1";
 const usageKey = "mathknight.dungeon.itemUsage.v1";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const bossShownKey = "mathknight.dungeon.bossItemsShown.v1";
-const pendingWhetstoneKey = "mathknight.dungeon.pendingWhetstone.v1";
+const pendingItemChoiceKey = "mathknight.dungeon.pendingItemChoice.v1";
+
+export type PendingItemChoice =
+  | { kind: "upgrades"; itemId: string; upgrades: string[] }
+  | { kind: "rewards"; itemId: string; rewardSets: BattleCard[][] }
+  | { kind: "aluminum"; itemId: "aluminum"; remaining: number; selectedIds: string[] }
+  | { kind: "fresh-paint"; itemId: "fresh-paint"; remaining: number; selectedIds: string[] }
+  | { kind: "forge"; itemId: "forge" };
 
 function parseCsv(text: string) {
   const rows: string[][] = [];
@@ -76,15 +84,17 @@ export function saveRunItems(ids: string[]) {
   window.localStorage.setItem(itemKey, JSON.stringify([...new Set(ids)]));
 }
 
-export function addRunItem(id: string) {
+export function addRunItem(id: string, level = 1) {
   const next = [...new Set([...loadRunItems(), id])];
   saveRunItems(next);
-  applyAcquisitionBonus(id);
+  applyAcquisitionBonus(id, level);
+  window.dispatchEvent(new Event("mathknight-item-choice"));
   return next;
 }
 
 export function resetRunItems() {
   saveRunItems([]);
+  savePendingItemChoice(null);
 }
 
 type ItemUsage = { items: Record<string, number>; tags: Record<string, number> };
@@ -177,41 +187,52 @@ function loadDeck() {
   }
 }
 
-function saveDeck(deck: BattleCard[]) {
-  window.localStorage.setItem(runDeckKey, JSON.stringify(deck));
+function savePendingItemChoice(choice: PendingItemChoice | null) {
+  if (!choice) window.localStorage.removeItem(pendingItemChoiceKey);
+  else window.localStorage.setItem(pendingItemChoiceKey, JSON.stringify(choice));
 }
 
-function applyAcquisitionBonus(id: string) {
+function randomLegalUpgrades(count: number) {
+  const deck = loadDeck();
+  return shuffle(["armor", "plus-1", "plus-3", "cycling", "consumable", "efficiency", "bash", "weaken", "crit", "reflecting", "healing"])
+    .filter((upgrade) => deck.some((card) => canApplyUpgrade(card, upgrade)))
+    .slice(0, count);
+}
+
+function applyAcquisitionBonus(id: string, level: number) {
   if (id === "grab-bag") {
-    const cards = shuffle(cardsEligibleForRewards()).slice(0, 3).map((definition) => makeCatalogEntry(definition.name));
-    saveDeck([...loadDeck(), ...cards]);
+    savePendingItemChoice({ kind: "rewards", itemId: id, rewardSets: Array.from({ length: 3 }, () => generateCombatRewards(level).map((reward) => reward.card)) });
   }
   if (id === "whetstone") {
-    const deck = loadDeck();
-    const upgrades = shuffle(["armor", "weaken", "bash", "crit", "reflecting", "efficiency"])
-      .filter((upgrade) => deck.some((card) => canApplyUpgrade(card, upgrade)))
-      .slice(0, 2);
-    window.localStorage.setItem(pendingWhetstoneKey, JSON.stringify(upgrades));
+    savePendingItemChoice({ kind: "upgrades", itemId: id, upgrades: randomLegalUpgrades(2) });
+  }
+  if (id === "smithy") {
+    savePendingItemChoice({ kind: "upgrades", itemId: id, upgrades: randomLegalUpgrades(3) });
+  }
+  if (id === "tiny-chest") {
+    const progress = loadProgress();
+    saveProgress({ ...progress, coins: progress.coins + 500 });
+    savePendingItemChoice({ kind: "rewards", itemId: id, rewardSets: [generateCombatRewards(level).map((reward) => reward.card)] });
+  }
+  if (id === "aluminum") {
+    savePendingItemChoice({ kind: "aluminum", itemId: id, remaining: 3, selectedIds: [] });
+  }
+  if (id === "fresh-paint") {
+    savePendingItemChoice({ kind: "fresh-paint", itemId: id, remaining: 3, selectedIds: [] });
   }
   if (id === "forge") {
-    const deck = loadDeck();
-    const sacrifice = shuffle(deck.filter((card) => card.upgrades.length > 0))[0];
-    if (!sacrifice) return;
-    saveDeck(deck.filter((card) => card.id !== sacrifice.id));
-    const bonusItems = surfaceItems(2);
-    saveRunItems([...new Set([...loadRunItems(), ...bonusItems.map((item) => item.id)])]);
+    savePendingItemChoice({ kind: "forge", itemId: id });
   }
 }
 
-export function loadPendingWhetstone() {
+export function loadPendingItemChoice() {
   try {
-    return JSON.parse(window.localStorage.getItem(pendingWhetstoneKey) ?? "[]") as string[];
+    return JSON.parse(window.localStorage.getItem(pendingItemChoiceKey) ?? "null") as PendingItemChoice | null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-export function savePendingWhetstone(upgrades: string[]) {
-  if (upgrades.length === 0) window.localStorage.removeItem(pendingWhetstoneKey);
-  else window.localStorage.setItem(pendingWhetstoneKey, JSON.stringify(upgrades));
+export function updatePendingItemChoice(choice: PendingItemChoice | null) {
+  savePendingItemChoice(choice);
 }

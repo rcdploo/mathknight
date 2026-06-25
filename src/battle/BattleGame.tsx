@@ -1085,7 +1085,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       resetRunItems();
       saveRunHealth(loadPermanentLoadout().maxHealth);
     }
-    if (won && bonusItemId) addRunItem(bonusItemId);
+    if (won && bonusItemId) addRunItem(bonusItemId, monster.level);
     clearBattleSession();
     onComplete(won);
   }
@@ -1107,7 +1107,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
   function claimBossReward() {
     if (!chosenBossItemId) return;
-    addRunItem(chosenBossItemId);
+    addRunItem(chosenBossItemId, monster.level);
     finishRoom(true);
   }
 

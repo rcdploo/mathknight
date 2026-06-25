@@ -1,9 +1,9 @@
 ﻿import { Crown, Flag, Gem, HelpCircle, ShoppingBag, Skull, Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import BattleGame from "../battle/BattleGame";
-import { addRunItem, itemById, itemSymbol, loadPendingWhetstone, loadRunItems, savePendingWhetstone, surfaceItems, type ItemDefinition } from "../battle/itemCatalog";
-import { applyCardUpgrade, canApplyUpgrade, type BattleCard } from "../battle/battleEngine";
-import { cardById } from "../battle/cardCatalog";
+import { addRunItem, itemById, itemSymbol, loadPendingItemChoice, loadRunItems, saveRunItems, updatePendingItemChoice, surfaceItems, type ItemDefinition, type PendingItemChoice } from "../battle/itemCatalog";
+import { applyCardUpgrade, canApplyUpgrade, makeCatalogEntry, shuffle as shuffleCards, type BattleCard } from "../battle/battleEngine";
+import { cardById, cardCatalog, type CardRarity } from "../battle/cardCatalog";
 import GameCard from "../battle/GameCard";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
@@ -198,16 +198,22 @@ export default function DungeonGame({
   const [quartermasterLockOpen, setQuartermasterLockOpen] = useState(false);
   const stars = totalStars(loadProgress());
   const quartermasterVisited = hasVisitedQuartermaster();
-  const [, setWhetstoneVersion] = useState(0);
-  const pendingWhetstone = loadPendingWhetstone();
+  const [, setItemChoiceVersion] = useState(0);
+  const pendingItemChoice = loadPendingItemChoice();
   const nodeById = useMemo(() => new Map(dungeon.nodes.map((node) => [node.id, node])), [dungeon.nodes]);
 
   useEffect(() => {
     window.localStorage.setItem(dungeonStorageKey, JSON.stringify(dungeon));
   }, [dungeon]);
 
-  if (pendingWhetstone.length > 0) {
-    return <WhetstoneSelector upgrades={pendingWhetstone} onUpdate={(upgrades) => { savePendingWhetstone(upgrades); setWhetstoneVersion((version) => version + 1); }} />;
+  useEffect(() => {
+    const refresh = () => setItemChoiceVersion((version) => version + 1);
+    window.addEventListener("mathknight-item-choice", refresh);
+    return () => window.removeEventListener("mathknight-item-choice", refresh);
+  }, []);
+
+  if (pendingItemChoice) {
+    return <ItemChoiceSelector choice={pendingItemChoice} onUpdate={(choice) => { updatePendingItemChoice(choice); setItemChoiceVersion((version) => version + 1); }} />;
   }
 
   function enterRoom(node: DungeonNode) {
@@ -423,7 +429,7 @@ function RoomEvent({ node, level, eventType, onExit, onComplete }: { node: Dunge
       return;
     }
     if (purchased) saveProgress({ ...current, coins: current.coins - price });
-    setOwned(addRunItem(item.id));
+    setOwned(addRunItem(item.id, level));
     setMessage(`${item.name} was added to your item line.`);
     window.setTimeout(onComplete, 450);
   }
@@ -483,7 +489,7 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
     if (state.paid) return;
     const progress = loadProgress();
     saveProgress({ ...progress, coins: progress.coins + state.gold });
-    if (state.itemId) addRunItem(state.itemId);
+    if (state.itemId) addRunItem(state.itemId, level);
     const next = { ...state, paid: true };
     window.localStorage.setItem(storageKey, JSON.stringify(next));
     setState(next);
@@ -542,20 +548,124 @@ function loadRunDeckCards() {
   }
 }
 
-function WhetstoneSelector({ upgrades, onUpdate }: { upgrades: string[]; onUpdate: (upgrades: string[]) => void }) {
-  const upgradeId = upgrades[0];
+function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; onUpdate: (choice: PendingItemChoice | null) => void }) {
   const [deck, setDeck] = useState(loadRunDeckCards);
-  const eligible = deck.filter((card) => canApplyUpgrade(card, upgradeId));
-  function apply(card: BattleCard) {
-    const nextDeck = deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, upgradeId) : entry);
+  const [chosenReward, setChosenReward] = useState<BattleCard | null>(null);
+  const [rewardTargeting, setRewardTargeting] = useState(false);
+  const [upgradeTargeting, setUpgradeTargeting] = useState(false);
+  const itemName = itemById.get(choice.itemId)?.name ?? choice.itemId;
+
+  function persistDeck(nextDeck: BattleCard[]) {
     window.localStorage.setItem(runDeckKey, JSON.stringify(nextDeck));
     setDeck(nextDeck);
-    onUpdate(upgrades.slice(1));
+  }
+
+  if (choice.kind === "upgrades") {
+    const upgradeChoice = choice;
+    const upgradeId = upgradeChoice.upgrades[0];
+    const eligible = deck.filter((card) => canApplyUpgrade(card, upgradeId));
+    if (!upgradeId) {
+      onUpdate(null);
+      return null;
+    }
+    function apply(card: BattleCard) {
+      persistDeck(deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, upgradeId) : entry));
+      onUpdate(upgradeChoice.upgrades.length > 1 ? { ...upgradeChoice, upgrades: upgradeChoice.upgrades.slice(1) } : null);
+    }
+    if (upgradeChoice.itemId === "smithy" && !upgradeTargeting) {
+      const upgrade = makeCatalogEntry(cardById.get(upgradeId)?.name ?? upgradeId);
+      return <main className="battle-game reward-screen"><section className="reward-panel">
+        <p>Smithy</p><h1>New upgrade</h1>
+        <p className="room-event-message">{upgradeChoice.upgrades.length} upgrade{upgradeChoice.upgrades.length === 1 ? "" : "s"} remaining.</p>
+        <div className="reward-cards"><button className={`reward-option upgrade rarity-${upgrade.rarity.toLowerCase()} chosen`} onClick={() => setUpgradeTargeting(true)}>
+          <strong>{upgrade.label}</strong><span>{upgrade.type}</span><small>{cardById.get(upgrade.catalogId)?.displayDescription ?? upgrade.effect}</small>
+        </button></div>
+        <div className="battle-actions"><button onClick={() => setUpgradeTargeting(true)}>Apply {upgrade.label}</button></div>
+      </section></main>;
+    }
+    return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
+      <p>{itemName}</p><h1>Apply {cardById.get(upgradeId)?.name ?? upgradeId}</h1>
+      <p className="room-event-message">{upgradeChoice.upgrades.length} upgrade{upgradeChoice.upgrades.length === 1 ? "" : "s"} remaining.</p>
+      <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} bottled={loadPermanentLoadout().bottledCard.id === card.id} preview onClick={() => { setUpgradeTargeting(false); apply(card); }} key={card.id} />)}</div>
+      {upgradeChoice.itemId === "smithy" && <div className="battle-actions"><button onClick={() => setUpgradeTargeting(false)}>Back</button></div>}
+    </section></main>;
+  }
+
+  if (choice.kind === "rewards") {
+    const rewardChoice = choice;
+    const rewards = rewardChoice.rewardSets[0] ?? [];
+    function finishReward(nextDeck = deck) {
+      persistDeck(nextDeck);
+      setChosenReward(null);
+      setRewardTargeting(false);
+      onUpdate(rewardChoice.rewardSets.length > 1 ? { ...rewardChoice, rewardSets: rewardChoice.rewardSets.slice(1) } : null);
+    }
+    if (rewardTargeting && chosenReward) {
+      const eligible = deck.filter((card) => canApplyUpgrade(card, chosenReward.catalogId));
+      return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
+        <p>{itemName}</p><h1>Apply {chosenReward.label}</h1>
+        <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} preview onClick={() => finishReward(deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, chosenReward.catalogId) : entry))} key={card.id} />)}</div>
+        <div className="battle-actions"><button onClick={() => setRewardTargeting(false)}>Back</button></div>
+      </section></main>;
+    }
+    function chooseReward() {
+      if (!chosenReward) return;
+      if (chosenReward.kind === "upgrade") setRewardTargeting(true);
+      else finishReward([...deck, chosenReward]);
+    }
+    return <main className="battle-game reward-screen"><section className="reward-panel">
+      <p>{itemName}</p><h1>Choose one card</h1>
+      <p className="room-event-message">{rewardChoice.rewardSets.length} reward{rewardChoice.rewardSets.length === 1 ? "" : "s"} remaining.</p>
+      <div className="reward-cards">{rewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
+        <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
+      </button>)}</div>
+      <div className="battle-actions"><button disabled={!chosenReward} onClick={chooseReward}>Choose reward</button></div>
+    </section></main>;
+  }
+
+  if (choice.kind === "forge") {
+    const eligible = deck.filter((card) => card.upgrades.length > 0);
+    function forge(card: BattleCard) {
+      persistDeck(deck.filter((entry) => entry.id !== card.id));
+      const items = surfaceItems(2);
+      saveRunItems([...loadRunItems(), ...items.map((item) => item.id)]);
+      onUpdate(null);
+    }
+    return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
+      <p>Forge</p><h1>Destroy an upgraded card</h1>
+      <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} preview onClick={() => forge(card)} key={card.id} />)}</div>
+      {eligible.length === 0 && <div className="battle-actions"><button onClick={() => onUpdate(null)}>No eligible cards</button></div>}
+    </section></main>;
+  }
+
+  const deckChoice = choice;
+  const eligible = deck.filter((card) => !deckChoice.selectedIds.includes(card.id));
+  function transformCard(card: BattleCard) {
+    if (choice.kind === "aluminum") return { ...card, energy: card.energy - 1 };
+    const rarityValue: Record<CardRarity, number> = { Starter: 0, Common: 1, Uncommon: 2, Rare: 3 };
+    const targetValue = rarityValue[card.rarity] + card.upgrades.length + 1;
+    const higherRarity = cardCatalog.filter((definition) => !definition.isUpgrade && rarityValue[definition.rarity] > rarityValue[card.rarity]);
+    const rareFallback = cardCatalog.filter((definition) => !definition.isUpgrade && definition.rarity === "Rare" && definition.name !== card.label);
+    const definition = shuffleCards(higherRarity.length > 0 ? higherRarity : rareFallback)[0];
+    if (!definition) return card;
+    let replacement = { ...makeCatalogEntry(definition.name), id: card.id };
+    const upgradePool = shuffleCards(["armor", "plus-1", "plus-3", "cycling", "consumable", "efficiency", "bash", "weaken", "crit", "reflecting", "healing"]);
+    for (const upgradeId of upgradePool) {
+      if (rarityValue[replacement.rarity] + replacement.upgrades.length >= targetValue) break;
+      if (canApplyUpgrade(replacement, upgradeId)) replacement = applyCardUpgrade(replacement, upgradeId);
+    }
+    return replacement;
+  }
+  function select(card: BattleCard) {
+    persistDeck(deck.map((entry) => entry.id === card.id ? transformCard(entry) : entry));
+    const remaining = deckChoice.remaining - 1;
+    onUpdate(remaining > 0 ? { ...deckChoice, remaining, selectedIds: [...deckChoice.selectedIds, card.id] } : null);
   }
   return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
-    <p>Whetstone</p><h1>Apply {cardById.get(upgradeId)?.name ?? upgradeId}</h1>
-    <p className="room-event-message">{upgrades.length} upgrade{upgrades.length === 1 ? "" : "s"} remaining.</p>
-    <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} bottled={loadPermanentLoadout().bottledCard.id === card.id} preview onClick={() => apply(card)} key={card.id} />)}</div>
+    <p>{itemName}</p><h1>{deckChoice.kind === "aluminum" ? "Choose a card to reduce its Energy" : "Choose a card to transform"}</h1>
+    <p className="room-event-message">{deckChoice.remaining} selection{deckChoice.remaining === 1 ? "" : "s"} remaining.</p>
+    <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} bottled={loadPermanentLoadout().bottledCard.id === card.id} preview onClick={() => select(card)} key={card.id} />)}</div>
+    {deckChoice.kind === "fresh-paint" && <div className="battle-actions"><button onClick={() => onUpdate(null)}>Finish early</button></div>}
   </section></main>;
 }
 
@@ -604,7 +714,7 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
       persist(markSold(slot), [...deck, slot.card], coins - price);
       setMessage(`${slot.card.label} was added to your deck.`);
     } else if (slot.type === "item") {
-      addRunItem(slot.item.id);
+      addRunItem(slot.item.id, level);
       persist(markSold(slot), deck, coins - price);
       setMessage(`${slot.item.name} was added to your item line.`);
     } else if (slot.type === "sustenance") {
