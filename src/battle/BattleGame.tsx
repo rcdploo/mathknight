@@ -167,6 +167,7 @@ function monsterAction(monster: GeneratedMonster, turn: number, deck: string[], 
   let intent = detail.intent;
   let secondaryIntent = 0;
   let fakeIntent: number | null = null;
+  let fakeIntentFirst = false;
   let text = detail.text;
 
   if (hasBuff(monster, "Swashbuckling") && intent > 1) {
@@ -182,16 +183,17 @@ function monsterAction(monster: GeneratedMonster, turn: number, deck: string[], 
     const offset = Math.max(1, Math.round(intent * 0.35));
     fakeIntent = Math.max(1, intent + (Math.random() < 0.5 ? -offset : offset));
     if (fakeIntent === intent) fakeIntent += 1;
+    fakeIntentFirst = Math.random() < 0.5;
     text = `${text} One shown attack is false.`;
   }
 
-  return { ...detail, intent, secondaryIntent, fakeIntent, text, actionDeck: nextDeck, action };
+  return { ...detail, intent, secondaryIntent, fakeIntent, fakeIntentFirst, text, actionDeck: nextDeck, action };
 }
 
 function bossAction(monster: GeneratedMonster, turn: number, deck: string[]) {
   const attack = rollAttack(monster.baseAttack);
   const action = (intent: number, armor: number, text: string, spells: string[] = [], marker = "") => ({
-    intent, secondaryIntent: 0, fakeIntent: null as number | null, armor, text, spells,
+    intent, secondaryIntent: 0, fakeIntent: null as number | null, fakeIntentFirst: false, armor, text, spells,
     actionDeck: deck, action: marker || `boss-${turn}`,
   });
   if (monster.bossId === "dr-tiqtoq") {
@@ -410,6 +412,7 @@ function createBattle(monster: GeneratedMonster) {
     enemyIntent: openingAction.intent,
     enemySecondaryIntent: openingAction.secondaryIntent,
     enemyFakeIntent: openingAction.fakeIntent,
+    enemyFakeIntentFirst: openingAction.fakeIntentFirst,
     enemySpellCount: openingAction.spells?.length ?? 0,
     enemyMaxHealth: monster.maxHealth,
     enemyStunned: false,
@@ -481,6 +484,7 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
         nextTurnDraw: parsed.battle.nextTurnDraw ?? 0,
         discardDamageStacks: parsed.battle.discardDamageStacks ?? 0,
         phoenixUsed: parsed.battle.phoenixUsed ?? false,
+        enemyFakeIntentFirst: parsed.battle.enemyFakeIntentFirst ?? false,
         maxEnergy: parsed.battle.maxEnergy ?? characterStatsForLevel(monster.level).energy,
         handSize: parsed.battle.handSize ?? characterStatsForLevel(monster.level).handSize,
         resourcefulnessRemaining: parsed.battle.resourcefulnessRemaining ?? (monster.level >= 2 ? loadPermanentLoadout().resourcefulnessUses : 0),
@@ -523,8 +527,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     ...(hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? ["adrenaline"] : []),
     ...(hasItem(itemIds, "second-wind") && battle.playerHealth <= battle.playerMaxHealth * .5 ? ["second-wind"] : []),
     ...(hasItem(itemIds, "fertilizer") && battle.discardDamageStacks > 0 ? ["fertilizer"] : []),
-    ...(hasItem(itemIds, "catalyst") && !selectedCards.some((card) => card.kind === "variable") ? ["catalyst"] : []),
-    ...(hasItem(itemIds, "duct-tape") && !selectedCards.some((card) => card.kind === "combo") ? ["duct-tape"] : []),
   ]);
   function flashItems(...ids: string[]) {
     const present = ids.filter((id) => hasItem(itemIds, id));
@@ -553,11 +555,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const displayedSecondaryIntent = battle.enemyStunned
     ? 0
     : Math.max(0, battle.enemySecondaryIntent - Math.min(battle.enemySecondaryIntent, weakenPerStack * weakenStacks));
-  const attackIntentLabel = battle.enemyFakeIntent !== null && !battle.enemyStunned
-    ? `${displayedIntent} or ${battle.enemyFakeIntent}`
+  const displayedAttackIntents = battle.enemyFakeIntent !== null && !battle.enemyStunned
+    ? battle.enemyFakeIntentFirst
+      ? [battle.enemyFakeIntent, displayedIntent]
+      : [displayedIntent, battle.enemyFakeIntent]
     : displayedSecondaryIntent > 0
-      ? `${displayedIntent} + ${displayedSecondaryIntent}`
-      : String(displayedIntent);
+      ? [displayedIntent, displayedSecondaryIntent]
+      : displayedIntent > 0
+        ? [displayedIntent]
+        : [];
   const spellSymbols = battle.enemyStunned ? [] : Array.from({ length: battle.enemySpellCount }, (_, index) => index);
   const displayedBlock = battle.enemyStunned ? 0 : battle.enemyArmor;
   const rawPreviewResult = useMemo(() => {
@@ -573,7 +579,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     : playerIsWeakened && rawPreviewResult !== displayedIntent
       ? Math.max(0, rawPreviewResult - Math.max(1, Math.ceil(rawPreviewResult * 0.1)))
       : rawPreviewResult;
-  const counterReady = rawPreviewResult !== null && rawPreviewResult === displayedIntent;
+  const counterReady = rawPreviewResult !== null && displayedAttackIntents.includes(rawPreviewResult);
   const expressionItems = useMemo(() => {
     try {
       return resolveExpressionTokens(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount }).map((token) => ({
@@ -745,10 +751,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       discardPile: replacement.discardPile,
       resourcefulnessRemaining: current.resourcefulnessRemaining - 1,
       playerHealth: hasItem(itemIds, "compost-juicer")
-        ? Math.min(current.playerMaxHealth, current.playerHealth + discardedCount * monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1))
+        ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1))
         : current.playerHealth,
-      discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? discardedCount : 0),
-      nextTurnEnergy: current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? discardedCount : 0),
+      discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? 1 : 0),
+      nextTurnEnergy: current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
     }));
     flashItems("compost-juicer", "fertilizer", "dung-pellets");
     if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
@@ -806,7 +812,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
     setError("");
     setPhase("resolving");
-    const countered = value === displayedIntent || (hasItem(itemIds, "oboe") && Math.abs(value - displayedIntent) === 1);
+    const counterableIntents = displayedSecondaryIntent > 0
+      ? [displayedIntent, displayedSecondaryIntent]
+      : [displayedIntent];
+    const matchedCounterIntent = counterableIntents.find((intent) =>
+      value === intent || (hasItem(itemIds, "oboe") && Math.abs(value - intent) === 1)
+    );
+    const countered = matchedCounterIntent !== undefined;
     if (hasItem(itemIds, "oboe") && value !== displayedIntent && Math.abs(value - displayedIntent) === 1) flashItems("oboe");
     const criticalHit = rollAny(upgradeEffects.critAttempts, 0.2);
     if (criticalHit) {
@@ -815,7 +827,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }
     const isWeakened = battle.playerWeakenTurns > 0;
     const weakenedValue = isWeakened ? Math.max(0, value - Math.max(1, Math.ceil(value * 0.1))) : value;
-    const baseDamage = countered ? displayedIntent : weakenedValue;
+    const baseDamage = countered ? matchedCounterIntent : weakenedValue;
     const parityBonus = value % 2 !== 0 && hasItem(itemIds, "oddjob") ? 1.15 : 1;
     const healthBonus = hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .25 ? 1.2 : hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? 1.1 : 1;
     const outgoingDamage = Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * (1 + battle.discardDamageStacks * .2));
@@ -997,6 +1009,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         enemyIntent: stunnedNext ? 0 : nextIntent,
         enemySecondaryIntent: stunnedNext ? 0 : nextSecondaryIntent,
         enemyFakeIntent: stunnedNext ? null : nextAction.fakeIntent,
+        enemyFakeIntentFirst: stunnedNext ? false : nextAction.fakeIntentFirst,
         enemySpellCount: stunnedNext ? 0 : nextAction.spells?.length ?? 0,
         enemyArmor: nextAction.armor,
         enemyStunned: stunnedNext,
@@ -1033,6 +1046,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           enemyIntent: 0,
           enemySecondaryIntent: 0,
           enemyFakeIntent: null,
+          enemyFakeIntentFirst: false,
           enemySpellCount: 0,
           monsterMessage: "",
         }));
@@ -1140,7 +1154,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <p>Battle Spoils</p><h1>Choose one card</h1>
           <div className="reward-cards">
             {rewards.map((card) => (
-              <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
+              <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward((current) => current?.id === card.id ? null : card)}>
                 <strong>{card.label}</strong>
                 <span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
                 {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
@@ -1237,7 +1251,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <div className="combat-center">
           <div className="enemy-intent">
             <strong>
-              {(displayedIntent > 0 || displayedSecondaryIntent > 0 || battle.enemyFakeIntent !== null) && <span className={weakenStacks > 0 ? "weakened-intent" : ""}><Swords size={22} /> {attackIntentLabel}</span>}
+              {displayedAttackIntents.map((intent, index) => (
+                <span
+                  className={`attack-intent-box ${weakenStacks > 0 ? "weakened-intent" : ""}`}
+                  title={battle.enemyFakeIntent !== null ? "One shown attack is false" : displayedSecondaryIntent > 0 ? "One part of a split attack" : "Attack"}
+                  key={`${intent}-${index}`}
+                >
+                  <Swords size={20} /> {intent}
+                </span>
+              ))}
               {displayedBlock > 0 && <span className="block-intent" title="Block"><Shield size={20} /> {displayedBlock}</span>}
               {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>{"\u2726"}</span>)}
             </strong>

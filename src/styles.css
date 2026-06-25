@@ -1005,7 +1005,21 @@ button {
 .enemy-intent { padding: 14px 18px; border: 1px solid #d77a66; border-radius: 8px; background: rgba(75, 31, 28, 0.9); }
 .enemy-intent > span { display: block; color: #e9c3b9; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
 .enemy-intent strong { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; font-size: 2rem; }
-.enemy-intent .weakened-intent { display: inline-flex; align-items: center; gap: 7px; color: #ffaaa3; }
+.attack-intent-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 62px;
+  min-height: 46px;
+  padding: 4px 10px;
+  border: 1px solid #d77a66;
+  border-radius: 7px;
+  background: #5b2925;
+  color: #ffd3c9;
+  font-size: 1.55rem;
+}
+.enemy-intent .weakened-intent { color: #ffaaa3; }
 .spell-intent {
   display: grid;
   place-items: center;

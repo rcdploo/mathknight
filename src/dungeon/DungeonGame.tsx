@@ -1,7 +1,7 @@
 ﻿import { Crown, Flag, Gem, HelpCircle, ShoppingBag, Skull, Swords } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import BattleGame from "../battle/BattleGame";
-import { addRunItem, itemById, itemSymbol, loadRunItems, surfaceItems, type ItemDefinition } from "../battle/itemCatalog";
+import { addRunItem, itemById, itemSymbol, loadPendingWhetstone, loadRunItems, savePendingWhetstone, surfaceItems, type ItemDefinition } from "../battle/itemCatalog";
 import { applyCardUpgrade, canApplyUpgrade, type BattleCard } from "../battle/battleEngine";
 import { cardById } from "../battle/cardCatalog";
 import GameCard from "../battle/GameCard";
@@ -194,11 +194,17 @@ export default function DungeonGame({
   const [quartermasterLockOpen, setQuartermasterLockOpen] = useState(false);
   const stars = totalStars(loadProgress());
   const quartermasterVisited = hasVisitedQuartermaster();
+  const [, setWhetstoneVersion] = useState(0);
+  const pendingWhetstone = loadPendingWhetstone();
   const nodeById = useMemo(() => new Map(dungeon.nodes.map((node) => [node.id, node])), [dungeon.nodes]);
 
   useEffect(() => {
     window.localStorage.setItem(dungeonStorageKey, JSON.stringify(dungeon));
   }, [dungeon]);
+
+  if (pendingWhetstone.length > 0) {
+    return <WhetstoneSelector upgrades={pendingWhetstone} onUpdate={(upgrades) => { savePendingWhetstone(upgrades); setWhetstoneVersion((version) => version + 1); }} />;
+  }
 
   function enterRoom(node: DungeonNode) {
     if (dungeon.level === 1 && node.step === 7 && !quartermasterVisited) {
@@ -512,7 +518,7 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
   return <main className="battle-game reward-screen"><section className="reward-panel">
     <p>Treasure Cache</p><h1>Choose one card</h1>
     <p className="premium-item-earned">You found ${state.gold}{item ? <> and <strong>{item.name}</strong></> : null}.</p>
-    <div className="reward-cards">{state.rewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosen?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosen(card)}>
+    <div className="reward-cards">{state.rewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosen?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosen((current) => current?.id === card.id ? null : card)}>
       <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
       {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
       <small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
@@ -530,6 +536,23 @@ function loadRunDeckCards() {
   } catch {
     return [];
   }
+}
+
+function WhetstoneSelector({ upgrades, onUpdate }: { upgrades: string[]; onUpdate: (upgrades: string[]) => void }) {
+  const upgradeId = upgrades[0];
+  const [deck, setDeck] = useState(loadRunDeckCards);
+  const eligible = deck.filter((card) => canApplyUpgrade(card, upgradeId));
+  function apply(card: BattleCard) {
+    const nextDeck = deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, upgradeId) : entry);
+    window.localStorage.setItem(runDeckKey, JSON.stringify(nextDeck));
+    setDeck(nextDeck);
+    onUpdate(upgrades.slice(1));
+  }
+  return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
+    <p>Whetstone</p><h1>Apply {cardById.get(upgradeId)?.name ?? upgradeId}</h1>
+    <p className="room-event-message">{upgrades.length} upgrade{upgrades.length === 1 ? "" : "s"} remaining.</p>
+    <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} bottled={loadPermanentLoadout().bottledCard.id === card.id} preview onClick={() => apply(card)} key={card.id} />)}</div>
+  </section></main>;
 }
 
 function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; level: DungeonLevel; onExit: () => void; onTraining: () => void }) {
@@ -640,7 +663,7 @@ function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; leve
   if (randomRewardSlot) {
     return <main className="battle-game reward-screen"><section className="reward-panel">
       <p>Shop Card Reward</p><h1>Choose one card</h1>
-      <div className="reward-cards">{randomRewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenRandomReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenRandomReward(card)}>
+      <div className="reward-cards">{randomRewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenRandomReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenRandomReward((current) => current?.id === card.id ? null : card)}>
         <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
         {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
         <small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>

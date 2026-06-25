@@ -1,5 +1,5 @@
 import source from "./Items.csv?raw";
-import { applyCardUpgrade, canApplyUpgrade, makeCatalogEntry, shuffle, type BattleCard } from "./battleEngine";
+import { canApplyUpgrade, makeCatalogEntry, shuffle, type BattleCard } from "./battleEngine";
 import { cardsEligibleForRewards } from "./cardCatalog";
 
 export type ItemRarity = "Common" | "Uncommon" | "Rare" | "Boss";
@@ -16,6 +16,7 @@ const itemKey = "mathknight.dungeon.runItems.v1";
 const usageKey = "mathknight.dungeon.itemUsage.v1";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const bossShownKey = "mathknight.dungeon.bossItemsShown.v1";
+const pendingWhetstoneKey = "mathknight.dungeon.pendingWhetstone.v1";
 
 function parseCsv(text: string) {
   const rows: string[][] = [];
@@ -186,15 +187,11 @@ function applyAcquisitionBonus(id: string) {
     saveDeck([...loadDeck(), ...cards]);
   }
   if (id === "whetstone") {
-    let deck = loadDeck();
-    const upgrades = shuffle(["armor", "weaken", "bash", "crit", "reflecting", "efficiency"]);
-    for (const upgrade of upgrades) {
-      const target = shuffle(deck.filter((card) => canApplyUpgrade(card, upgrade)))[0];
-      if (!target) continue;
-      deck = deck.map((card) => card.id === target.id ? applyCardUpgrade(card, upgrade) : card);
-      if (deck.reduce((count, card) => count + card.upgrades.length, 0) >= loadDeck().reduce((count, card) => count + card.upgrades.length, 0) + 2) break;
-    }
-    saveDeck(deck);
+    const deck = loadDeck();
+    const upgrades = shuffle(["armor", "weaken", "bash", "crit", "reflecting", "efficiency"])
+      .filter((upgrade) => deck.some((card) => canApplyUpgrade(card, upgrade)))
+      .slice(0, 2);
+    window.localStorage.setItem(pendingWhetstoneKey, JSON.stringify(upgrades));
   }
   if (id === "forge") {
     const deck = loadDeck();
@@ -204,4 +201,17 @@ function applyAcquisitionBonus(id: string) {
     const bonusItems = surfaceItems(2);
     saveRunItems([...new Set([...loadRunItems(), ...bonusItems.map((item) => item.id)])]);
   }
+}
+
+export function loadPendingWhetstone() {
+  try {
+    return JSON.parse(window.localStorage.getItem(pendingWhetstoneKey) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+}
+
+export function savePendingWhetstone(upgrades: string[]) {
+  if (upgrades.length === 0) window.localStorage.removeItem(pendingWhetstoneKey);
+  else window.localStorage.setItem(pendingWhetstoneKey, JSON.stringify(upgrades));
 }
