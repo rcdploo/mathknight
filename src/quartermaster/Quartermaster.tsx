@@ -5,7 +5,7 @@ import { allLevels, stageLabels, stages, unitLabels, units } from "../game/level
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { isLevelUnlocked } from "../game/unlockRules";
 import type { PlayerProgress, Stage, Unit } from "../game/types";
-import { increaseRunHealth, loadPermanentLoadout, loadRunDeck, markQuartermasterVisited, printedEnergyCost, savePermanentLoadout, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
+import { increaseRunHealth, loadPermanentLoadout, loadRunBottle, loadRunDeck, markQuartermasterVisited, printedEnergyCost, savePermanentLoadout, saveRunBottle, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
 
 type SelectionMode = "bottle" | null;
 
@@ -23,6 +23,7 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
   const [progress, setProgress] = useState<PlayerProgress>(loadProgress);
   const [loadout, setLoadout] = useState<PermanentLoadout>(loadPermanentLoadout);
   const [activeDeck, setActiveDeck] = useState(loadRunDeck);
+  const [runBottle, setRunBottle] = useState(loadRunBottle);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(null);
   const levels = useMemo(allLevels, []);
   const bottleUpgradeCost = 100 * (loadout.bottleUpgradeCount + 1);
@@ -96,20 +97,17 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
 
   function selectBottle(selected: PermanentLoadout["bottledCard"]) {
     if (!afford(50)) return;
-    const nextDeck = [...loadout.deck];
-    const permanentIndex = nextDeck.findIndex((card) => card.id === selected.id);
-    if (permanentIndex >= 0) nextDeck.splice(permanentIndex, 1, loadout.bottledCard);
-    else nextDeck.push(loadout.bottledCard);
     spend(50);
-    saveLoadout({ ...loadout, deck: nextDeck, bottledCard: selected });
     let nextActiveDeck = activeDeck;
     syncRunDeck((deck) => {
       const next = [...deck];
       const runIndex = next.findIndex((card) => card.id === selected.id);
-      if (runIndex >= 0) next.splice(runIndex, 1, loadout.bottledCard);
+      if (runIndex >= 0) next.splice(runIndex, 1, runBottle);
       nextActiveDeck = next;
       return next;
     });
+    saveRunBottle(selected);
+    setRunBottle(selected);
     setActiveDeck(nextActiveDeck);
     setSelectionMode(null);
   }
@@ -128,10 +126,9 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
     setProgress(next);
   }
 
-  const candidateCards = [...activeDeck, ...loadout.deck.filter((card) => !activeDeck.some((active) => active.id === card.id))];
   const bottleCandidates = [
-    { card: loadout.bottledCard, bottled: true },
-    ...candidateCards.map((card) => ({ card, bottled: false })),
+    { card: runBottle, bottled: true },
+    ...activeDeck.map((card) => ({ card, bottled: false })),
   ];
 
   return (

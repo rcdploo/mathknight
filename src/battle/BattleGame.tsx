@@ -4,7 +4,7 @@ import { playBattleSound, startBattleMusic, stopBattleMusic } from "./battleAudi
 import { cardById } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
-import { characterStatsForLevel, loadPermanentLoadout } from "../quartermaster/quartermasterStore";
+import { characterStatsForLevel, loadPermanentLoadout, loadRunBottle, resetRunBottle } from "../quartermaster/quartermasterStore";
 import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, resetRunItems, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import GameCard from "./GameCard";
@@ -396,7 +396,7 @@ function createBattle(monster: GeneratedMonster) {
   return {
     ...opening,
     itemIds,
-    bottledCard: loadout.bottledCard,
+    bottledCard: loadRunBottle(),
     playerHealth: loadRunHealth(character.maxHealth),
     playerMaxHealth: character.maxHealth,
     maxEnergy: character.energy,
@@ -1048,6 +1048,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   function finishRoom(won: boolean) {
     if (!won) {
       resetRunDeck();
+      resetRunBottle();
       resetRunItems();
       saveRunHealth(loadPermanentLoadout().maxHealth);
     }
@@ -1227,7 +1228,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       <section className={`battlefield ${impact === "counter" ? "counter-flash" : ""} ${impact === "victory" ? "victory-flash" : ""} ${impact === "defeat" ? "defeat-flash" : ""}`}>
         <Combatant
           name="Mathknight"
-          sprite="â™ž"
+          sprite={"\u265E"}
           health={battle.playerHealth}
           maxHealth={battle.playerMaxHealth}
           armor={battle.playerArmor + (phase === "playing" ? upgradeEffects.armor : 0)}
@@ -1238,13 +1239,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             <strong>
               {(displayedIntent > 0 || displayedSecondaryIntent > 0 || battle.enemyFakeIntent !== null) && <span className={weakenStacks > 0 ? "weakened-intent" : ""}><Swords size={22} /> {attackIntentLabel}</span>}
               {displayedBlock > 0 && <span className="block-intent" title="Block"><Shield size={20} /> {displayedBlock}</span>}
-              {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>âœ¦</span>)}
+              {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>{"\u2726"}</span>)}
             </strong>
           </div>
           <p className="combat-message">{message}</p>
           {combatCallout && <div className="combat-callout" role="status">{combatCallout}</div>}
         </div>
-        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} sprite="â™œ" health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
+        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} sprite={"\u265C"} health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
       </section>
 
       {phase === "victory" || phase === "defeat" ? (

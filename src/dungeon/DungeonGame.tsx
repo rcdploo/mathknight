@@ -10,7 +10,7 @@ import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
 import { generateBoss, generateMonster, generateRoomGold, nextDungeonLevel, type DungeonRoom, type DungeonLevel, type GeneratedMonster } from "../battle/monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { totalStars } from "../game/unlockRules";
-import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
+import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, loadRunBottle, loadRunDeck, savePermanentLoadout } from "../quartermaster/quartermasterStore";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
 type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "elite" | "shop" | "treasure" };
@@ -262,9 +262,13 @@ export default function DungeonGame({
         const nextLevel = nextDungeonLevel(current.level);
         const loadout = loadPermanentLoadout();
         const nextStats = characterStatsForLevel(nextLevel, loadout);
-        if (nextLevel > loadout.dungeonLevel) {
-          savePermanentLoadout({ ...loadout, dungeonLevel: nextLevel, maxHealth: nextStats.maxHealth });
-        }
+        savePermanentLoadout({
+          ...loadout,
+          deck: loadRunDeck(),
+          bottledCard: loadRunBottle(),
+          dungeonLevel: Math.max(loadout.dungeonLevel, nextLevel),
+          maxHealth: nextLevel > loadout.dungeonLevel ? nextStats.maxHealth : loadout.maxHealth,
+        });
         window.localStorage.setItem(runHealthKey, String(nextStats.maxHealth));
         const nextDungeon = generateDungeon(nextLevel, current.bossNames);
         nextDungeon.notice = nextLevel === current.level
@@ -312,7 +316,7 @@ export default function DungeonGame({
             <p>Dungeon Path Locked</p>
             <h2 id="star-lock-title">More training required</h2>
             <div className="dungeon-star-requirement">
-              <strong>â˜… {starLockMessage.required}</strong>
+              <strong>{"\u2605"} {starLockMessage.required}</strong>
               <span>stars required</span>
             </div>
             <p>You need {starLockMessage.missing} more {starLockMessage.missing === 1 ? "star" : "stars"} to enter this room.</p>
@@ -374,7 +378,7 @@ export default function DungeonGame({
               >
                 <Icon size={23} />
                 <span>{node.type === "battle" ? "Fight" : node.type === "mystery" ? "?" : node.type === "boss" ? "Boss" : node.type}</span>
-                {starLocked && <small>{requiredStars} â˜…</small>}
+                {starLocked && <small>{requiredStars} {"\u2605"}</small>}
                 {quartermasterLocked && <small>Quartermaster</small>}
               </button>
             );
@@ -427,7 +431,7 @@ function RoomEvent({ node, level, eventType, onExit, onComplete }: { node: Dunge
               <button className={`item-offer rarity-${item.rarity.toLowerCase()}`} key={item.id} onClick={() => take(item, node.type === "shop")}>
                 <span className="item-offer-symbol">{itemSymbol(item)}</span>
                 <strong>{item.name}</strong>
-                <small>{item.rarity} Â· {item.tags.join(", ")}</small>
+                <small>{item.rarity} {"\u00B7"} {item.tags.join(", ")}</small>
                 <p>{item.effect}</p>
                 <b>{node.type === "shop" ? `$${price}` : "Take item"}</b>
               </button>

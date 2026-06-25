@@ -22,6 +22,7 @@ const loadoutKey = "mathknight.permanentLoadout.v1";
 const quartermasterVisitedKey = "mathknight.quartermaster.visited.v1";
 const dungeonKey = "mathknight.dungeon.level1.v4";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
+const runBottleKey = "mathknight.dungeon.runBottle.v1";
 const runHealthKey = "mathknight.dungeon.runHealth.v1";
 
 function startingLoadout(): PermanentLoadout {
@@ -108,6 +109,23 @@ export function loadRunDeck() {
   } catch {
     return loadPermanentLoadout().deck;
   }
+}
+
+export function loadRunBottle() {
+  try {
+    const raw = window.localStorage.getItem(runBottleKey);
+    return raw ? JSON.parse(raw) as BattleCard : loadPermanentLoadout().bottledCard;
+  } catch {
+    return loadPermanentLoadout().bottledCard;
+  }
+}
+
+export function saveRunBottle(card: BattleCard) {
+  window.localStorage.setItem(runBottleKey, JSON.stringify(card));
+}
+
+export function resetRunBottle() {
+  saveRunBottle(loadPermanentLoadout().bottledCard);
 }
 
 export function syncRunDeck(transform: (deck: BattleCard[]) => BattleCard[]) {
