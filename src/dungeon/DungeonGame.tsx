@@ -15,6 +15,7 @@ import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
 type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "elite" | "shop" | "treasure" };
 type DungeonState = {
+  runId: string;
   level: DungeonLevel;
   nodes: DungeonNode[];
   completedIds: string[];
@@ -128,6 +129,7 @@ function generateDungeon(level: DungeonLevel, bossNames: string[] = []): Dungeon
   nodes.push({ id: "boss", step: 10, lane: 1, type: "boss", next: [], monster: makeMonster("boss", 10) });
   const bossName = nodes.find((node) => node.type === "boss")?.monster?.name;
   return {
+    runId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     level,
     nodes,
     completedIds: ["start"],
@@ -151,12 +153,14 @@ function loadDungeon() {
       const replacementBoss = generateBoss(saved.level, savedBossNames.slice(0, -1));
       return {
         ...saved,
+        runId: saved.runId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         nodes: saved.nodes.map((node) => node.id === "boss" ? { ...node, monster: replacementBoss } : node),
         bossNames: [...savedBossNames.slice(0, -1), replacementBoss.name],
       };
     }
     return {
       ...saved,
+      runId: saved.runId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       bossNames: savedBossNames.length > 0 ? savedBossNames : [bossNode.monster.name],
     };
   } catch {
@@ -308,7 +312,7 @@ export default function DungeonGame({
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (activeNode) {
       const effectiveType = activeNode.resolvedType ?? activeNode.type;
-      if (effectiveType === "shop") return <ShopRoom node={activeNode} level={dungeon.level} onExit={returnToMap} onTraining={onTraining} />;
+      if (effectiveType === "shop") return <ShopRoom node={activeNode} level={dungeon.level} dungeonRunId={dungeon.runId} onExit={returnToMap} onTraining={onTraining} />;
       if (effectiveType === "treasure") return <TreasureReward node={activeNode} level={dungeon.level} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
       return <RoomEvent node={activeNode} level={dungeon.level} eventType={effectiveType} onExit={returnToMap} onComplete={() => completeRoom(true)} />;
     }
@@ -555,8 +559,8 @@ function WhetstoneSelector({ upgrades, onUpdate }: { upgrades: string[]; onUpdat
   </section></main>;
 }
 
-function ShopRoom({ node, level, onExit, onTraining }: { node: DungeonNode; level: DungeonLevel; onExit: () => void; onTraining: () => void }) {
-  const initial = useMemo(() => loadShop(node.id, level), [node.id, level]);
+function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: DungeonNode; level: DungeonLevel; dungeonRunId: string; onExit: () => void; onTraining: () => void }) {
+  const initial = useMemo(() => loadShop(`${dungeonRunId}.${node.id}`, level), [dungeonRunId, node.id, level]);
   const [slots, setSlots] = useState<ShopSlot[]>(initial.slots);
   const [coins, setCoins] = useState(() => loadProgress().coins);
   const [deck, setDeck] = useState(loadRunDeckCards);

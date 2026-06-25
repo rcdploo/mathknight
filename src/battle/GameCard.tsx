@@ -21,6 +21,7 @@ export default function GameCard({
     disabled={!preview && disabled}
   >
     <small>{card.energy}</small><strong>{card.label}</strong>
+    {card.kind === "upgrade" && <span className="upgrade-card-label">Upgrade</span>}
     <div className="card-upgrade-icons">
       {card.upgrades.map((upgradeId, index) => {
         const visual = upgradeVisuals[upgradeId] ?? { label: "U", category: "special" };

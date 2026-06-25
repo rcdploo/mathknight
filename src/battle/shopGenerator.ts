@@ -44,7 +44,7 @@ function generateShop(level: number): ShopSlot[] {
 }
 
 export function loadShop(shopId: string, level: number) {
-  const key = `mathknight.dungeon.shop.${shopId}.v1`;
+  const key = `mathknight.dungeon.shop.${shopId}.v2`;
   try {
     const parsed = JSON.parse(window.localStorage.getItem(key) ?? "") as ShopSlot[];
     if (parsed.length !== 16) throw new Error("Invalid shop");
