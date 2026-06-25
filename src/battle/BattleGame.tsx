@@ -5,7 +5,7 @@ import { cardById } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { characterStatsForLevel, loadPermanentLoadout } from "../quartermaster/quartermasterStore";
-import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, resetRunItems, surfaceItems } from "./itemCatalog";
+import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, resetRunItems, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import GameCard from "./GameCard";
 import {
@@ -27,6 +27,7 @@ type BattleSession = {
   chosenReward: BattleCard | null;
   rewards: BattleCard[];
   bonusItemId: string | null;
+  bossItemIds: string[];
 };
 type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff"; effect: string };
 type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string; tone?: "buff" | "debuff" };
@@ -434,7 +435,7 @@ function createBattle(monster: GeneratedMonster) {
   };
 }
 
-function createBattleSession(monster: GeneratedMonster, bonusItem: boolean): BattleSession {
+function createBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossReward: boolean): BattleSession {
   const rewardPool = generateCombatRewards(monster.level).map((reward) => ({
     ...reward.card,
     rewardSlot: reward.slot,
@@ -453,13 +454,14 @@ function createBattleSession(monster: GeneratedMonster, bonusItem: boolean): Bat
     chosenReward: null,
     rewards: rewardPool,
     bonusItemId: bonusItem ? surfaceItems(1)[0]?.id ?? null : null,
+    bossItemIds: bossReward ? surfaceBossItems(2).map((item) => item.id) : [],
   };
 }
 
-function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean) {
+function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossReward: boolean) {
   try {
     const raw = window.localStorage.getItem(battleSessionKey);
-    if (!raw) return createBattleSession(monster, bonusItem);
+    if (!raw) return createBattleSession(monster, bonusItem, bossReward);
     const parsed = JSON.parse(raw) as BattleSession;
     if (
       parsed.monsterId !== monster.id
@@ -467,10 +469,11 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean) {
       || !parsed.rewards
       || parsed.rewards.some((reward) => reward.rewardSlot === undefined)
       || typeof parsed.turn !== "number"
-    ) return createBattleSession(monster, bonusItem);
+    ) return createBattleSession(monster, bonusItem, bossReward);
     const migrated = {
       ...parsed,
       bonusItemId: parsed.bonusItemId ?? (bonusItem ? surfaceItems(1)[0]?.id ?? null : null),
+      bossItemIds: parsed.bossItemIds ?? (bossReward ? surfaceBossItems(2).map((item) => item.id) : []),
       battle: {
         ...parsed.battle,
         itemIds: parsed.battle.itemIds ?? loadRunItems(),
@@ -486,7 +489,7 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean) {
     };
     return parsed.phase === "resolving" ? { ...migrated, phase: "playing" as const } : migrated;
   } catch {
-    return createBattleSession(monster, bonusItem);
+    return createBattleSession(monster, bonusItem, bossReward);
   }
 }
 
@@ -494,8 +497,8 @@ function clearBattleSession() {
   window.localStorage.removeItem(battleSessionKey);
 }
 
-export default function BattleGame({ onExit, onComplete, monster = fallbackMonster, roomLabel = "Dungeon", dungeonLevel = 1, premiumReward = false }: { onExit: () => void; onComplete: (won: boolean) => void; monster?: GeneratedMonster; roomLabel?: string; dungeonLevel?: number; premiumReward?: boolean }) {
-  const restoredSession = useMemo(() => loadBattleSession(monster, premiumReward), [monster, premiumReward]);
+export default function BattleGame({ onExit, onComplete, monster = fallbackMonster, roomLabel = "Dungeon", dungeonLevel = 1, premiumReward = false, bossReward = false }: { onExit: () => void; onComplete: (won: boolean) => void; monster?: GeneratedMonster; roomLabel?: string; dungeonLevel?: number; premiumReward?: boolean; bossReward?: boolean }) {
+  const restoredSession = useMemo(() => loadBattleSession(monster, premiumReward, bossReward), [monster, premiumReward, bossReward]);
   const [battle, setBattle] = useState(restoredSession.battle);
   const [selectedCards, setSelectedCards] = useState<BattleCard[]>(restoredSession.selectedCards);
   const [bottleUsed, setBottleUsed] = useState(restoredSession.bottleUsed);
@@ -506,6 +509,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [chosenReward, setChosenReward] = useState<BattleCard | null>(restoredSession.chosenReward);
   const [rewards] = useState<BattleCard[]>(restoredSession.rewards);
   const [bonusItemId] = useState(restoredSession.bonusItemId);
+  const [bossItemIds] = useState(restoredSession.bossItemIds);
+  const [chosenBossItemId, setChosenBossItemId] = useState<string | null>(null);
   const [musicOn, setMusicOn] = useState(true);
   const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | "victory" | "defeat" | null>(null);
   const [combatCallout, setCombatCallout] = useState<string | null>(null);
@@ -635,9 +640,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   }, [musicOn]);
 
   useEffect(() => {
-    const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId };
+    const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds };
     window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
-  }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, monster.id]);
+  }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds, monster.id]);
+
+  useEffect(() => {
+    if (bossReward && phase === "reward") markBossItemsShown(bossItemIds);
+  }, [bossItemIds, bossReward, phase]);
 
   useEffect(() => {
     if (monster.bossId !== "scriintyme" || phase !== "playing" || battle.playerHealth > 0) return;
@@ -797,8 +806,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
     setError("");
     setPhase("resolving");
-    const countered = value === displayedIntent || (hasItem(itemIds, "horseshoes") && Math.abs(value - displayedIntent) === 1);
-    if (hasItem(itemIds, "horseshoes") && value !== displayedIntent && Math.abs(value - displayedIntent) === 1) flashItems("horseshoes");
+    const countered = value === displayedIntent || (hasItem(itemIds, "oboe") && Math.abs(value - displayedIntent) === 1);
+    if (hasItem(itemIds, "oboe") && value !== displayedIntent && Math.abs(value - displayedIntent) === 1) flashItems("oboe");
     const criticalHit = rollAny(upgradeEffects.critAttempts, 0.2);
     if (criticalHit) {
       setCombatCallout("Critical Hit! +50% damage");
@@ -1062,6 +1071,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     finishRoom(true);
   }
 
+  function claimBossReward() {
+    if (!chosenBossItemId) return;
+    addRunItem(chosenBossItemId);
+    finishRoom(true);
+  }
+
   function applyRewardUpgrade(target: BattleCard) {
     if (!chosenReward) return;
     try {
@@ -1096,6 +1111,28 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   }
 
   if (phase === "reward") {
+    if (bossReward) {
+      return (
+        <main className="battle-game reward-screen">
+          <div className="reward-panel">
+            <p>Boss Spoils</p><h1>Choose one Boss item</h1>
+            <div className="boss-item-rewards">
+              {bossItemIds.map((id) => {
+                const item = itemById.get(id);
+                if (!item) return null;
+                return <button className={`boss-item-reward ${chosenBossItemId === id ? "chosen" : ""}`} onClick={() => setChosenBossItemId(id)} key={id}>
+                  <span>{itemSymbol(item)}</span><strong>{item.name}</strong><small>{item.tags.join(" · ")}</small><p>{item.effect}</p>
+                </button>;
+              })}
+            </div>
+            <div className="battle-actions">
+              <button onClick={claimBossReward} disabled={!chosenBossItemId}>{chosenBossItemId ? `Choose ${itemById.get(chosenBossItemId)?.name}` : "Choose an item"}</button>
+              <button onClick={onExit}>Game Hall</button>
+            </div>
+          </div>
+        </main>
+      );
+    }
     return (
       <main className="battle-game reward-screen">
         <div className="reward-panel">

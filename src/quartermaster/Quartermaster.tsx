@@ -5,7 +5,7 @@ import { allLevels, stageLabels, stages, unitLabels, units } from "../game/level
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { isLevelUnlocked } from "../game/unlockRules";
 import type { PlayerProgress, Stage, Unit } from "../game/types";
-import { increaseRunHealth, loadPermanentLoadout, markQuartermasterVisited, printedEnergyCost, savePermanentLoadout, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
+import { increaseRunHealth, loadPermanentLoadout, loadRunDeck, markQuartermasterVisited, printedEnergyCost, savePermanentLoadout, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
 
 type SelectionMode = "bottle" | null;
 
@@ -22,6 +22,7 @@ const resetPrices: Record<Unit, Record<Stage, number>> = {
 export default function Quartermaster({ onExit, onTraining }: { onExit: () => void; onTraining: () => void }) {
   const [progress, setProgress] = useState<PlayerProgress>(loadProgress);
   const [loadout, setLoadout] = useState<PermanentLoadout>(loadPermanentLoadout);
+  const [activeDeck, setActiveDeck] = useState(loadRunDeck);
   const [selectionMode, setSelectionMode] = useState<SelectionMode>(null);
   const levels = useMemo(allLevels, []);
   const bottleUpgradeCost = 100 * (loadout.bottleUpgradeCount + 1);
@@ -93,20 +94,23 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
     saveLoadout({ ...loadout, heroicWillUses: 2, heroicWillUpgradeCount: 1 });
   }
 
-  function selectBottle(deckIndex: number) {
+  function selectBottle(selected: PermanentLoadout["bottledCard"]) {
     if (!afford(50)) return;
-    const selected = loadout.deck[deckIndex];
-    if (!selected) return;
     const nextDeck = [...loadout.deck];
-    nextDeck.splice(deckIndex, 1, loadout.bottledCard);
+    const permanentIndex = nextDeck.findIndex((card) => card.id === selected.id);
+    if (permanentIndex >= 0) nextDeck.splice(permanentIndex, 1, loadout.bottledCard);
+    else nextDeck.push(loadout.bottledCard);
     spend(50);
     saveLoadout({ ...loadout, deck: nextDeck, bottledCard: selected });
+    let nextActiveDeck = activeDeck;
     syncRunDeck((deck) => {
       const next = [...deck];
       const runIndex = next.findIndex((card) => card.id === selected.id);
       if (runIndex >= 0) next.splice(runIndex, 1, loadout.bottledCard);
+      nextActiveDeck = next;
       return next;
     });
+    setActiveDeck(nextActiveDeck);
     setSelectionMode(null);
   }
 
@@ -124,9 +128,10 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
     setProgress(next);
   }
 
+  const candidateCards = [...activeDeck, ...loadout.deck.filter((card) => !activeDeck.some((active) => active.id === card.id))];
   const bottleCandidates = [
-    { card: loadout.bottledCard, deckIndex: -1, bottled: true },
-    ...loadout.deck.map((card, deckIndex) => ({ card, deckIndex, bottled: false })),
+    { card: loadout.bottledCard, bottled: true },
+    ...candidateCards.map((card) => ({ card, bottled: false })),
   ];
 
   return (
@@ -141,15 +146,15 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
         <section className="quartermaster-picker">
           <div><p>Choose any card costing up to {loadout.bottleMaxCost} Energy.</p><button onClick={() => setSelectionMode(null)}>Cancel</button></div>
           <div className="quartermaster-card-grid">
-            {bottleCandidates.map(({ card, deckIndex, bottled }) => {
+            {bottleCandidates.map(({ card, bottled }) => {
               const cost = printedEnergyCost(card);
               const tooExpensive = cost > loadout.bottleMaxCost;
               return (
-                <div className={`bottle-candidate ${bottled ? "current" : ""}`} key={`${card.id}-${deckIndex}`}>
+                <div className={`bottle-candidate ${bottled ? "current" : ""}`} key={`${card.id}-${bottled ? "bottled" : "deck"}`}>
                   <GameCard
                     card={card}
                     onClick={() => {
-                      if (!bottled && !tooExpensive) selectBottle(deckIndex);
+                      if (!bottled && !tooExpensive) selectBottle(card);
                     }}
                     disabled={tooExpensive}
                     bottled={bottled}

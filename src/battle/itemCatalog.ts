@@ -2,7 +2,7 @@ import source from "./Items.csv?raw";
 import { applyCardUpgrade, canApplyUpgrade, makeCatalogEntry, shuffle, type BattleCard } from "./battleEngine";
 import { cardsEligibleForRewards } from "./cardCatalog";
 
-export type ItemRarity = "Common" | "Uncommon" | "Rare";
+export type ItemRarity = "Common" | "Uncommon" | "Rare" | "Boss";
 export type ItemDefinition = {
   id: string;
   name: string;
@@ -15,6 +15,7 @@ export type ItemDefinition = {
 const itemKey = "mathknight.dungeon.runItems.v1";
 const usageKey = "mathknight.dungeon.itemUsage.v1";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
+const bossShownKey = "mathknight.dungeon.bossItemsShown.v1";
 
 function parseCsv(text: string) {
   const rows: string[][] = [];
@@ -103,9 +104,9 @@ function saveUsage(usage: ItemUsage) {
 export function surfaceItems(count: number, excludeOwned = true) {
   const usage = loadUsage();
   const owned = new Set(loadRunItems());
-  const pool = itemCatalog.filter((item) => !excludeOwned || !owned.has(item.id));
+  const pool = itemCatalog.filter((item) => item.rarity !== "Boss" && (!excludeOwned || !owned.has(item.id)));
   const selected: ItemDefinition[] = [];
-  const rarityWeight: Record<ItemRarity, number> = { Common: 10, Uncommon: 4, Rare: 1.5 };
+  const rarityWeight: Record<ItemRarity, number> = { Common: 10, Uncommon: 4, Rare: 1.5, Boss: 0 };
 
   while (selected.length < count && selected.length < pool.length) {
     const candidates = pool.filter((item) => !selected.some((chosen) => chosen.id === item.id));
@@ -131,6 +132,32 @@ export function surfaceItems(count: number, excludeOwned = true) {
   }
   saveUsage(usage);
   return selected;
+}
+
+export function surfaceBossItems(count = 2) {
+  const shown = new Set<string>(JSON.parse(window.localStorage.getItem(bossShownKey) ?? "[]") as string[]);
+  const owned = new Set(loadRunItems());
+  const available = itemCatalog.filter((item) => item.rarity === "Boss" && !shown.has(item.id) && !owned.has(item.id));
+  const shuffled = shuffle(available);
+  const selected: ItemDefinition[] = [];
+  for (const item of shuffled) {
+    if (selected.some((chosen) => chosen.tags.some((tag) => item.tags.includes(tag)))) continue;
+    selected.push(item);
+    if (selected.length === count) break;
+  }
+  if (selected.length < count) {
+    for (const item of shuffled) {
+      if (selected.some((chosen) => chosen.id === item.id)) continue;
+      selected.push(item);
+      if (selected.length === count) break;
+    }
+  }
+  return selected;
+}
+
+export function markBossItemsShown(ids: string[]) {
+  const shown = new Set<string>(JSON.parse(window.localStorage.getItem(bossShownKey) ?? "[]") as string[]);
+  window.localStorage.setItem(bossShownKey, JSON.stringify([...shown, ...ids]));
 }
 
 export function hasItem(items: string[], id: string) {

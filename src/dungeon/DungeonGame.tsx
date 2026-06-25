@@ -291,7 +291,7 @@ export default function DungeonGame({
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (!activeNode?.monster) return null;
     const effectiveType = activeNode.resolvedType ?? activeNode.type;
-    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Level ${dungeon.level} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite" || effectiveType === "boss"} />;
+    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Level ${dungeon.level} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite"} bossReward={effectiveType === "boss"} />;
   }
 
   if (dungeon.view === "event") {

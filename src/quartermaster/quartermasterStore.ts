@@ -98,7 +98,16 @@ export function hasVisitedQuartermaster() {
 export function printedEnergyCost(card: BattleCard, maxEnergy = 3) {
   const definition = cardById.get(card.catalogId);
   if (definition?.energyCost === "X") return maxEnergy;
-  return typeof definition?.energyCost === "number" ? definition.energyCost : card.energy;
+  return card.energy;
+}
+
+export function loadRunDeck() {
+  try {
+    const raw = window.localStorage.getItem(runDeckKey);
+    return raw ? JSON.parse(raw) as BattleCard[] : loadPermanentLoadout().deck;
+  } catch {
+    return loadPermanentLoadout().deck;
+  }
 }
 
 export function syncRunDeck(transform: (deck: BattleCard[]) => BattleCard[]) {
