@@ -508,10 +508,25 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [bonusItemId] = useState(restoredSession.bonusItemId);
   const [musicOn, setMusicOn] = useState(true);
   const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | "victory" | "defeat" | null>(null);
+  const [combatCallout, setCombatCallout] = useState<string | null>(null);
+  const [flashingItemIds, setFlashingItemIds] = useState<string[]>([]);
   const [pileView, setPileView] = useState<"deck" | "discard" | null>(null);
   const [runDeck, setRunDeck] = useState<BattleCard[]>(loadRunDeck);
   const deckUpgradedCount = useMemo(() => runDeck.filter((card) => card.upgrades.length > 0).length, [runDeck]);
   const itemIds = battle.itemIds;
+  const activeItemIds = new Set([
+    ...(hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? ["adrenaline"] : []),
+    ...(hasItem(itemIds, "second-wind") && battle.playerHealth <= battle.playerMaxHealth * .5 ? ["second-wind"] : []),
+    ...(hasItem(itemIds, "fertilizer") && battle.discardDamageStacks > 0 ? ["fertilizer"] : []),
+    ...(hasItem(itemIds, "catalyst") && !selectedCards.some((card) => card.kind === "variable") ? ["catalyst"] : []),
+    ...(hasItem(itemIds, "duct-tape") && !selectedCards.some((card) => card.kind === "combo") ? ["duct-tape"] : []),
+  ]);
+  function flashItems(...ids: string[]) {
+    const present = ids.filter((id) => hasItem(itemIds, id));
+    if (present.length === 0) return;
+    setFlashingItemIds((current) => [...new Set([...current, ...present])]);
+    window.setTimeout(() => setFlashingItemIds((current) => current.filter((id) => !present.includes(id))), 850);
+  }
   const effectiveCardEnergy = (card: BattleCard, cards: BattleCard[]) => {
     if (card.kind === "variable" && hasItem(itemIds, "catalyst") && cards.filter((item) => item.kind === "variable")[0]?.id === card.id) return Math.max(0, card.energy - 1);
     if (card.kind === "combo" && hasItem(itemIds, "duct-tape") && cards.filter((item) => item.kind === "combo")[0]?.id === card.id) return Math.max(0, card.energy - 1);
@@ -594,6 +609,21 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   useEffect(() => () => stopBattleMusic(), []);
 
   useEffect(() => {
+    window.setTimeout(() => flashItems("caltrops", "drogue", "satchel"), 250);
+  }, []);
+
+  useEffect(() => {
+    const rhythmic = [
+      ...(turn % 3 === 0 ? ["metronome", "tabor"] : []),
+      ...(turn % 4 === 0 ? ["pendulum", "war-drum"] : []),
+      ...(turn % 5 === 0 ? ["orrery", "taiko"] : []),
+      ...(turn === 2 ? ["skene-cleat"] : []),
+      ...(turn === 3 ? ["tiller"] : []),
+    ];
+    flashItems(...rhythmic);
+  }, [turn]);
+
+  useEffect(() => {
     if (!musicOn) return;
     const unlockMusic = () => startBattleMusic();
     window.addEventListener("pointerdown", unlockMusic, { once: true });
@@ -638,6 +668,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setError("Not enough energy for that card.");
       return;
     }
+    if (playedCard.kind === "variable" && !selectedCards.some((selected) => selected.kind === "variable")) flashItems("catalyst");
+    if (playedCard.kind === "combo" && !selectedCards.some((selected) => selected.kind === "combo")) flashItems("duct-tape");
     setSelectedCards((current) => [...current, playedCard]);
     if (monster.bossId === "scriintyme") {
       setBattle((current) => ({ ...current, playerHealth: Math.max(0, current.playerHealth - 1) }));
@@ -685,6 +717,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? 1 : 0),
       nextTurnEnergy: current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
     }));
+    flashItems("compost-juicer", "fertilizer", "dung-pellets");
+    if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
     if (hasItem(itemIds, "fertilizer")) setMessage(`Fertilizer activates: +${(battle.discardDamageStacks + 1) * 20}% damage this turn.`);
     playBattleSound("card");
   }
@@ -692,6 +726,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   function useResourcefulness() {
     if (phase !== "playing" || battle.resourcefulnessRemaining <= 0 || selectedCards.length > 0) return;
     const discardedHand = battle.hand.filter((card) => !isClosingParenthesisHelper(card));
+    const discardedCount = discardedHand.length;
     const replacementCount = Math.max(0, discardedHand.length - 1);
     const replacement = drawHand(battle.drawPile, [...battle.discardPile, ...discardedHand], replacementCount);
     setBattle((current) => ({
@@ -700,7 +735,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       drawPile: replacement.drawPile,
       discardPile: replacement.discardPile,
       resourcefulnessRemaining: current.resourcefulnessRemaining - 1,
+      playerHealth: hasItem(itemIds, "compost-juicer")
+        ? Math.min(current.playerMaxHealth, current.playerHealth + discardedCount * monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1))
+        : current.playerHealth,
+      discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? discardedCount : 0),
+      nextTurnEnergy: current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? discardedCount : 0),
     }));
+    flashItems("compost-juicer", "fertilizer", "dung-pellets");
+    if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
     setBottleUsed(false);
     setMessage(`Resourcefulness redraws ${replacement.hand.length} cards.`);
     playBattleSound("card");
@@ -718,6 +760,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         nextTurnEnergy: Math.max(0, current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? consuming ? 1 : -1 : 0)),
       };
     });
+    if (!card.consumedThisTurn) {
+      flashItems("compost-juicer", "fertilizer", "dung-pellets");
+      if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
+    }
     playBattleSound("card");
   }
 
@@ -752,13 +798,22 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     setError("");
     setPhase("resolving");
     const countered = value === displayedIntent || (hasItem(itemIds, "horseshoes") && Math.abs(value - displayedIntent) === 1);
+    if (hasItem(itemIds, "horseshoes") && value !== displayedIntent && Math.abs(value - displayedIntent) === 1) flashItems("horseshoes");
     const criticalHit = rollAny(upgradeEffects.critAttempts, 0.2);
+    if (criticalHit) {
+      setCombatCallout("Critical Hit! +50% damage");
+      window.setTimeout(() => setCombatCallout(null), 800);
+    }
     const isWeakened = battle.playerWeakenTurns > 0;
     const weakenedValue = isWeakened ? Math.max(0, value - Math.max(1, Math.ceil(value * 0.1))) : value;
     const baseDamage = countered ? displayedIntent : weakenedValue;
     const parityBonus = value % 2 !== 0 && hasItem(itemIds, "oddjob") ? 1.15 : 1;
     const healthBonus = hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .25 ? 1.2 : hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? 1.1 : 1;
     const outgoingDamage = Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * (1 + battle.discardDamageStacks * .2));
+    if (value % 2 !== 0) flashItems("oddjob");
+    if (value % 2 === 0) flashItems("evensteven");
+    if (healthBonus > 1) flashItems("adrenaline");
+    if (battle.discardDamageStacks > 0) flashItems("fertilizer");
     const enemyArmorForHit = countered ? 0 : battle.enemyArmor;
     const enemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, outgoingDamage);
     const monsterDefeated = enemyHit.health === 0;
@@ -807,6 +862,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     };
     const survivedBattle = heroicWillTriggered ? clearPlayerDebuffs(expiredDebuffs) : expiredDebuffs;
     const wardBlocked = !monsterEffectsCanceled && battle.pendingMonsterSpells.length > 0 && hasItem(itemIds, "ward") && Math.random() < .2;
+    if (wardBlocked) flashItems("ward");
     const pendingSpellResult = monsterEffectsCanceled || wardBlocked
       ? { battle: { ...survivedBattle, enemyHealth: reflectedHit.health, playerHealth: playerHit.health }, messages: [] as string[] }
       : applyMonsterSpells({
@@ -824,6 +880,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     if (countered && hasItem(itemIds, "riposte-charm")) pendingSpellResult.battle = removeOnePlayerDebuff(pendingSpellResult.battle);
     if (!pendingSpellResult.battle.phoenixUsed && hasItem(itemIds, "phoenix-charm") && pendingSpellResult.battle.playerHealth > 0 && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth * .25) {
       pendingSpellResult.battle = { ...clearPlayerDebuffs(pendingSpellResult.battle), phoenixUsed: true };
+      flashItems("phoenix-charm");
+    }
+    if (countered) {
+      flashItems("tripwire", "reverser", "snapshot", "quarterstaff", "riposte-charm", "pursestring-cutter");
+      if (hasItem(itemIds, "reverser") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
     }
     const enemyHealthAfterCurrentTurn = pendingSpellResult.battle.enemyHealth;
     const spellLobotomy = battle.pendingMonsterSpells.some((spell) => spellName(spell) === "Lobotomize");
@@ -864,10 +925,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       }
       if (reflectedHit.health === 0) {
         const healMultiplier = hasItem(itemIds, "second-wind") && playerHit.health <= battle.playerMaxHealth / 2 ? 2 : 1;
+        if (healMultiplier > 1) flashItems("second-wind");
         const healedHealth = Math.min(battle.playerMaxHealth, playerHit.health + battle.mendingHealing * healMultiplier);
         const healingReceived = healedHealth - playerHit.health;
         const progress = loadProgress();
         const goldReward = Math.round(monster.reward * (premiumReward ? 1.5 : 1) * (hasItem(itemIds, "signet") ? 1.3 : 1)) + (countered && hasItem(itemIds, "pursestring-cutter") ? monster.level * 5 : 0);
+        flashItems("signet");
         saveProgress({ ...progress, coins: progress.coins + goldReward });
         saveRunHealth(healedHealth);
         setBattle((current) => ({ ...current, playerHealth: healedHealth }));
@@ -1095,8 +1158,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           const item = itemById.get(id);
           if (!item) return null;
           return (
-            <div className="item-icon" tabIndex={0} aria-label={`${item.name}: ${item.effect}`} key={id}>
+            <div
+              className={`item-icon ${flashingItemIds.includes(id) ? "item-triggering" : ""} ${activeItemIds.has(id) ? "item-active" : ""}`}
+              tabIndex={0}
+              aria-label={`${item.name}: ${item.effect}${id === "fertilizer" && battle.discardDamageStacks > 0 ? ` (${battle.discardDamageStacks} stacks)` : ""}`}
+              key={id}
+            >
               <b>{itemSymbol(item)}</b>
+              {id === "fertilizer" && battle.discardDamageStacks > 0 && <small className="item-stack-count">{battle.discardDamageStacks}</small>}
               <span className="item-tooltip"><strong>{item.name}</strong>{item.effect}</span>
             </div>
           );
@@ -1136,6 +1205,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             </strong>
           </div>
           <p className="combat-message">{message}</p>
+          {combatCallout && <div className="combat-callout" role="status">{combatCallout}</div>}
         </div>
         <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} sprite="â™œ" health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} enemy hit={impact === "enemy" || impact === "counter"} />
       </section>

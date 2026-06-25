@@ -273,7 +273,9 @@ export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedType
 }
 
 export function generateBoss(level: DungeonLevel, usedBossNames: string[]): GeneratedMonster {
-  const available = bossDefinitions.filter((boss) => !usedBossNames.includes(boss.name));
+  const available = bossDefinitions.filter((boss) =>
+    !usedBossNames.some((usedName) => usedName === boss.name || usedName.endsWith(` ${boss.name}`))
+  );
   const boss = choice(available.length > 0 ? available : bossDefinitions);
   const usage = loadUsage();
   const type: MonsterTypeDefinition = {
@@ -291,14 +293,18 @@ export function generateBoss(level: DungeonLevel, usedBossNames: string[]): Gene
   const buffs = bonusBuff && !randomBuffs.some((buff) => buff.name === bonusBuff.name)
     ? [...randomBuffs, bonusBuff]
     : randomBuffs;
+  const sortedBuffs = [...buffs].sort((left, right) => right.difficulty - left.difficulty || left.name.localeCompare(right.name));
+  const highestDifficulty = sortedBuffs[0]?.difficulty;
+  const titleBuff = highestDifficulty ? choice(sortedBuffs.filter((buff) => buff.difficulty === highestDifficulty)) : undefined;
+  const subtitleBuffs = titleBuff ? [titleBuff, ...sortedBuffs.filter((buff) => buff.name !== titleBuff.name)] : sortedBuffs;
   const fatMultiplier = buffs.some((buff) => buff.name === "Fat") ? 1.3 : 1;
   const mightyMultiplier = buffs.some((buff) => buff.name === "Mighty") ? 1.3 : 1;
   return {
     id: `${level}-Boss-${boss.id}-${Math.random().toString(36).slice(2, 9)}`,
     level,
     room: "Boss",
-    name: boss.name,
-    subtitle: buffs.length > 0 ? buffs.map((buff) => `${buff.symbol} ${buff.name}`).join(" / ") : "Dungeon Boss",
+    name: [titleBuff?.name, boss.name].filter(Boolean).join(" "),
+    subtitle: subtitleBuffs.length > 0 ? subtitleBuffs.map((buff) => `${buff.symbol} ${buff.name}`).join(" / ") : "Dungeon Boss",
     type,
     attackPattern: { name: `Boss: ${boss.name}`, hasSpells: boss.spells.length > 0, difficulty: 4, description: "Unique scripted boss pattern" },
     buffs,

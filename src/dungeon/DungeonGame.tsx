@@ -144,9 +144,21 @@ function loadDungeon() {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
     const saved = JSON.parse(raw) as DungeonState;
-    return saved.nodes.some((node) => node.id === "pre-boss-shop")
-      ? { ...saved, bossNames: saved.bossNames ?? saved.nodes.filter((node) => node.type === "boss" && node.monster).map((node) => node.monster!.name) }
-      : generateDungeon(saved.level);
+    if (!saved.nodes.some((node) => node.id === "pre-boss-shop")) return generateDungeon(saved.level);
+    const savedBossNames = saved.bossNames ?? [];
+    const bossNode = saved.nodes.find((node) => node.id === "boss");
+    if (!bossNode?.monster?.bossId) {
+      const replacementBoss = generateBoss(saved.level, savedBossNames.slice(0, -1));
+      return {
+        ...saved,
+        nodes: saved.nodes.map((node) => node.id === "boss" ? { ...node, monster: replacementBoss } : node),
+        bossNames: [...savedBossNames.slice(0, -1), replacementBoss.name],
+      };
+    }
+    return {
+      ...saved,
+      bossNames: savedBossNames.length > 0 ? savedBossNames : [bossNode.monster.name],
+    };
   } catch {
     return generateDungeon(1);
   }

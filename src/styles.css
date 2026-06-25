@@ -866,6 +866,13 @@ button {
 }
 
 .item-icon:focus { border-color: #f0ca73; }
+.item-icon.item-triggering { animation: item-trigger-pulse 420ms ease-in-out 2; }
+.item-icon.item-active { border-color: #da75ff; background: #6b2388; color: #fff0ff; box-shadow: 0 0 11px rgba(218,117,255,.65); }
+.item-stack-count { position: absolute; right: -4px; bottom: -4px; display: grid; place-items: center; min-width: 15px; height: 15px; padding: 0 3px; border: 1px solid #ffd4ff; border-radius: 999px; background: #8c2dad; color: white; font-size: .58rem; font-weight: 900; }
+@keyframes item-trigger-pulse {
+  0%, 100% { background: #3d3320; transform: scale(1); box-shadow: none; }
+  50% { border-color: #ff8ee7; background: #b33992; color: white; transform: scale(1.13); box-shadow: 0 0 16px rgba(255,105,215,.85); }
+}
 .status-strip { display: flex; flex-wrap: wrap; gap: 5px; margin-left: 4px; }
 .status-tile {
   position: relative;
@@ -992,6 +999,8 @@ button {
 .health-bar.enemy span { background: #c45c4d; }
 .armor-readout { display: flex; align-items: center; gap: 5px; color: #b9c9d4; font-size: 0.75rem; }
 .combat-center { align-self: center; display: grid; justify-items: center; gap: 18px; text-align: center; }
+.combat-callout { padding: 7px 12px; border: 1px solid #f0ca73; border-radius: 7px; background: rgba(72,48,15,.94); color: #ffe8a3; font-size: .82rem; font-weight: 900; animation: combat-callout 800ms ease-out forwards; }
+@keyframes combat-callout { 0% { opacity: 0; transform: scale(.85); } 18%, 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translateY(-8px); } }
 .enemy-intent { padding: 14px 18px; border: 1px solid #d77a66; border-radius: 8px; background: rgba(75, 31, 28, 0.9); }
 .enemy-intent > span { display: block; color: #e9c3b9; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
 .enemy-intent strong { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; font-size: 2rem; }
