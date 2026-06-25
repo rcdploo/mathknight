@@ -23,7 +23,7 @@ function cardPrice(card: BattleCard) {
 
 function generateShop(level: number): ShopSlot[] {
   const owned = new Set(loadRunItems());
-  const availableItems = itemCatalog.filter((item) => !owned.has(item.id)).sort(() => Math.random() - .5);
+  const availableItems = itemCatalog.filter((item) => item.rarity !== "Boss" && !owned.has(item.id)).sort(() => Math.random() - .5);
   return [
     ...cardPositions.map(([position, rewardSlot]) => {
       const card = generateShopCard(level, rewardSlot).card;

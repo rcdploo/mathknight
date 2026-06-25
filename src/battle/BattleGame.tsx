@@ -32,7 +32,7 @@ type BattleSession = {
 type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff"; effect: string };
 type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string; tone?: "buff" | "debuff" };
 
-const battleSessionKey = "mathknight.battle.session.v2";
+const battleSessionKey = "mathknight.battle.session.v3";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const runHealthKey = "mathknight.dungeon.runHealth.v1";
 const fallbackMonster: GeneratedMonster = {
