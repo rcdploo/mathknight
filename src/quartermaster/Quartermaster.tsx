@@ -1,5 +1,6 @@
 import { ArrowLeft, FlaskConical, HeartPulse, RefreshCw, RotateCcw, ShieldCheck, ShieldPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import GameCard from "../battle/GameCard";
 import { allLevels, stageLabels, stages, unitLabels, units } from "../game/levels";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { isLevelUnlocked } from "../game/unlockRules";
@@ -123,9 +124,10 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
     setProgress(next);
   }
 
-  const selectableCards = loadout.deck
-    .map((card, deckIndex) => ({ card, deckIndex }))
-    .filter(({ card }) => printedEnergyCost(card) <= loadout.bottleMaxCost);
+  const bottleCandidates = [
+    { card: loadout.bottledCard, deckIndex: -1, bottled: true },
+    ...loadout.deck.map((card, deckIndex) => ({ card, deckIndex, bottled: false })),
+  ];
 
   return (
     <main className="quartermaster-screen">
@@ -137,13 +139,25 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
 
       {selectionMode && (
         <section className="quartermaster-picker">
-          <div><p>Choose a card that fits the bottle.</p><button onClick={() => setSelectionMode(null)}>Cancel</button></div>
+          <div><p>Choose any card costing up to {loadout.bottleMaxCost} Energy.</p><button onClick={() => setSelectionMode(null)}>Cancel</button></div>
           <div className="quartermaster-card-grid">
-            {selectableCards.map(({ card, deckIndex }) => (
-              <button key={`${card.id}-${deckIndex}`} onClick={() => selectBottle(deckIndex)}>
-                <strong>{card.label}</strong><span>{printedEnergyCost(card)} printed Energy</span><small>{card.rarity}</small>
-              </button>
-            ))}
+            {bottleCandidates.map(({ card, deckIndex, bottled }) => {
+              const cost = printedEnergyCost(card);
+              const tooExpensive = cost > loadout.bottleMaxCost;
+              return (
+                <div className={`bottle-candidate ${bottled ? "current" : ""}`} key={`${card.id}-${deckIndex}`}>
+                  <GameCard
+                    card={card}
+                    onClick={() => {
+                      if (!bottled && !tooExpensive) selectBottle(deckIndex);
+                    }}
+                    disabled={tooExpensive}
+                    bottled={bottled}
+                    badge={tooExpensive ? `${cost} Energy: too expensive` : `${cost} Energy`}
+                  />
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

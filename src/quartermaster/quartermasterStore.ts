@@ -98,7 +98,6 @@ export function hasVisitedQuartermaster() {
 export function printedEnergyCost(card: BattleCard, maxEnergy = 3) {
   const definition = cardById.get(card.catalogId);
   if (definition?.energyCost === "X") return maxEnergy;
-  if (card.label === "L") return Math.ceil(loadPermanentLoadout().dungeonLevel / 10);
   return typeof definition?.energyCost === "number" ? definition.energyCost : card.energy;
 }
 

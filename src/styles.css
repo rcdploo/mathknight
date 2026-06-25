@@ -704,10 +704,11 @@ button {
 .quartermaster-picker > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .quartermaster-picker p { margin: 0; font-weight: 800; }
 .quartermaster-picker > div:first-child button { min-height: 36px; padding: 0 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; background: #343531; color: white; cursor: pointer; }
-.quartermaster-card-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(100px,1fr)); gap: 10px; margin-top: 16px; }
-.quartermaster-card-grid button { display: grid; place-items: center; min-height: 120px; padding: 10px; border: 3px solid #858b88; border-radius: 8px; background: #28677a; color: white; cursor: pointer; }
-.quartermaster-card-grid strong { font-size: 1.8rem; }
-.quartermaster-card-grid span, .quartermaster-card-grid small { font-size: .65rem; }
+.quartermaster-card-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(112px,1fr)); justify-items: center; gap: 18px 12px; margin-top: 16px; }
+.bottle-candidate { display: grid; place-items: center; width: 100%; min-height: 165px; padding: 8px; border: 2px solid transparent; border-radius: 8px; }
+.bottle-candidate.current { border-color: #73c8dc; background: rgba(40,103,122,.24); box-shadow: 0 0 0 3px rgba(115,200,220,.16); }
+.bottle-candidate .battle-card { width: min(112px,100%); }
+.bottle-candidate.current .battle-card { border-color: #73c8dc; }
 .training-reset-section { padding: 20px; border: 1px solid rgba(255,255,255,.13); border-radius: 8px; background: rgba(31,29,25,.9); }
 .section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .training-reset-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.09); }
