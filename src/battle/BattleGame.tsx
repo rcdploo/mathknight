@@ -1,6 +1,7 @@
-﻿import { ArrowLeft, HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
+import { ArrowLeft, HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { playBattleSound } from "./battleAudio";
+import { playBattleSound, startCombatMusic, stopCombatMusic, type CombatMusicIntensity } from "./battleAudio";
 import { cardById, cardDescription } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
@@ -15,6 +16,7 @@ import {
 
 type BattlePhase = "playing" | "resolving" | "victory" | "defeat" | "reward" | "upgrade";
 type BattleState = ReturnType<typeof createBattle>;
+type CombatLogEntry = { turn: number; expression: string; result: "counter" | "attack"; events: string[] };
 type BattleSession = {
   monsterId: string;
   battle: BattleState;
@@ -28,6 +30,8 @@ type BattleSession = {
   rewards: BattleCard[];
   bonusItemId: string | null;
   bossItemIds: string[];
+  combatLog: CombatLogEntry[];
+  turnBriefing: string[];
 };
 type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff"; effect: string };
 type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string; tone?: "buff" | "debuff" };
@@ -462,6 +466,7 @@ function createBattle(monster: GeneratedMonster) {
 
 function createBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossReward: boolean): BattleSession {
   const itemIds = loadRunItems();
+  const openingBattle = createBattle(monster);
   const rabbitFootFind = !bonusItem && !bossReward && hasItem(itemIds, "rabbit-s-foot") && Math.random() < .2;
   const generatedRewards = generateCombatRewards(monster.level);
   if (hasItem(itemIds, "metal-detector")) {
@@ -477,7 +482,7 @@ function createBattleSession(monster: GeneratedMonster, bonusItem: boolean, boss
   }));
   return {
     monsterId: monster.id,
-    battle: createBattle(monster),
+    battle: openingBattle,
     selectedCards: [],
     bottleUsed: false,
     phase: "playing",
@@ -488,6 +493,10 @@ function createBattleSession(monster: GeneratedMonster, bonusItem: boolean, boss
     rewards: rewardPool,
     bonusItemId: bonusItem || rabbitFootFind ? surfaceItems(1)[0]?.id ?? null : null,
     bossItemIds: bossReward ? surfaceBossItems(2).map((item) => item.id) : [],
+    combatLog: [],
+    turnBriefing: openingBattle.hand.length !== openingBattle.handSize
+      ? [`Opening hand: ${openingBattle.hand.length} cards instead of ${openingBattle.handSize}.`]
+      : [],
   };
 }
 
@@ -507,6 +516,8 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
       ...parsed,
       bonusItemId: parsed.bonusItemId ?? (bonusItem ? surfaceItems(1)[0]?.id ?? null : null),
       bossItemIds: parsed.bossItemIds ?? (bossReward ? surfaceBossItems(2).map((item) => item.id) : []),
+      combatLog: parsed.combatLog ?? [],
+      turnBriefing: parsed.turnBriefing ?? [],
       battle: {
         ...parsed.battle,
         itemIds: parsed.battle.itemIds ?? loadRunItems(),
@@ -548,6 +559,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [rewards] = useState<BattleCard[]>(restoredSession.rewards);
   const [bonusItemId] = useState(restoredSession.bonusItemId);
   const [bossItemIds] = useState(restoredSession.bossItemIds);
+  const [combatLog, setCombatLog] = useState<CombatLogEntry[]>(restoredSession.combatLog);
+  const [turnBriefing, setTurnBriefing] = useState<string[]>(restoredSession.turnBriefing);
+  const [latestRecap, setLatestRecap] = useState<CombatLogEntry | null>(restoredSession.combatLog.at(-1) ?? null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [chosenBossItemId, setChosenBossItemId] = useState<string | null>(null);
   const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | "victory" | "defeat" | null>(null);
   const [combatCallout, setCombatCallout] = useState<string | null>(null);
@@ -675,6 +690,27 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     !isClosingParenthesisHelper(card)
     || selectedCards.some((selected) => selected.id === card.generatedById && selected.label === "("),
   );
+  const combatMusicIntensity: CombatMusicIntensity = premiumReward || bossReward ? "epic" : "standard";
+  const combatMusicActive = phase === "playing" || phase === "resolving";
+
+  useEffect(() => {
+    if (!combatMusicActive) {
+      stopCombatMusic();
+      return;
+    }
+
+    const resumeCombatMusic = () => startCombatMusic(combatMusicIntensity);
+    resumeCombatMusic();
+    window.addEventListener("pointerdown", resumeCombatMusic);
+    window.addEventListener("keydown", resumeCombatMusic);
+    window.addEventListener("focus", resumeCombatMusic);
+    return () => {
+      window.removeEventListener("pointerdown", resumeCombatMusic);
+      window.removeEventListener("keydown", resumeCombatMusic);
+      window.removeEventListener("focus", resumeCombatMusic);
+      stopCombatMusic();
+    };
+  }, [combatMusicActive, combatMusicIntensity]);
 
   useEffect(() => {
     window.setTimeout(() => flashItems("caltrops", "drogue", "satchel"), 250);
@@ -692,9 +728,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   }, [turn]);
 
   useEffect(() => {
-    const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds };
+    const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds, combatLog, turnBriefing };
     window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
-  }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds, monster.id]);
+  }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds, combatLog, turnBriefing, monster.id]);
 
   useEffect(() => {
     if (bossReward && phase === "reward") markBossItemsShown(bossItemIds);
@@ -991,6 +1027,30 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       ...(pendingSpellResult.battle.usurpDraws > battle.usurpDraws ? ["Usurp"] : []),
       ...(pendingSpellResult.battle.immolationTurns > battle.immolationTurns ? ["Immolation"] : []),
     ];
+    const expressionLabel = expressionItems.map((item) => item.label).join(" ");
+    const enemyArmorAbsorbed = Math.max(0, outgoingDamage - enemyHit.damage);
+    const attackArmorAbsorbed = Math.max(0, incomingDamage - attackHit.damage);
+    const recapEvents = [
+      `You dealt ${enemyHit.damage} damage${enemyArmorAbsorbed > 0 ? ` (${enemyArmorAbsorbed} blocked by enemy armor)` : ""}.`,
+      ...(expressionArmorGain > 0 ? [`You gained ${expressionArmorGain} armor.`] : []),
+      ...(healingReceived > 0 ? [`You restored ${healingReceived} HP.`] : []),
+      ...(countered
+        ? [`Countered: ${monster.name}'s attack and spells were canceled.`]
+        : [
+            ...(attackHit.damage > 0 ? [`${monster.name} dealt ${attackHit.damage} attack damage${attackArmorAbsorbed > 0 ? ` (${attackArmorAbsorbed} blocked by armor)` : ""}.`] : []),
+            ...(thornHit.damage > 0 ? [`Thorns dealt ${thornHit.damage} damage to you.`] : []),
+            ...(passiveDamage > 0 ? [`Passive effects dealt ${passiveDamage} damage to you.`] : []),
+          ]),
+      ...(reflectedDamage > 0 ? [`Reflecting returned ${reflectedDamage} damage.`] : []),
+      ...(monsterDebuffNames.length > 0 ? [`Enemy gained: ${monsterDebuffNames.join(", ")}.`] : []),
+      ...(playerDebuffNames.length > 0 ? [`You gained: ${playerDebuffNames.join(", ")}.`] : []),
+      ...(stolenCoins > 0 ? [`${monster.name} stole $${stolenCoins}.`] : []),
+      ...(lobotomy?.removed ? [`${lobotomy.removed.label} was removed for this fight.`] : []),
+    ];
+    const recap: CombatLogEntry = { turn, expression: expressionLabel || String(value), result: countered ? "counter" : "attack", events: recapEvents };
+    setLatestRecap(recap);
+    setCombatLog((current) => [...current, recap].slice(-12));
+    setTurnBriefing([]);
 
     void (async () => {
       if (damageSources.length > 0 || playerWeakenStackCount > 0) {
@@ -1119,6 +1179,23 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       const nextInitiativeTurns = Math.max(nextBattleBase.initiativeTurns, upgradeEffects.initiative > 0 ? 2 : 0);
       const nextIntent = Math.round(nextAction.intent * (1 + nextBattleBase.enrageStacks * 0.1));
       const nextSecondaryIntent = Math.round(nextAction.secondaryIntent * (1 + nextBattleBase.enrageStacks * 0.1));
+      const openingArmor = (countered && hasItem(itemIds, "quarterstaff") ? monster.level * 5 : 0)
+        + (hasItem(itemIds, "skene-cleat") && nextTurn === 2 ? monster.level * 6 : 0)
+        + (hasItem(itemIds, "tiller") && nextTurn === 3 ? monster.level * 7 : 0);
+      const briefing = [
+        ...(immolatedDraw.hand.length !== battle.handSize ? [`Drew ${immolatedDraw.hand.length} cards instead of the usual ${battle.handSize}.`] : []),
+        ...(pendingSpellResult.battle.energyDrainTurns > 0 ? [`Mana Drain reduces energy by ${Math.max(1, Math.round(battle.maxEnergy * 0.25))}.`] : []),
+        ...(rhythmicDraw > 0 ? [`Rhythm items draw ${rhythmicDraw} extra ${rhythmicDraw === 1 ? "card" : "cards"}.`] : []),
+        ...(pendingSpellResult.battle.nextTurnDraw > 0 ? [`Counter effects draw ${pendingSpellResult.battle.nextTurnDraw} extra ${pendingSpellResult.battle.nextTurnDraw === 1 ? "card" : "cards"}.`] : []),
+        ...(hasBuff(monster, "Dazing") ? ["Dazing shuffled a temporary 0 into the deck."] : []),
+        ...(hasBuff(monster, "Hypnotic") && cleanHand.length > 0 ? [`Hypnotic retained ${cleanHand.length} unplayed ${cleanHand.length === 1 ? "card" : "cards"}.`] : []),
+        ...(pendingSpellResult.battle.immolationTurns > 0 ? ["Immolation reduced drawn digits and variables by 1."] : []),
+        ...(forcedCard ? [`Usurp requires ${forcedCard.label} this turn.`] : []),
+        ...(batteryCarry > 0 ? [`Battery carries ${batteryCarry} unused energy forward.`] : []),
+        ...(regeneratedHealth > enemyHealthAfterCurrentTurn ? [`${monster.name} regenerated ${regeneratedHealth - enemyHealthAfterCurrentTurn} HP.`] : []),
+        ...(openingArmor > 0 ? [`You begin with ${openingArmor} armor.`] : []),
+        ...(stunnedNext ? [`${monster.name} is stunned and cannot act.`] : []),
+      ];
       setBattle((current) => ({
         ...current,
         ...nextBattleBase,
@@ -1133,9 +1210,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         weakenNext: nextWeakenStacks,
         weakenTurns: nextWeakenStacks > 0 ? nextWeakenTurns : 0,
         initiativeTurns: nextInitiativeTurns,
-        playerArmor: (countered && hasItem(itemIds, "quarterstaff") ? monster.level * 5 : 0)
-          + (hasItem(itemIds, "skene-cleat") && nextTurn === 2 ? monster.level * 6 : 0)
-          + (hasItem(itemIds, "tiller") && nextTurn === 3 ? monster.level * 7 : 0),
+        playerArmor: openingArmor,
         monsterActionDeck: nextAction.actionDeck,
         monsterLastAction: nextAction.action,
         monsterMessage: nextAction.text,
@@ -1157,6 +1232,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setSelectedCards([]);
       setBottleUsed(false);
       setTurn(nextTurn);
+      setTurnBriefing(briefing);
       setPhase("playing");
       setMessage(nextAction.text);
       };
@@ -1329,8 +1405,28 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <div><p>{roomLabel}</p><strong>{monster.name}</strong></div>
         <div className="battle-topbar-actions">
           <span>Turn {turn}</span>
+          <button className="combat-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open combat history"><BookOpen size={17} /> History</button>
         </div>
       </header>
+
+      {historyOpen && (
+        <div className="modal-backdrop">
+          <section className="combat-history-panel" role="dialog" aria-modal="true" aria-labelledby="combat-history-title">
+            <div className="pile-panel-heading">
+              <div><p>Last 12 submissions</p><h2 id="combat-history-title">Combat History</h2></div>
+              <button className="icon-button" aria-label="Close combat history" onClick={() => setHistoryOpen(false)}><X size={20} /></button>
+            </div>
+            {combatLog.length === 0 ? <p className="combat-history-empty">Your submissions will appear here.</p> : (
+              <div className="combat-history-list">
+                {[...combatLog].reverse().map((entry, index) => <article className={entry.result} key={`${entry.turn}-${index}`}>
+                  <header><strong>Turn {entry.turn}</strong><span>{entry.expression}</span><b>{entry.result === "counter" ? "Counter" : "Attack"}</b></header>
+                  <ul>{entry.events.map((event, eventIndex) => <li key={eventIndex}>{event}</li>)}</ul>
+                </article>)}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
 
       <div className="item-bar" aria-label="Equipped items">
         <div className="item-icon" tabIndex={0} aria-label={`Mending Charm: Restores up to ${battle.mendingHealing} missing HP after each victorious fight`}>
@@ -1399,6 +1495,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             </strong>
           </div>
           <p className="combat-message">{message}</p>
+          {turnBriefing.length > 0 && phase === "playing" && <div className="turn-briefing" role="status">
+            <strong>Turn {turn}</strong>
+            <ul>{turnBriefing.map((item) => <li key={item}>{item}</li>)}</ul>
+          </div>}
+          {latestRecap && <div className={`submission-recap ${latestRecap.result}`}>
+            <div><strong>Turn {latestRecap.turn}: {latestRecap.expression}</strong><span>{latestRecap.result === "counter" ? "Counter" : "Resolved"}</span></div>
+            <ul>{latestRecap.events.slice(0, 4).map((event, index) => <li key={index}>{event}</li>)}</ul>
+          </div>}
           {combatCallout && <div className="combat-callout" role="status">{combatCallout}</div>}
         </div>
         <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} flashingStatuses={flashingStatuses} sprite={monsterChessPiece(monster)} health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} armorFlashing={flashArmor === "enemy"} enemy hit={impact === "enemy" || impact === "counter"} />

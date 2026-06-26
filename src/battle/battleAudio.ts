@@ -6,6 +6,13 @@ let musicEnabled = false;
 let musicStarting = false;
 let musicScheduledUntil = 0;
 const ambientOscillators = new Set<OscillatorNode>();
+export type CombatMusicIntensity = "standard" | "epic";
+let combatTimer: number | null = null;
+let combatEnabled = false;
+let combatStarting = false;
+let combatScheduledUntil = 0;
+let combatIntensity: CombatMusicIntensity = "standard";
+const combatOscillators = new Set<OscillatorNode>();
 
 function audioContext() {
   if (!context) {
@@ -15,7 +22,7 @@ function audioContext() {
   return context;
 }
 
-function tone(frequency: number, start: number, duration: number, volume: number, type: OscillatorType = "sine", ambient = false) {
+function tone(frequency: number, start: number, duration: number, volume: number, type: OscillatorType = "sine", group?: "ambient" | "combat") {
   const audio = audioContext();
   const oscillator = audio.createOscillator();
   const gain = audio.createGain();
@@ -26,9 +33,10 @@ function tone(frequency: number, start: number, duration: number, volume: number
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   oscillator.connect(gain);
   gain.connect(audio.destination);
-  if (ambient) {
-    ambientOscillators.add(oscillator);
-    oscillator.addEventListener("ended", () => ambientOscillators.delete(oscillator), { once: true });
+  const trackedOscillators = group === "ambient" ? ambientOscillators : group === "combat" ? combatOscillators : null;
+  if (trackedOscillators) {
+    trackedOscillators.add(oscillator);
+    oscillator.addEventListener("ended", () => trackedOscillators.delete(oscillator), { once: true });
   }
   oscillator.start(start);
   oscillator.stop(start + duration + 0.02);
@@ -62,8 +70,8 @@ function scheduleMusicLoop() {
   const melody = [220, 261.63, 293.66, 261.63, 246.94, 293.66, 329.63, 293.66];
   for (let beat = 0; beat < 64; beat += 1) {
     const step = beat % 8;
-    if (beat % 2 === 0) tone(bass[step], start + beat * 0.5, 0.42, 0.03, "triangle", true);
-    if (beat % 4 === 1) tone(melody[step], start + beat * 0.5, 0.3, 0.022, "sine", true);
+    if (beat % 2 === 0) tone(bass[step], start + beat * 0.5, 0.42, 0.04, "triangle", "ambient");
+    if (beat % 4 === 1) tone(melody[step], start + beat * 0.5, 0.3, 0.03, "sine", "ambient");
   }
   musicScheduledUntil = start + 32;
 }
@@ -97,4 +105,83 @@ export function stopAmbientMusic() {
     }
   });
   ambientOscillators.clear();
+}
+
+function scheduleStandardCombatLoop() {
+  if (!combatEnabled || audioContext().state !== "running") return;
+  const audio = audioContext();
+  const start = audio.currentTime + 0.06;
+  const stepLength = 0.3;
+  const bass = [110, 110, 130.81, 110, 98, 98, 130.81, 146.83];
+  const lead = [440, 523.25, 587.33, 523.25, 392, 440, 523.25, 659.25];
+  for (let step = 0; step < 32; step += 1) {
+    const index = step % 8;
+    const at = start + step * stepLength;
+    tone(bass[index], at, 0.2, 0.035, "sawtooth", "combat");
+    if (step % 2 === 0) tone(lead[index], at + 0.025, 0.13, 0.022, "square", "combat");
+    if (step % 4 === 0) tone(65.41, at, 0.14, 0.05, "triangle", "combat");
+    if (step % 4 === 2) tone(196, at, 0.055, 0.018, "square", "combat");
+  }
+  combatScheduledUntil = start + 32 * stepLength;
+}
+
+function scheduleEpicCombatLoop() {
+  if (!combatEnabled || audioContext().state !== "running") return;
+  const audio = audioContext();
+  const start = audio.currentTime + 0.06;
+  const stepLength = 0.1875;
+  const bass = [82.41, 82.41, 98, 110, 73.42, 73.42, 98, 123.47];
+  const brass = [329.63, 392, 493.88, 440, 293.66, 369.99, 440, 554.37];
+  for (let step = 0; step < 32; step += 1) {
+    const index = step % 8;
+    const at = start + step * stepLength;
+    tone(bass[index], at, 0.17, 0.045, "sawtooth", "combat");
+    tone(bass[index] * 2, at, 0.12, 0.018, "square", "combat");
+    if (step % 2 === 0) {
+      tone(brass[index], at + 0.02, 0.24, 0.032, "triangle", "combat");
+      tone(brass[index] * 1.5, at + 0.025, 0.18, 0.014, "sine", "combat");
+    }
+    if (step % 4 === 0) tone(55, at, 0.16, 0.075, "triangle", "combat");
+    if (step % 4 === 2) tone(220, at, 0.045, 0.028, "square", "combat");
+  }
+  combatScheduledUntil = start + 32 * stepLength;
+}
+
+function scheduleCombatLoop() {
+  if (combatIntensity === "epic") scheduleEpicCombatLoop();
+  else scheduleStandardCombatLoop();
+}
+
+export function startCombatMusic(intensity: CombatMusicIntensity) {
+  if (combatIntensity !== intensity) stopCombatMusic();
+  combatIntensity = intensity;
+  combatEnabled = true;
+  if (combatStarting) return;
+  combatStarting = true;
+  const audio = audioContext();
+  void audio.resume().then(() => {
+    combatStarting = false;
+    if (!combatEnabled) return;
+    const loopMilliseconds = combatIntensity === "epic" ? 6_000 : 9_600;
+    if (combatTimer === null) combatTimer = window.setInterval(scheduleCombatLoop, loopMilliseconds);
+    if (audio.currentTime >= combatScheduledUntil - 0.1) scheduleCombatLoop();
+  }).catch(() => {
+    combatStarting = false;
+  });
+}
+
+export function stopCombatMusic() {
+  combatEnabled = false;
+  combatStarting = false;
+  if (combatTimer !== null) window.clearInterval(combatTimer);
+  combatTimer = null;
+  combatScheduledUntil = 0;
+  combatOscillators.forEach((oscillator) => {
+    try {
+      oscillator.stop();
+    } catch {
+      // The oscillator may already have ended.
+    }
+  });
+  combatOscillators.clear();
 }
