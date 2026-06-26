@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RotateCcw, Settings, ShoppingBag, Swords } from "lucide-react";
 import DungeonGame from "./dungeon/DungeonGame";
+import RunOverview from "./dungeon/RunOverview";
 import { resetAllGameProgress } from "./game/resetGame";
 import Quartermaster from "./quartermaster/Quartermaster";
 import TrainingGrounds from "./training/TrainingGrounds";
@@ -46,6 +47,7 @@ export default function App() {
           <RotateCcw size={18} /> New Game
         </button>
       </header>
+      <div className="hub-run-overview"><RunOverview /></div>
       <section className="hub-destinations" aria-label="Game destinations">
         <button className="hub-destination battle-destination" onClick={() => setDestination("battle")}>
           <Swords size={30} />

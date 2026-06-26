@@ -5,6 +5,7 @@ import { addRunItem, itemById, itemSymbol, loadPendingItemChoice, loadRunItems, 
 import { applyCardUpgrade, canApplyUpgrade, makeCatalogEntry, shuffle as shuffleCards, type BattleCard } from "../battle/battleEngine";
 import { cardById, cardCatalog, cardDescription, type CardRarity } from "../battle/cardCatalog";
 import GameCard from "../battle/GameCard";
+import RunOverview from "./RunOverview";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
 import { generateBoss, generateMonster, generateRoomGold, nextDungeonLevel, type DungeonRoom, type DungeonLevel, type GeneratedMonster } from "../battle/monsterGenerator";
@@ -359,7 +360,11 @@ export default function DungeonGame({
       <header className="dungeon-map-header">
         <button className="map-back-button" onClick={onExit}>Game Hall</button>
         <div><p>Dungeon Level {dungeon.level}</p><h1>The Verdant Descent</h1></div>
-        <span>Room 5 treasure / Room 10 boss</span>
+        <RunOverview position={{
+          level: dungeon.level,
+          room: Math.floor(dungeon.nodes.find((node) => node.id === dungeon.activeNodeId)?.step
+            ?? dungeon.nodes.reduce((deepest, node) => dungeon.completedIds.includes(node.id) ? Math.max(deepest, node.step) : deepest, 0)),
+        }} />
       </header>
       <div className="dungeon-map-copy"><p>{dungeon.notice}</p></div>
       <div className="dungeon-map-scroll">
