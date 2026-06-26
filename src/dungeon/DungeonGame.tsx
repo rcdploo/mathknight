@@ -27,6 +27,18 @@ type DungeonState = {
   bossNames: string[];
 };
 
+type LevelUpSummary = {
+  priorLevel: number;
+  currentLevel: number;
+  priorHealth: number;
+  currentHealth: number;
+  priorEnergy: number;
+  currentEnergy: number;
+  priorHandSize: number;
+  currentHandSize: number;
+  unlocks: string[];
+};
+
 const dungeonStorageKey = "mathknight.dungeon.level1.v6";
 const mapWidth = 1280;
 const mapHeight = 480;
@@ -197,6 +209,7 @@ export default function DungeonGame({
   const [dungeon, setDungeon] = useState<DungeonState>(loadDungeon);
   const [starLockMessage, setStarLockMessage] = useState<{ required: number; missing: number } | null>(null);
   const [quartermasterLockOpen, setQuartermasterLockOpen] = useState(false);
+  const [levelUpSummary, setLevelUpSummary] = useState<LevelUpSummary | null>(null);
   const stars = totalStars(loadProgress());
   const quartermasterVisited = hasVisitedQuartermaster();
   const [, setItemChoiceVersion] = useState(0);
@@ -215,6 +228,25 @@ export default function DungeonGame({
 
   if (pendingItemChoice) {
     return <ItemChoiceSelector choice={pendingItemChoice} onUpdate={(choice) => { updatePendingItemChoice(choice); setItemChoiceVersion((version) => version + 1); }} />;
+  }
+
+  if (levelUpSummary) {
+    const levelChanged = levelUpSummary.currentLevel > levelUpSummary.priorLevel;
+    return <main className="battle-game reward-screen"><section className="reward-panel level-up-panel">
+      <p>{levelChanged ? "Level Up!" : "Dungeon Mastered!"}</p>
+      <h1>Level {levelUpSummary.priorLevel} <span aria-hidden="true">→</span> {levelUpSummary.currentLevel}</h1>
+      <div className="level-up-stats">
+        <div><span>HP</span><strong>{levelUpSummary.priorHealth} <b>→</b> {levelUpSummary.currentHealth}</strong><small>Fully healed</small></div>
+        <div><span>Base energy</span><strong>{levelUpSummary.priorEnergy} <b>→</b> {levelUpSummary.currentEnergy}</strong></div>
+        <div><span>Hand size</span><strong>{levelUpSummary.priorHandSize} <b>→</b> {levelUpSummary.currentHandSize}</strong></div>
+      </div>
+      {levelUpSummary.unlocks.length > 0 && <div className="level-up-unlocks">
+        <span>New unlocks</span>
+        {levelUpSummary.unlocks.map((unlock) => <strong key={unlock}>{unlock}</strong>)}
+      </div>}
+      <p className="level-up-reset">The Dungeon has been reset with harder monsters.</p>
+      <div className="battle-actions"><button onClick={() => setLevelUpSummary(null)}>Enter Level {levelUpSummary.currentLevel}</button></div>
+    </section></main>;
   }
 
   function enterRoom(node: DungeonNode) {
@@ -271,32 +303,55 @@ export default function DungeonGame({
       return;
     }
 
+    const completedNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
+    if (completedNode?.type === "boss") {
+      const nextLevel = nextDungeonLevel(dungeon.level);
+      const loadout = loadPermanentLoadout();
+      const priorStats = characterStatsForLevel(dungeon.level, loadout);
+      const nextStats = characterStatsForLevel(nextLevel, loadout);
+      savePermanentLoadout({
+        ...loadout,
+        deck: loadRunDeck(),
+        bottledCard: loadRunBottle(),
+        dungeonLevel: Math.max(loadout.dungeonLevel, nextLevel),
+        maxHealth: nextLevel > loadout.dungeonLevel ? nextStats.maxHealth : loadout.maxHealth,
+      });
+      window.localStorage.setItem(runHealthKey, String(nextStats.maxHealth));
+      const unlocks = nextLevel > dungeon.level
+        ? nextLevel === 2
+          ? ["Resourcefulness"]
+          : nextLevel === 3
+            ? ["Training Grounds Lessons 3–4"]
+            : nextLevel === 4
+              ? ["Heroic Will"]
+              : []
+        : [];
+      setLevelUpSummary({
+        priorLevel: dungeon.level,
+        currentLevel: nextLevel,
+        priorHealth: priorStats.maxHealth,
+        currentHealth: nextStats.maxHealth,
+        priorEnergy: priorStats.energy,
+        currentEnergy: nextStats.energy,
+        priorHandSize: priorStats.handSize,
+        currentHandSize: nextStats.handSize,
+        unlocks,
+      });
+      const nextDungeon = generateDungeon(nextLevel, dungeon.bossNames);
+      nextDungeon.notice = nextLevel === dungeon.level
+        ? "The final boss is defeated. Level 5 is mastered."
+        : `Level ${dungeon.level} conquered. Level ${nextLevel} begins.`;
+      setDungeon(nextDungeon);
+      return;
+    }
+
     setDungeon((current) => {
-      const completedNode = current.activeNodeId ? nodeById.get(current.activeNodeId) : undefined;
-      if (!completedNode) return { ...current, view: "map", activeNodeId: null };
-      const bossDefeated = completedNode.type === "boss";
-      if (bossDefeated) {
-        const nextLevel = nextDungeonLevel(current.level);
-        const loadout = loadPermanentLoadout();
-        const nextStats = characterStatsForLevel(nextLevel, loadout);
-        savePermanentLoadout({
-          ...loadout,
-          deck: loadRunDeck(),
-          bottledCard: loadRunBottle(),
-          dungeonLevel: Math.max(loadout.dungeonLevel, nextLevel),
-          maxHealth: nextLevel > loadout.dungeonLevel ? nextStats.maxHealth : loadout.maxHealth,
-        });
-        window.localStorage.setItem(runHealthKey, String(nextStats.maxHealth));
-        const nextDungeon = generateDungeon(nextLevel, current.bossNames);
-        nextDungeon.notice = nextLevel === current.level
-          ? "The final boss is defeated. Level 5 is mastered."
-          : `Level ${current.level} conquered. Level ${nextLevel} begins.`;
-        return nextDungeon;
-      }
+      const currentCompletedNode = current.activeNodeId ? nodeById.get(current.activeNodeId) : undefined;
+      if (!currentCompletedNode) return { ...current, view: "map", activeNodeId: null };
       return {
         ...current,
-        completedIds: [...new Set([...current.completedIds, completedNode.id])],
-        availableIds: completedNode.next,
+        completedIds: [...new Set([...current.completedIds, currentCompletedNode.id])],
+        availableIds: currentCompletedNode.next,
         activeNodeId: null,
         view: "map",
         notice: "Room cleared. New paths are open.",

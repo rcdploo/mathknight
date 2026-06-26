@@ -1241,6 +1241,17 @@ button {
 .boss-item-reward > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: #24121f; color: #ffb8eb; font-weight: 900; }
 .boss-item-reward small { color: #eab4db; text-transform: uppercase; }
 .boss-item-reward p { margin: 0; color: #eadde7; font-size: .78rem; line-height: 1.4; }
+.level-up-panel { border-color: rgba(240,202,115,.65); box-shadow: 0 0 42px rgba(240,202,115,.15); animation: result-arrive 480ms ease-out; }
+.level-up-panel h1 span { color: #f0ca73; padding: 0 8px; }
+.level-up-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 22px; }
+.level-up-stats > div { display: grid; gap: 7px; padding: 18px 12px; border: 1px solid rgba(240,202,115,.28); border-radius: 8px; background: #29271f; text-align: center; }
+.level-up-stats span, .level-up-unlocks > span { color: #c7c0ae; font-size: .68rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.level-up-stats strong { color: #fff4d5; font-size: 1.35rem; }
+.level-up-stats strong b { color: #f0ca73; padding: 0 4px; }
+.level-up-stats small { color: #75d89a; font-weight: 800; }
+.level-up-unlocks { display: grid; gap: 8px; margin-bottom: 22px; padding: 18px; border-left: 4px solid #d77bb5; border-radius: 6px; background: #392535; }
+.level-up-unlocks strong { color: #ffc5ed; }
+.reward-panel > .level-up-reset { margin: 0 0 22px; color: #d7d1c5; font-size: .82rem; line-height: 1.5; text-transform: none; }
 .reward-item-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin: 0 0 24px; }
 .reward-item-square { display: grid; place-items: center; align-content: center; gap: 8px; width: min(220px, 100%); aspect-ratio: 1; padding: 18px; border: 4px solid #e7a8d8; border-radius: 8px; background: #523752; color: white; text-align: center; }
 .reward-item-square.rarity-common { border-color: #f2f0e8; }
@@ -1254,6 +1265,7 @@ button {
 .upgrade-target-panel { width: min(900px, calc(100% - 32px)); max-height: 88vh; overflow: auto; }
 
 @media (max-width: 720px) {
+  .level-up-stats { grid-template-columns: 1fr; }
   .hub-destinations { grid-template-columns: 1fr; }
   .battlefield { grid-template-columns: 1fr 1fr; min-height: 280px; }
   .combat-center { grid-column: 1 / -1; grid-row: 1; }
