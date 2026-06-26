@@ -68,6 +68,8 @@ function cardId(name: string) {
     "()": "parentheses",
     "+1": "plus-1",
     "+3": "plus-3",
+    "1_": "combo-10",
+    "2_": "combo-20",
     "_^2": "combo-square",
     "_^3": "combo-cube",
   };
@@ -95,6 +97,11 @@ export const cardCatalog: CardDefinition[] = (sourceRows as SourceRow[]).map((ro
 
 export const cardByName = new Map(cardCatalog.map((card) => [card.name, card]));
 export const cardById = new Map(cardCatalog.map((card) => [card.id, card]));
+
+export function cardDescription(catalogId: string, label?: string, fallback = "") {
+  const byLabel = label ? cardByName.get(label) : undefined;
+  return byLabel?.displayDescription ?? cardById.get(catalogId)?.displayDescription ?? fallback;
+}
 
 export function cardsEligibleForRewards() {
   return cardCatalog.filter((card) => card.rarity !== "Starter");

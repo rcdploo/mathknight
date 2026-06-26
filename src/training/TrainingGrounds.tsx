@@ -73,7 +73,7 @@ function formatStars(stars: number) {
   return `${"★".repeat(stars)}${"☆".repeat(5 - stars)}`;
 }
 
-export default function TrainingGrounds({ onExit }: { onExit: () => void }) {
+export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => void; onDungeon: () => void }) {
   const [progress, setProgress] = useState<PlayerProgress>(() => loadProgress());
   const [screen, setScreen] = useState<Screen>("map");
   const [gameMode, setGameMode] = useState<GameMode>("playing");
@@ -491,7 +491,7 @@ export default function TrainingGrounds({ onExit }: { onExit: () => void }) {
               <button onClick={() => startLevel(selectedLevel)}>Retry</button>
               {nextLevel && <button onClick={() => startLevel(nextLevel as LevelConfig)}>Next Trial</button>}
               {result.completed && <button onClick={() => { setGameMode("reviewing"); setScreen("game"); }}>View Results</button>}
-              <button onClick={() => setScreen("map")}>Training Grounds</button>
+              <button onClick={onDungeon}>Back to Dungeon</button>
             </div>
           </div>
         </section>

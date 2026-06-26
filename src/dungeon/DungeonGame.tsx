@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import BattleGame from "../battle/BattleGame";
 import { addRunItem, itemById, itemSymbol, loadPendingItemChoice, loadRunItems, saveRunItems, updatePendingItemChoice, surfaceItems, type ItemDefinition, type PendingItemChoice } from "../battle/itemCatalog";
 import { applyCardUpgrade, canApplyUpgrade, makeCatalogEntry, shuffle as shuffleCards, type BattleCard } from "../battle/battleEngine";
-import { cardById, cardCatalog, type CardRarity } from "../battle/cardCatalog";
+import { cardById, cardCatalog, cardDescription, type CardRarity } from "../battle/cardCatalog";
 import GameCard from "../battle/GameCard";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
@@ -528,10 +528,20 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
   return <main className="battle-game reward-screen"><section className="reward-panel">
     <p>Treasure Cache</p><h1>Choose one card</h1>
     <p className="premium-item-earned">You found ${state.gold}{item ? <> and <strong>{item.name}</strong></> : null}.</p>
+    {item && (
+      <div className="reward-item-row">
+        <div className={`reward-item-square rarity-${item.rarity.toLowerCase()}`}>
+          <strong>{itemSymbol(item)}</strong>
+          <span>Item acquired</span>
+          <b>{item.name}</b>
+          <small>{item.effect}</small>
+        </div>
+      </div>
+    )}
     <div className="reward-cards">{state.rewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosen?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosen((current) => current?.id === card.id ? null : card)}>
       <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
       {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
-      <small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
+      <small>{cardDescription(card.catalogId, card.label, card.effect)}</small>
     </button>)}</div>
     <div className="battle-actions"><button onClick={claim}>{chosen ? `Choose ${chosen.label}` : "Continue without a card"}</button><button onClick={onExit}>Return to map</button></div>
   </section></main>;
@@ -578,7 +588,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
         <p>Smithy</p><h1>New upgrade</h1>
         <p className="room-event-message">{upgradeChoice.upgrades.length} upgrade{upgradeChoice.upgrades.length === 1 ? "" : "s"} remaining.</p>
         <div className="reward-cards"><button className={`reward-option upgrade rarity-${upgrade.rarity.toLowerCase()} chosen`} onClick={() => setUpgradeTargeting(true)}>
-          <strong>{upgrade.label}</strong><span>{upgrade.type}</span><small>{cardById.get(upgrade.catalogId)?.displayDescription ?? upgrade.effect}</small>
+          <strong>{upgrade.label}</strong><span>{upgrade.type}</span><small>{cardDescription(upgrade.catalogId, upgrade.label, upgrade.effect)}</small>
         </button></div>
         <div className="battle-actions"><button onClick={() => setUpgradeTargeting(true)}>Apply {upgrade.label}</button></div>
       </section></main>;
@@ -617,7 +627,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
       <p>{itemName}</p><h1>Choose one card</h1>
       <p className="room-event-message">{rewardChoice.rewardSets.length} reward{rewardChoice.rewardSets.length === 1 ? "" : "s"} remaining.</p>
       <div className="reward-cards">{rewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
-        <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
+        <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{cardDescription(card.catalogId, card.label, card.effect)}</small>
       </button>)}</div>
       <div className="battle-actions"><button disabled={!chosenReward} onClick={chooseReward}>Choose reward</button></div>
     </section></main>;
@@ -780,7 +790,7 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
       <div className="reward-cards">{randomRewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenRandomReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenRandomReward((current) => current?.id === card.id ? null : card)}>
         <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
         {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
-        <small>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}</small>
+        <small>{cardDescription(card.catalogId, card.label, card.effect)}</small>
       </button>)}</div>
       <div className="battle-actions">
         <button onClick={claimRandomReward} disabled={!chosenRandomReward}>{chosenRandomReward ? `Choose ${chosenRandomReward.label}` : "Choose a card"}</button>

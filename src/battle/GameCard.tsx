@@ -1,8 +1,8 @@
-import { cardById } from "./cardCatalog";
+import { cardById, cardDescription } from "./cardCatalog";
 import type { BattleCard } from "./battleEngine";
 
 export default function GameCard({
-  card, onClick, disabled = false, bottled = false, preview = false, forced = false, price, badge,
+  card, onClick, disabled = false, bottled = false, preview = false, forced = false, price, badge, level,
 }: {
   card: BattleCard;
   onClick: () => void;
@@ -12,6 +12,7 @@ export default function GameCard({
   forced?: boolean;
   price?: number;
   badge?: string;
+  level?: number;
 }) {
   const typeClass = card.type.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
   const upgradeCount = Math.min(card.upgrades.length, 5);
@@ -33,14 +34,21 @@ export default function GameCard({
     {badge && <em>{badge}</em>}
     {price !== undefined && <b className="card-price">${price}</b>}
     <span className="card-explainer">
-      <strong>{card.label}</strong>{cardById.get(card.catalogId)?.displayDescription ?? card.effect}
+      <strong>{card.label}</strong>{level === undefined ? cardDescription(card.catalogId, card.label, card.effect) : levelText(cardDescription(card.catalogId, card.label, card.effect), level)}
       {card.upgrades.map((upgradeId) => {
         const upgrade = cardById.get(upgradeId);
-        return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {upgrade?.displayDescription ?? "Card upgrade"}</span>;
+        const description = upgrade?.displayDescription ?? "Card upgrade";
+        return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {level === undefined ? description : levelText(description, level)}</span>;
       })}
       {bottled && <span><b>Bottled:</b> Available every turn.</span>}
     </span>
   </button>;
+}
+
+function levelText(text: string, level: number) {
+  return text
+    .replace(/(\d+)\s*\*\s*Level/gi, (_, amount: string) => String(Number(amount) * level))
+    .replace(/1\s+HP\s+per\s+Level/gi, `${level} HP`);
 }
 
 const upgradeVisuals: Record<string, { label: string; category: "defense" | "offense" | "stats" | "energy" | "special" | "healing" }> = {

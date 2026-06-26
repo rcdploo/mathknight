@@ -19,7 +19,9 @@ export default function App() {
     window.location.reload();
   }
 
-  if (destination === "memory") return <TrainingGrounds onExit={() => setDestination("hub")} />;
+  if (destination === "memory") {
+    return <TrainingGrounds onExit={() => setDestination("hub")} onDungeon={() => setDestination("battle")} />;
+  }
   if (destination === "battle") {
     return (
       <DungeonGame
