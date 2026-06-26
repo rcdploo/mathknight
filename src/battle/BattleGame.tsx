@@ -1,11 +1,11 @@
-﻿import { ArrowLeft, HeartPulse, Shield, Swords, Volume2, VolumeX, X, Zap } from "lucide-react";
+﻿import { ArrowLeft, HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { playBattleSound, startBattleMusic, stopBattleMusic } from "./battleAudio";
+import { playBattleSound } from "./battleAudio";
 import { cardById, cardDescription } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { bottleCapacityCost, characterStatsForLevel, loadPermanentLoadout, loadRunBottle, resetRunBottle, saveRunBottle } from "../quartermaster/quartermasterStore";
-import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, resetRunItems, surfaceBossItems, surfaceItems } from "./itemCatalog";
+import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, queueItemRewardChoice, resetRunItems, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import GameCard from "./GameCard";
 import {
@@ -410,27 +410,29 @@ function createBattle(monster: GeneratedMonster) {
   const character = characterStatsForLevel(monster.level, loadout);
   const itemIds = loadRunItems();
   const opening = drawHand(shuffle(loadRunDeck()), [], character.handSize + (hasItem(itemIds, "satchel") ? 2 : 0));
+  const maxHealth = Math.max(1, Math.round((character.maxHealth + (hasItem(itemIds, "garlic") ? 50 : 0)) * (hasItem(itemIds, "glass-cannon") ? .85 : 1)));
+  const enemyMaxHealth = Math.max(1, Math.round(monster.maxHealth * (hasItem(itemIds, "garlic") ? .8 : 1)));
   const openingAction = monsterAction(monster, 1, [], null);
   return {
     ...opening,
     itemIds,
     bottledCard: loadRunBottle(),
-    playerHealth: loadRunHealth(character.maxHealth),
-    playerMaxHealth: character.maxHealth,
-    maxEnergy: character.energy,
+    playerHealth: loadRunHealth(maxHealth),
+    playerMaxHealth: maxHealth,
+    maxEnergy: character.energy + (hasItem(itemIds, "glass-cannon") ? 1 : 0) + (hasItem(itemIds, "heady-brew") ? 1 : 0),
     handSize: character.handSize,
     resourcefulnessRemaining: monster.level >= 2 ? loadout.resourcefulnessUses : 0,
     heroicWillRemaining: monster.level >= 4 ? loadout.heroicWillUses : 0,
     mendingHealing: loadout.mendingHealing,
     playerArmor: hasItem(itemIds, "drogue") ? 5 * monster.level : 0,
-    enemyHealth: monster.maxHealth,
+    enemyHealth: enemyMaxHealth,
     enemyArmor: openingAction.armor,
     enemyIntent: openingAction.intent,
     enemySecondaryIntent: openingAction.secondaryIntent,
     enemyFakeIntent: openingAction.fakeIntent,
     enemyFakeIntentFirst: openingAction.fakeIntentFirst,
     enemySpellCount: openingAction.spells?.length ?? 0,
-    enemyMaxHealth: monster.maxHealth,
+    enemyMaxHealth,
     enemyStunned: false,
     weakenNext: hasItem(itemIds, "caltrops") ? 3 : 0,
     weakenTurns: hasItem(itemIds, "caltrops") ? 1 : 0,
@@ -450,6 +452,7 @@ function createBattle(monster: GeneratedMonster) {
     forcedCardId: null as string | null,
     immolationTurns: 0,
     nextTurnEnergy: 0,
+    crystalDiscountCardId: hasItem(itemIds, "crystal") ? choice(opening.hand)?.id ?? null : null,
     nextTurnDraw: 0,
     discardDamageStacks: 0,
     initiativeTurns: 0,
@@ -458,7 +461,15 @@ function createBattle(monster: GeneratedMonster) {
 }
 
 function createBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossReward: boolean): BattleSession {
-  const rewardPool = generateCombatRewards(monster.level).map((reward) => ({
+  const itemIds = loadRunItems();
+  const rabbitFootFind = !bonusItem && !bossReward && hasItem(itemIds, "rabbit-s-foot") && Math.random() < .2;
+  const generatedRewards = generateCombatRewards(monster.level);
+  if (hasItem(itemIds, "metal-detector")) {
+    const existing = new Set(generatedRewards.map((reward) => reward.card.catalogId));
+    const extra = generateCombatRewards(monster.level).find((reward) => !existing.has(reward.card.catalogId));
+    if (extra) generatedRewards.push(extra);
+  }
+  const rewardPool = generatedRewards.map((reward) => ({
     ...reward.card,
     rewardSlot: reward.slot,
     rewardKind: reward.kind,
@@ -475,7 +486,7 @@ function createBattleSession(monster: GeneratedMonster, bonusItem: boolean, boss
     turn: 1,
     chosenReward: null,
     rewards: rewardPool,
-    bonusItemId: bonusItem ? surfaceItems(1)[0]?.id ?? null : null,
+    bonusItemId: bonusItem || rabbitFootFind ? surfaceItems(1)[0]?.id ?? null : null,
     bossItemIds: bossReward ? surfaceBossItems(2).map((item) => item.id) : [],
   };
 }
@@ -500,6 +511,7 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
         ...parsed.battle,
         itemIds: parsed.battle.itemIds ?? loadRunItems(),
         nextTurnEnergy: parsed.battle.nextTurnEnergy ?? 0,
+        crystalDiscountCardId: parsed.battle.crystalDiscountCardId ?? null,
         nextTurnDraw: parsed.battle.nextTurnDraw ?? 0,
         discardDamageStacks: parsed.battle.discardDamageStacks ?? 0,
         initiativeTurns: parsed.battle.initiativeTurns ?? 0,
@@ -537,7 +549,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [bonusItemId] = useState(restoredSession.bonusItemId);
   const [bossItemIds] = useState(restoredSession.bossItemIds);
   const [chosenBossItemId, setChosenBossItemId] = useState<string | null>(null);
-  const [musicOn, setMusicOn] = useState(true);
   const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | "victory" | "defeat" | null>(null);
   const [combatCallout, setCombatCallout] = useState<string | null>(null);
   const [flashingItemIds, setFlashingItemIds] = useState<string[]>([]);
@@ -571,6 +582,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
   }
   const effectiveCardEnergy = (card: BattleCard, cards: BattleCard[]) => {
+    if (card.id === battle.crystalDiscountCardId) return Math.max(-1, card.energy - 1);
     if (card.kind === "variable" && hasItem(itemIds, "catalyst") && cards.filter((item) => item.kind === "variable")[0]?.id === card.id) return Math.max(0, card.energy - 1);
     if (card.kind === "combo" && hasItem(itemIds, "duct-tape") && cards.filter((item) => item.kind === "combo")[0]?.id === card.id) return Math.max(0, card.energy - 1);
     return card.energy;
@@ -664,8 +676,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     || selectedCards.some((selected) => selected.id === card.generatedById && selected.label === "("),
   );
 
-  useEffect(() => () => stopBattleMusic(), []);
-
   useEffect(() => {
     window.setTimeout(() => flashItems("caltrops", "drogue", "satchel"), 250);
   }, []);
@@ -682,17 +692,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   }, [turn]);
 
   useEffect(() => {
-    if (!musicOn) return;
-    const unlockMusic = () => startBattleMusic();
-    window.addEventListener("pointerdown", unlockMusic, { once: true });
-    window.addEventListener("keydown", unlockMusic, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", unlockMusic);
-      window.removeEventListener("keydown", unlockMusic);
-    };
-  }, [musicOn]);
-
-  useEffect(() => {
     const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds };
     window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
   }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds, monster.id]);
@@ -703,16 +702,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
   useEffect(() => {
     if (monster.bossId !== "scriintyme" || phase !== "playing" || battle.playerHealth > 0) return;
-    stopBattleMusic();
     playBattleSound("defeat");
     setImpact("defeat");
     setPhase("defeat");
     setMessage(`${monster.name}'s screen drain finishes you. The dungeon returns you to its entrance.`);
   }, [battle.playerHealth, monster.bossId, monster.name, phase]);
-
-  function wakeAudio() {
-    if (musicOn) startBattleMusic();
-  }
 
   function addCard(card: BattleCard, bottled = false) {
     if (phase !== "playing" || selectedCards.some((selected) => selected.id === card.id)) return;
@@ -740,7 +734,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       const closingCard: BattleCard = { ...card, id: `${card.id}-close`, label: ")", token: ")", energy: 0, generatedById: card.id };
       setBattle((current) => ({ ...current, hand: [...current.hand, closingCard] }));
     }
-    wakeAudio();
     playBattleSound("card");
     if (bottled) setBottleUsed(true);
     setError("");
@@ -749,7 +742,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   function removeCard(card: BattleCard) {
     if (phase !== "playing") return;
     setSelectedCards((current) => current.filter((selected) => selected.id !== card.id));
-    wakeAudio();
     playBattleSound("card");
     if (card.id === battle.bottledCard.id) setBottleUsed(false);
     setError("");
@@ -796,6 +788,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       hand: replacement.hand,
       drawPile: replacement.drawPile,
       discardPile: replacement.discardPile,
+      crystalDiscountCardId: hasItem(itemIds, "crystal") ? choice(replacement.hand)?.id ?? null : current.crystalDiscountCardId,
       resourcefulnessRemaining: current.resourcefulnessRemaining - 1,
       playerHealth: hasItem(itemIds, "compost-juicer")
         ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1))
@@ -984,7 +977,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setRunDeck(lobotomy.cards);
       saveRunDeck(lobotomy.cards);
     }
-    wakeAudio();
     const expressionArmorGain = upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.ceil(Math.abs(value) * .15) : 0);
     const monsterDebuffNames = [
       ...(upgradeEffects.weaken > 0 || (countered && hasItem(itemIds, "tripwire")) ? ["Weaken"] : []),
@@ -1049,7 +1041,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       }
 
       if (playerHit.health === 0) {
-        stopBattleMusic();
         playBattleSound("defeat");
         setImpact("defeat");
         setPhase("defeat");
@@ -1078,7 +1069,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         saveProgress({ ...progress, coins: progress.coins + goldReward });
         saveRunHealth(healedHealth);
         setBattle((current) => ({ ...current, playerHealth: healedHealth }));
-        stopBattleMusic();
         playBattleSound("victory");
         setImpact("victory");
         setPhase("victory");
@@ -1093,7 +1083,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       const nextTurn = turn + 1;
       const nextAction = monsterAction(monster, nextTurn, battle.monsterActionDeck, battle.monsterLastAction);
       const regeneratedHealth = hasBuff(monster, "Regenerating")
-        ? Math.min(monster.maxHealth, enemyHealthAfterCurrentTurn + Math.max(1, Math.round(monster.maxHealth * 0.03)))
+        ? Math.min(battle.enemyMaxHealth, enemyHealthAfterCurrentTurn + Math.max(1, Math.round(battle.enemyMaxHealth * 0.03)))
         : enemyHealthAfterCurrentTurn;
       const cleanDrawPile = pendingSpellResult.battle.drawPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
       const cleanDiscardPile = pendingSpellResult.battle.discardPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
@@ -1118,6 +1108,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           }
         : nextDraw;
       const forcedCard = pendingSpellResult.battle.usurpDraws > 0 ? choice(immolatedDraw.hand) : null;
+      const batteryCarry = hasItem(itemIds, "battery") ? Math.max(0, availableEnergy - energyUsed) : 0;
       const nextBattleBase = {
         ...pendingSpellResult.battle,
         ...immolatedDraw,
@@ -1159,6 +1150,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         usurpDraws: forcedCard ? Math.max(0, nextBattleBase.usurpDraws - 1) : nextBattleBase.usurpDraws,
         forcedCardId: forcedCard?.id ?? null,
         nextTurnDraw: 0,
+        nextTurnEnergy: batteryCarry,
+        crystalDiscountCardId: hasItem(itemIds, "crystal") ? choice(immolatedDraw.hand)?.id ?? null : null,
         discardDamageStacks: 0,
       }));
       setSelectedCards([]);
@@ -1212,6 +1205,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const nextDeck = [...runDeck, chosenReward];
     saveRunDeck(nextDeck);
     setRunDeck(nextDeck);
+    if (hasItem(itemIds, "magnet")) queueItemRewardChoice("magnet", rewards.filter((reward) => reward.id !== chosenReward.id));
     finishRoom(true);
   }
 
@@ -1239,6 +1233,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         : runDeck.map((card) => card.id === target.id ? applyCardUpgrade(card, chosenReward.catalogId) : card);
       saveRunDeck(nextDeck);
       setRunDeck(nextDeck);
+      if (hasItem(itemIds, "magnet")) queueItemRewardChoice("magnet", rewards.filter((reward) => reward.id !== chosenReward.id));
       finishRoom(true);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "That upgrade could not be applied.");
@@ -1334,16 +1329,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <div><p>{roomLabel}</p><strong>{monster.name}</strong></div>
         <div className="battle-topbar-actions">
           <span>Turn {turn}</span>
-          <button
-            className="icon-button"
-            aria-label={musicOn ? "Mute battle music" : "Play battle music"}
-            onClick={() => {
-              if (musicOn) stopBattleMusic(); else startBattleMusic();
-              setMusicOn((current) => !current);
-            }}
-          >
-            {musicOn ? <Volume2 size={18} /> : <VolumeX size={18} />}
-          </button>
         </div>
       </header>
 
@@ -1457,7 +1442,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
               {visibleHand.map((card) => (
                 <div className="hand-card-slot" key={card.id}>
                   <GameCard
-                    card={card}
+                    card={card.id === battle.crystalDiscountCardId ? { ...card, energy: card.energy - 1 } : card}
                     onClick={() => selectedCards.some((selected) => selected.id === card.id) ? removeCard(card) : addCard(card)}
                     disabled={card.consumedThisTurn || cardLockedByPolarizing(card, monster, turn) || phase !== "playing"}
                     played={selectedCards.some((selected) => selected.id === card.id)}

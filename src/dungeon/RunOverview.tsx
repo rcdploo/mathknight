@@ -37,13 +37,19 @@ export default function RunOverview({ position }: { position?: RunPosition }) {
 
   const runPosition = position ?? loadRunPosition();
   const loadout = loadPermanentLoadout();
-  const stats = characterStatsForLevel(runPosition.level, loadout);
+  const baseStats = characterStatsForLevel(runPosition.level, loadout);
+  const runItemIds = loadRunItems();
+  const stats = {
+    ...baseStats,
+    maxHealth: Math.max(1, Math.round((baseStats.maxHealth + (runItemIds.includes("garlic") ? 50 : 0)) * (runItemIds.includes("glass-cannon") ? .85 : 1))),
+    energy: baseStats.energy + (runItemIds.includes("glass-cannon") ? 1 : 0) + (runItemIds.includes("heady-brew") ? 1 : 0),
+  };
   const savedHealth = Number(window.localStorage.getItem(runHealthKey));
   const health = savedHealth > 0 ? Math.min(savedHealth, stats.maxHealth) : stats.maxHealth;
   const gold = loadProgress().coins;
   const deck = loadRunDeck();
   const bottle = loadRunBottle();
-  const items = loadRunItems().flatMap((id) => {
+  const items = runItemIds.flatMap((id) => {
     const item = itemById.get(id);
     return item ? [item] : [];
   });

@@ -2,8 +2,10 @@ export type BattleSound = "card" | "hero-hit" | "enemy-hit" | "counter" | "victo
 
 let context: AudioContext | null = null;
 let musicTimer: number | null = null;
-let musicEnabled = true;
+let musicEnabled = false;
 let musicStarting = false;
+let musicScheduledUntil = 0;
+const ambientOscillators = new Set<OscillatorNode>();
 
 function audioContext() {
   if (!context) {
@@ -13,7 +15,7 @@ function audioContext() {
   return context;
 }
 
-function tone(frequency: number, start: number, duration: number, volume: number, type: OscillatorType = "sine") {
+function tone(frequency: number, start: number, duration: number, volume: number, type: OscillatorType = "sine", ambient = false) {
   const audio = audioContext();
   const oscillator = audio.createOscillator();
   const gain = audio.createGain();
@@ -24,6 +26,10 @@ function tone(frequency: number, start: number, duration: number, volume: number
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   oscillator.connect(gain);
   gain.connect(audio.destination);
+  if (ambient) {
+    ambientOscillators.add(oscillator);
+    oscillator.addEventListener("ended", () => ambientOscillators.delete(oscillator), { once: true });
+  }
   oscillator.start(start);
   oscillator.stop(start + duration + 0.02);
 }
@@ -56,29 +62,39 @@ function scheduleMusicLoop() {
   const melody = [220, 261.63, 293.66, 261.63, 246.94, 293.66, 329.63, 293.66];
   for (let beat = 0; beat < 64; beat += 1) {
     const step = beat % 8;
-    if (beat % 2 === 0) tone(bass[step], start + beat * 0.5, 0.42, 0.022, "triangle");
-    if (beat % 4 === 1) tone(melody[step], start + beat * 0.5, 0.3, 0.015, "sine");
+    if (beat % 2 === 0) tone(bass[step], start + beat * 0.5, 0.42, 0.03, "triangle", true);
+    if (beat % 4 === 1) tone(melody[step], start + beat * 0.5, 0.3, 0.022, "sine", true);
   }
+  musicScheduledUntil = start + 32;
 }
 
-export function startBattleMusic() {
+export function startAmbientMusic() {
   musicEnabled = true;
-  if (musicTimer !== null || musicStarting) return;
+  if (musicStarting) return;
   musicStarting = true;
   const audio = audioContext();
   void audio.resume().then(() => {
     musicStarting = false;
-    if (!musicEnabled || musicTimer !== null) return;
-    scheduleMusicLoop();
-    musicTimer = window.setInterval(scheduleMusicLoop, 32_000);
+    if (!musicEnabled) return;
+    if (musicTimer === null) musicTimer = window.setInterval(scheduleMusicLoop, 32_000);
+    if (audio.currentTime >= musicScheduledUntil - 0.1) scheduleMusicLoop();
   }).catch(() => {
     musicStarting = false;
   });
 }
 
-export function stopBattleMusic() {
+export function stopAmbientMusic() {
   musicEnabled = false;
   musicStarting = false;
   if (musicTimer !== null) window.clearInterval(musicTimer);
   musicTimer = null;
+  musicScheduledUntil = 0;
+  ambientOscillators.forEach((oscillator) => {
+    try {
+      oscillator.stop();
+    } catch {
+      // The oscillator may already have ended.
+    }
+  });
+  ambientOscillators.clear();
 }

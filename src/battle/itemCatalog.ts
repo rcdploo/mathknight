@@ -1,5 +1,5 @@
 import source from "./Items.csv?raw";
-import { canApplyUpgrade, shuffle, type BattleCard } from "./battleEngine";
+import { canApplyUpgrade, makeCard, shuffle, type BattleCard } from "./battleEngine";
 import { generateCombatRewards } from "./rewardGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 
@@ -200,6 +200,19 @@ function randomLegalUpgrades(count: number) {
 }
 
 function applyAcquisitionBonus(id: string, level: number) {
+  if (id === "heady-brew") {
+    const deck = loadDeck();
+    window.localStorage.setItem(runDeckKey, JSON.stringify([...deck, ...Array.from({ length: 3 }, () => makeCard("0", "number", 0))]));
+  }
+  if (id === "upsizer") {
+    const deck = loadDeck().map((card) => {
+      const digit = Number(card.label);
+      if (card.kind !== "number" || !Number.isInteger(digit) || digit < 1 || digit > 7) return card;
+      const replacement = makeCard(String(digit + 2), "number", digit + 2 <= 4 ? (digit + 2 <= 2 ? 0 : 1) : digit + 2 <= 6 ? 1 : 2);
+      return { ...replacement, id: card.id, upgrades: card.upgrades };
+    });
+    window.localStorage.setItem(runDeckKey, JSON.stringify(deck));
+  }
   if (id === "grab-bag") {
     savePendingItemChoice({ kind: "rewards", itemId: id, rewardSets: Array.from({ length: 3 }, () => generateCombatRewards(level).map((reward) => reward.card)) });
   }
@@ -223,6 +236,10 @@ function applyAcquisitionBonus(id: string, level: number) {
   if (id === "forge") {
     savePendingItemChoice({ kind: "forge", itemId: id });
   }
+}
+
+export function queueItemRewardChoice(itemId: string, rewards: BattleCard[]) {
+  savePendingItemChoice({ kind: "rewards", itemId, rewardSets: [rewards] });
 }
 
 export function loadPendingItemChoice() {

@@ -201,10 +201,12 @@ export default function DungeonGame({
   onExit,
   onTraining,
   onQuartermaster,
+  onBattleStateChange,
 }: {
   onExit: () => void;
   onTraining: () => void;
   onQuartermaster: () => void;
+  onBattleStateChange: (inBattle: boolean) => void;
 }) {
   const [dungeon, setDungeon] = useState<DungeonState>(loadDungeon);
   const [starLockMessage, setStarLockMessage] = useState<{ required: number; missing: number } | null>(null);
@@ -219,6 +221,11 @@ export default function DungeonGame({
   useEffect(() => {
     window.localStorage.setItem(dungeonStorageKey, JSON.stringify(dungeon));
   }, [dungeon]);
+
+  useEffect(() => {
+    onBattleStateChange(dungeon.view === "battle");
+    return () => onBattleStateChange(false);
+  }, [dungeon.view, onBattleStateChange]);
 
   useEffect(() => {
     const refresh = () => setItemChoiceVersion((version) => version + 1);
@@ -307,14 +314,20 @@ export default function DungeonGame({
     if (completedNode?.type === "boss") {
       const nextLevel = nextDungeonLevel(dungeon.level);
       const loadout = loadPermanentLoadout();
-      const priorStats = characterStatsForLevel(dungeon.level, loadout);
-      const nextStats = characterStatsForLevel(nextLevel, loadout);
+      const itemIds = loadRunItems();
+      const applyBossStats = (stats: ReturnType<typeof characterStatsForLevel>) => ({
+        ...stats,
+        maxHealth: Math.max(1, Math.round((stats.maxHealth + (itemIds.includes("garlic") ? 50 : 0)) * (itemIds.includes("glass-cannon") ? .85 : 1))),
+        energy: stats.energy + (itemIds.includes("glass-cannon") ? 1 : 0) + (itemIds.includes("heady-brew") ? 1 : 0),
+      });
+      const priorStats = applyBossStats(characterStatsForLevel(dungeon.level, loadout));
+      const nextStats = applyBossStats(characterStatsForLevel(nextLevel, loadout));
       savePermanentLoadout({
         ...loadout,
         deck: loadRunDeck(),
         bottledCard: loadRunBottle(),
         dungeonLevel: Math.max(loadout.dungeonLevel, nextLevel),
-        maxHealth: nextLevel > loadout.dungeonLevel ? nextStats.maxHealth : loadout.maxHealth,
+        maxHealth: nextLevel > loadout.dungeonLevel ? characterStatsForLevel(nextLevel, loadout).maxHealth : loadout.maxHealth,
       });
       window.localStorage.setItem(runHealthKey, String(nextStats.maxHealth));
       const unlocks = nextLevel > dungeon.level
@@ -690,6 +703,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
         <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{cardDescription(card.catalogId, card.label, card.effect)}</small>
       </button>)}</div>
       <div className="battle-actions"><button disabled={!chosenReward} onClick={chooseReward}>Choose reward</button></div>
+      {rewardChoice.itemId === "magnet" && <div className="battle-actions"><button onClick={() => finishReward()}>Continue without another card</button></div>}
     </section></main>;
   }
 

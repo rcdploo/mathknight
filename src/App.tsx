@@ -1,15 +1,36 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { RotateCcw, Settings, ShoppingBag, Swords } from "lucide-react";
 import DungeonGame from "./dungeon/DungeonGame";
 import RunOverview from "./dungeon/RunOverview";
 import { resetAllGameProgress } from "./game/resetGame";
 import Quartermaster from "./quartermaster/Quartermaster";
 import TrainingGrounds from "./training/TrainingGrounds";
+import { startAmbientMusic, stopAmbientMusic } from "./battle/battleAudio";
 
 type GameDestination = "hub" | "memory" | "battle" | "quartermaster";
 
 export default function App() {
   const [destination, setDestination] = useState<GameDestination>("hub");
+  const [inBattle, setInBattle] = useState(false);
+  const ambientAllowed = destination !== "battle" || !inBattle;
+
+  useEffect(() => {
+    if (!ambientAllowed) {
+      stopAmbientMusic();
+      return;
+    }
+
+    const resumeAmbient = () => startAmbientMusic();
+    resumeAmbient();
+    window.addEventListener("pointerdown", resumeAmbient);
+    window.addEventListener("keydown", resumeAmbient);
+    window.addEventListener("focus", resumeAmbient);
+    return () => {
+      window.removeEventListener("pointerdown", resumeAmbient);
+      window.removeEventListener("keydown", resumeAmbient);
+      window.removeEventListener("focus", resumeAmbient);
+    };
+  }, [ambientAllowed]);
 
   function startNewGame() {
     const confirmed = window.confirm(
@@ -29,6 +50,7 @@ export default function App() {
         onExit={() => setDestination("hub")}
         onTraining={() => setDestination("memory")}
         onQuartermaster={() => setDestination("quartermaster")}
+        onBattleStateChange={setInBattle}
       />
     );
   }
