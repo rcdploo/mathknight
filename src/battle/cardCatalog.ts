@@ -48,6 +48,7 @@ const descriptions: Record<string, string> = {
   "Crit": "20% chance to deal 1.5x damage.",
   "Reflecting": "Return half the damage you take this turn.",
   "Healing": "When used in an expression, heal 1 HP per Level.",
+  "Initiative": "When used in an expression, +10% damage on your next two turns.",
 };
 
 type SourceRow = {

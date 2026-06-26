@@ -649,9 +649,12 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
   }
 
   const deckChoice = choice;
-  const eligible = deck.filter((card) => !deckChoice.selectedIds.includes(card.id));
+  const eligible = deck.filter((card) =>
+    !deckChoice.selectedIds.includes(card.id)
+    && (deckChoice.kind !== "aluminum" || canApplyUpgrade(card, "efficiency"))
+  );
   function transformCard(card: BattleCard) {
-    if (choice.kind === "aluminum") return { ...card, energy: card.energy - 1 };
+    if (choice.kind === "aluminum") return applyCardUpgrade(card, "efficiency");
     const rarityValue: Record<CardRarity, number> = { Starter: 0, Common: 1, Uncommon: 2, Rare: 3 };
     const targetValue = rarityValue[card.rarity] + card.upgrades.length + 1;
     const higherRarity = cardCatalog.filter((definition) => !definition.isUpgrade && rarityValue[definition.rarity] > rarityValue[card.rarity]);
@@ -672,9 +675,10 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
     onUpdate(remaining > 0 ? { ...deckChoice, remaining, selectedIds: [...deckChoice.selectedIds, card.id] } : null);
   }
   return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
-    <p>{itemName}</p><h1>{deckChoice.kind === "aluminum" ? "Choose a card to reduce its Energy" : "Choose a card to transform"}</h1>
+    <p>{itemName}</p><h1>{deckChoice.kind === "aluminum" ? "Choose a card for Efficiency" : "Choose a card to transform"}</h1>
     <p className="room-event-message">{deckChoice.remaining} selection{deckChoice.remaining === 1 ? "" : "s"} remaining.</p>
     <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} bottled={loadPermanentLoadout().bottledCard.id === card.id} preview onClick={() => select(card)} key={card.id} />)}</div>
+    {deckChoice.kind === "aluminum" && eligible.length === 0 && <div className="battle-actions"><button onClick={() => onUpdate(null)}>No eligible cards</button></div>}
     {deckChoice.kind === "fresh-paint" && <div className="battle-actions"><button onClick={() => onUpdate(null)}>Finish early</button></div>}
   </section></main>;
 }
@@ -684,12 +688,13 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
   const [slots, setSlots] = useState<ShopSlot[]>(initial.slots);
   const [coins, setCoins] = useState(() => loadProgress().coins);
   const [deck, setDeck] = useState(loadRunDeckCards);
+  const [ownedItems, setOwnedItems] = useState(loadRunItems);
   const [targetSlot, setTargetSlot] = useState<ShopSlot | null>(null);
   const [randomRewardSlot, setRandomRewardSlot] = useState<ShopSlot | null>(null);
   const [randomRewards, setRandomRewards] = useState<BattleCard[]>([]);
   const [chosenRandomReward, setChosenRandomReward] = useState<BattleCard | null>(null);
   const [message, setMessage] = useState("Need more gold? Return to the Training Grounds to earn more.");
-  const discount = loadRunItems().includes("loyalty-card") ? .8 : 1;
+  const discount = ownedItems.includes("loyalty-card") ? .8 : 1;
   const shopPositionOrder = ["C1", "C2", "C3", "I1", "C4", "C5", "C6", "I2", "U1", "U2", "U3", "I3", "S1", "S2", "S3", "I4"];
   const orderedSlots = [...slots].sort((left, right) => shopPositionOrder.indexOf(left.position) - shopPositionOrder.indexOf(right.position));
 
@@ -724,9 +729,12 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
       persist(markSold(slot), [...deck, slot.card], coins - price);
       setMessage(`${slot.card.label} was added to your deck.`);
     } else if (slot.type === "item") {
-      addRunItem(slot.item.id, level);
+      const nextOwnedItems = addRunItem(slot.item.id, level);
+      setOwnedItems(nextOwnedItems);
       persist(markSold(slot), deck, coins - price);
-      setMessage(`${slot.item.name} was added to your item line.`);
+      setMessage(slot.item.id === "loyalty-card"
+        ? "Loyalty Card was added. Current shop prices are reduced."
+        : `${slot.item.name} was added to your item line.`);
     } else if (slot.type === "sustenance") {
       const maxHealth = loadPermanentLoadout().maxHealth;
       const current = Number(window.localStorage.getItem(runHealthKey)) || maxHealth;

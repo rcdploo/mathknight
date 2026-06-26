@@ -9,7 +9,7 @@ Card Name,Type,Rarity,Energy Cost,Effect,Median Purchase Cost at Shop
 8,Digit,Common,2,8,$90
 9,Digit,Uncommon,2,9,$120
 1_,Combo,Uncommon,2,Combines with another digit card in hand to make a two digit number (10+ that digit),$150
-2_,Combo,Rare,4,Combines with another digit card in hand to make a two digit number (20+ that digit),$200
+2_,Combo,Rare,3,Combines with another digit card in hand to make a two digit number (20+ that digit),$200
 +,Operator,Starter,1,<addition operator>,$75
 -,Operator,Uncommon,0,<subtraction operator>,$85
 x,Operator,Uncommon,2,<multiplication operator>,$125
@@ -37,3 +37,4 @@ Weaken,Upgrade (any),Uncommon,n/a,"When used in an expression, monster's attack 
 Crit,Upgrade (any),Uncommon,n/a,"When used in an expression, 20% change to do 1.5x damage [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade] <multiple instances on different cards trigger separately but it can only happen once, multiplier is to damage done not number produced>",$170
 Reflecting,Upgrade (any),Rare,n/a,"When used in an expression, 50% of the damage you suffer this turn is dealt back to the monster [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade] <can only occur once each turn>",$230
 Healing,Upgrade (any),Common,n/a,"When used in an expression, heal 1*Level health",$85
+Initiative,Upgrade (any),Uncommon,n/a,"When used in an expression, +10% damage on your next two turns",$165

@@ -39,7 +39,7 @@ Rabbit's Foot,Boss,Rewards,n/a,Items can show up in card rewards,"[Can show up i
 Glass Cannon,Boss,Energy,n/a,+1 Energy. Max HP reduced by 15%,
 Fresh Paint,Boss,Deck,n/a,Transform up to 3 cards into random cards of higher rarity. ,"[Consider the total value of the card plus upgrades. Randomize uniformly over higher rarity cards. Rare cards transform into rare upgraded cards, with a random upgrade. Previously upgraded cards roll new upgrades at a +1 total card value]"
 Smithy,Boss,Deck,n/a,Get 3 random upgrades,[Roll uniformly. Must be upgrades the player can legally apply to at least one card]
-Aluminum,Boss,Deck,n/a,Choose 3 cards--reduce each of their energy costs by 1,
+Aluminum,Boss,Deck,n/a,Apply an Efficiency Upgrade (-1 Energy Cost) to 3 cards in your deck,
 Battery,Boss,Energy,n/a,Unspent energy is retained between turns,
 Crystal,Boss,Energy,n/a,A random card in each hand you draw has its cost reduced by 1.,
 Heady Brew,Boss,Energy,n/a,+1 Energy. Add three 0s to your deck.,

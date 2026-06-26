@@ -196,6 +196,7 @@ export type ExpressionUpgradeEffects = {
   bashAttempts: number;
   critAttempts: number;
   reflecting: boolean;
+  initiative: number;
 };
 
 export function expressionUpgradeEffects(cards: BattleCard[]): ExpressionUpgradeEffects {
@@ -205,6 +206,7 @@ export function expressionUpgradeEffects(cards: BattleCard[]): ExpressionUpgrade
   let bashAttempts = 0;
   let critAttempts = 0;
   let reflecting = false;
+  let initiative = 0;
   cards.forEach((card) => {
     if (card.upgrades.includes("armor") && card.kind === "number") armor += upgradedValue(card, Number(card.token));
     if (card.upgrades.includes("weaken")) weaken += 1;
@@ -212,8 +214,9 @@ export function expressionUpgradeEffects(cards: BattleCard[]): ExpressionUpgrade
     if (card.upgrades.includes("bash")) bashAttempts += 1;
     if (card.upgrades.includes("crit")) critAttempts += 1;
     if (card.upgrades.includes("reflecting")) reflecting = true;
+    if (card.upgrades.includes("initiative")) initiative += 1;
   });
-  return { armor, weaken, healing, bashAttempts, critAttempts, reflecting };
+  return { armor, weaken, healing, bashAttempts, critAttempts, reflecting, initiative };
 }
 
 export function rollAny(attempts: number, chance: number) {

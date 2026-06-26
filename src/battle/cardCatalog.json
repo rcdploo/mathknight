@@ -83,7 +83,7 @@
         "Card Name":  "2_",
         "Type":  "Combo",
         "Rarity":  "Rare",
-        "Energy Cost":  "4",
+        "Energy Cost":  "3",
         "Effect":  "Combines with another digit card in hand to make a two digit number (20+ that digit)",
         "Median Purchase Cost at Shop":  "$200"
     },
@@ -302,5 +302,13 @@
         "Energy Cost":  "n/a",
         "Effect":  "When used in an expression, heal 1*Level health",
         "Median Purchase Cost at Shop":  "$85"
+    },
+    {
+        "Card Name":  "Initiative",
+        "Type":  "Upgrade (any)",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "n/a",
+        "Effect":  "When used in an expression, +10% damage on your next two turns",
+        "Median Purchase Cost at Shop":  "$165"
     }
 ]

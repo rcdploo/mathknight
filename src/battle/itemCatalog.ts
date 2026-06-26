@@ -194,7 +194,7 @@ function savePendingItemChoice(choice: PendingItemChoice | null) {
 
 function randomLegalUpgrades(count: number) {
   const deck = loadDeck();
-  return shuffle(["armor", "plus-1", "plus-3", "cycling", "consumable", "efficiency", "bash", "weaken", "crit", "reflecting", "healing"])
+  return shuffle(["armor", "plus-1", "plus-3", "cycling", "consumable", "efficiency", "bash", "weaken", "crit", "reflecting", "healing", "initiative"])
     .filter((upgrade) => deck.some((card) => canApplyUpgrade(card, upgrade)))
     .slice(0, count);
 }

@@ -59,4 +59,5 @@ const upgradeVisuals: Record<string, { label: string; category: "defense" | "off
   efficiency: { label: "E", category: "energy" }, consumable: { label: "C", category: "energy" },
   cycling: { label: "C", category: "special" }, reflecting: { label: "R", category: "special" },
   healing: { label: "H", category: "healing" },
+  initiative: { label: "I", category: "offense" },
 };

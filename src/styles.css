@@ -999,6 +999,7 @@ button {
 .health-bar span { display: block; height: 100%; background: #58a878; transition: width 300ms ease; }
 .health-bar.enemy span { background: #c45c4d; }
 .armor-readout { display: flex; align-items: center; gap: 5px; color: #b9c9d4; font-size: 0.75rem; }
+.armor-readout.armor-flashing { animation: armor-flash 420ms ease-in-out 2; }
 .combat-center { align-self: center; display: grid; justify-items: center; gap: 18px; text-align: center; }
 .combat-callout { padding: 7px 12px; border: 1px solid #f0ca73; border-radius: 7px; background: rgba(72,48,15,.94); color: #ffe8a3; font-size: .82rem; font-weight: 900; animation: combat-callout 800ms ease-out forwards; }
 @keyframes combat-callout { 0% { opacity: 0; transform: scale(.85); } 18%, 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translateY(-8px); } }
@@ -1093,6 +1094,17 @@ button {
 .expression-result.counter-ready { border-color: #f0ca73; background: #4e421f; color: #fff3bd; animation: counter-ready 900ms ease-in-out infinite; }
 .expression-result.weakened-preview { border-color: #a84f55; color: #ffb5ae; }
 .weaken-flash { animation: weaken-flash 600ms ease-in-out 3; }
+.combatant-status-badges span.status-flashing { animation: status-flash 420ms ease-in-out 2; }
+
+@keyframes armor-flash {
+  0%, 100% { color: #b9c9d4; transform: scale(1); text-shadow: none; }
+  50% { color: #dff6ff; transform: scale(1.18); text-shadow: 0 0 12px rgba(117,210,255,.9); }
+}
+
+@keyframes status-flash {
+  0%, 100% { transform: scale(1); box-shadow: none; }
+  50% { transform: scale(1.2); box-shadow: 0 0 14px rgba(255,230,142,.85); }
+}
 
 @keyframes weaken-flash {
   0%, 100% { filter: brightness(1); box-shadow: 0 0 0 rgba(217, 89, 89, 0); }
