@@ -17,6 +17,8 @@ const stageProblems: Record<Stage, ProblemType[]> = {
 
 function randomInt(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function choice<T>(items: T[]) { return items[randomInt(0, items.length - 1)]; }
+function advancedLesson(level: LevelConfig) { return level.kind === "level3" || level.kind === "boss"; }
+function singleDigitMin(advanced: boolean) { return advanced ? 2 : 1; }
 function shuffle<T>(items: T[]) {
   const result = [...items];
   for (let index = result.length - 1; index > 0; index -= 1) {
@@ -30,7 +32,7 @@ function visual(shape: GeometryVisual["shape"], entries: Array<[string, Geometry
   return { shape, measurements: entries.map(([label, position]) => ({ label, position })) };
 }
 
-function makeProblem(type: ProblemType) {
+function makeProblem(type: ProblemType, advanced: boolean) {
   if (type.startsWith("rectangle")) {
     const width = randomInt(2, 9);
     const height = Math.random() < 0.25 ? width : randomInt(2, 9);
@@ -53,7 +55,7 @@ function makeProblem(type: ProblemType) {
   }
   if (type.startsWith("circle")) {
     const useRadius = Math.random() < 0.5;
-    const measure = useRadius ? randomInt(1, 9) : choice([2, 4, 6, 8]);
+    const measure = useRadius ? randomInt(singleDigitMin(advanced), 9) : choice([2, 4, 6, 8]);
     const radius = useRadius ? measure : measure / 2;
     const area = type.endsWith("area");
     const coefficient = area ? radius ** 2 : 2 * radius;
@@ -65,24 +67,25 @@ function makeProblem(type: ProblemType) {
     return { answer: `${area ? "Area" : "Perimeter"} ${area ? ((template.top + template.bottom) * template.height) / 2 : template.top + template.bottom + 2 * template.side}`, geometry: visual("trapezoid", area ? [[String(template.top), "top"], [String(template.bottom), "bottom"], [String(template.height), "inside"]] : [[String(template.top), "top"], [String(template.bottom), "bottom"], [String(template.side), "left"], [String(template.side), "right"]]) };
   }
   if (type === "hexagon-perimeter") {
-    const side = randomInt(1, 9);
+    const side = randomInt(singleDigitMin(advanced), 9);
     return { answer: `Perimeter ${6 * side}`, geometry: visual("hexagon", [[String(side), "bottom"]]) };
   }
-  const width = randomInt(4, 9); const height = randomInt(4, 9); const cutWidth = randomInt(1, width - 2); const cutHeight = randomInt(1, height - 2);
+  const width = randomInt(4, 9); const height = randomInt(4, 9); const cutWidth = randomInt(singleDigitMin(advanced), width - 2); const cutHeight = randomInt(singleDigitMin(advanced), height - 2);
   const area = type === "l-area";
   return { answer: `${area ? "Area" : "Perimeter"} ${area ? width * height - cutWidth * cutHeight : 2 * (width + height)}`, geometry: visual("l-shape", area ? [[String(width), "bottom"], [String(height), "left"], [String(cutWidth), "cutout-horizontal"], [String(cutHeight), "cutout-vertical"]] : [[String(width), "bottom"], [String(height), "left"]]) };
 }
 
 export function generateGeometryPuzzle(level: LevelConfig): PuzzleCard[] {
+  const advanced = advancedLesson(level);
   const types = stageProblems[level.stage];
   const planned = types.flatMap((type) => [type, type]);
   while (planned.length < level.pairs) planned.push(choice(types));
   const answers = new Set<string>();
   const cards: PuzzleCard[] = [];
   shuffle(planned).forEach((type, index) => {
-    let problem = makeProblem(type);
+    let problem = makeProblem(type, advanced);
     let guard = 0;
-    while (answers.has(problem.answer) && guard < 200) { problem = makeProblem(type); guard += 1; }
+    while (answers.has(problem.answer) && guard < 200) { problem = makeProblem(type, advanced); guard += 1; }
     answers.add(problem.answer);
     const pairId = `${level.id}_pair${index + 1}`;
     cards.push({ id: `${pairId}_expression`, pairId, kind: "expression", label: "", geometry: problem.geometry, matched: false });

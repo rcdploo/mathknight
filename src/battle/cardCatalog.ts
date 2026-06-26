@@ -44,7 +44,7 @@ const descriptions: Record<string, string> = {
   "Consumable": "Discard this card for 1 Energy this turn.",
   "Efficiency": "Permanently reduce this card's Energy cost by 1.",
   "Bash": "10% chance to stun the monster next turn.",
-  "Weaken": "Reduce the monster's current and next attack by 10%.",
+  "Weaken": "Reduce the monster's attack by 10% for its next two turns.",
   "Crit": "20% chance to deal 1.5x damage.",
   "Reflecting": "Return half the damage you take this turn.",
   "Healing": "When used in an expression, heal 1 HP per Level.",

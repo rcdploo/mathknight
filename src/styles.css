@@ -1130,6 +1130,7 @@ button {
 .battle-card.upgrades-5 { box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 6px #55b879; }
 .battle-card.forced { border-color: #f0ca73; box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 4px rgba(240,202,115,.38); }
 .battle-card:disabled { opacity: .34; cursor: not-allowed; transform: translateY(5px); }
+.battle-card.played { opacity: .34; cursor: pointer; transform: translateY(5px); }
 .battle-card.preview { width: 104px; cursor: default; }
 .battle-card small { justify-self: start; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #73c8dc; color: #102b31; font-weight: 900; }
 .battle-card.operator small { background: #f0ca73; color: #33270f; }

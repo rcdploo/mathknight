@@ -430,6 +430,7 @@ function createBattle(monster: GeneratedMonster) {
     enemyMaxHealth: monster.maxHealth,
     enemyStunned: false,
     weakenNext: hasItem(itemIds, "caltrops") ? 3 : 0,
+    weakenTurns: hasItem(itemIds, "caltrops") ? 1 : 0,
     monsterActionDeck: openingAction.actionDeck,
     monsterLastAction: openingAction.action,
     monsterMessage: openingAction.text,
@@ -497,6 +498,7 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
         nextTurnDraw: parsed.battle.nextTurnDraw ?? 0,
         discardDamageStacks: parsed.battle.discardDamageStacks ?? 0,
         phoenixUsed: parsed.battle.phoenixUsed ?? false,
+        weakenTurns: parsed.battle.weakenTurns ?? (parsed.battle.weakenNext > 0 ? 1 : 0),
         enemyFakeIntentFirst: parsed.battle.enemyFakeIntentFirst ?? false,
         maxEnergy: parsed.battle.maxEnergy ?? characterStatsForLevel(monster.level).energy,
         handSize: parsed.battle.handSize ?? characterStatsForLevel(monster.level).handSize,
@@ -560,7 +562,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       : hasItem(itemIds, "orrery") && turn % 5 === 0 ? 3 : 0;
   const availableEnergy = Math.max(1, battle.maxEnergy - energyDrainPenalty) + consumedEnergy + rhythmicEnergy + battle.nextTurnEnergy;
   const upgradeEffects = useMemo(() => expressionUpgradeEffects(selectedCards), [selectedCards]);
-  const weakenStacks = battle.weakenNext + upgradeEffects.weaken;
+  const weakenStacks = battle.weakenTurns > 0 ? battle.weakenNext : 0;
   const weakenPerStack = Math.max(1, Math.round(battle.enemyIntent * 0.1));
   const displayedIntent = battle.enemyStunned
     ? 0
@@ -577,11 +579,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       : displayedIntent > 0
         ? [displayedIntent]
         : [];
-  const spellSymbols = battle.enemyStunned ? [] : battle.pendingMonsterSpells.map((spell, index) => ({
-    id: `${spell}-${index}`,
-    label: spellName(spell)[0] ?? "\u2726",
-    title: `${spellLabel(spell)}${spellNumber(spell) > 0 ? ` for ${spellNumber(spell)} turn${spellNumber(spell) === 1 ? "" : "s"}` : ""}`,
-  }));
+  const spellSymbols = battle.enemyStunned ? [] : Array.from({ length: battle.enemySpellCount }, (_, index) => index);
   const displayedBlock = battle.enemyStunned ? 0 : battle.enemyArmor;
   const rawPreviewResult = useMemo(() => {
     try {
@@ -625,8 +623,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const activeStatuses = statusTiles.filter((status): status is StatusTile => status !== null);
   const monsterStatusBuffs: MonsterBuffTile[] = [
     ...monsterSpellBuffs(battle, monster.level),
-    ...(battle.weakenNext > 0
-      ? [{ name: "Weaken", symbol: "W", value: battle.weakenNext, effect: "The monster's next attack deals 10% less damage per stack.", tone: "debuff" as const }]
+    ...(battle.weakenTurns > 0 && battle.weakenNext > 0
+      ? [{ name: "Weaken", symbol: "W", value: battle.weakenTurns, effect: `The monster's attack deals ${battle.weakenNext * 10}% less damage.`, tone: "debuff" as const }]
       : []),
   ];
   const visibleHand = battle.hand.filter((card) =>
@@ -909,6 +907,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       confoundTurns: Math.max(0, battle.confoundTurns - 1),
       energyDrainTurns: Math.max(0, battle.energyDrainTurns - 1),
       immolationTurns: monster.bossId === "karebear" ? battle.immolationTurns : Math.max(0, battle.immolationTurns - 1),
+      weakenTurns: Math.max(0, battle.weakenTurns - 1),
       heroicWillRemaining: battle.heroicWillRemaining - (heroicWillTriggered ? 1 : 0),
     };
     const survivedBattle = heroicWillTriggered ? clearPlayerDebuffs(expiredDebuffs) : expiredDebuffs;
@@ -925,7 +924,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       pendingSpellResult.battle.playerWeakenTurns = Math.max(pendingSpellResult.battle.playerWeakenTurns, 1);
     }
     if (heroicWillTriggered) pendingSpellResult.battle = clearPlayerDebuffs(pendingSpellResult.battle);
-    if (countered && hasItem(itemIds, "tripwire")) pendingSpellResult.battle.weakenNext = Math.max(pendingSpellResult.battle.weakenNext, 2);
+    if (countered && hasItem(itemIds, "tripwire")) {
+      pendingSpellResult.battle.weakenNext = Math.max(pendingSpellResult.battle.weakenNext, 1);
+      pendingSpellResult.battle.weakenTurns = Math.max(pendingSpellResult.battle.weakenTurns, 2);
+    }
     if (countered && hasItem(itemIds, "reverser")) pendingSpellResult.battle.playerHealth = Math.min(pendingSpellResult.battle.playerMaxHealth, pendingSpellResult.battle.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth / 2 ? 2 : 1));
     if (countered && hasItem(itemIds, "snapshot")) pendingSpellResult.battle.nextTurnDraw += 1;
     if (countered && hasItem(itemIds, "riposte-charm")) pendingSpellResult.battle = removeOnePlayerDebuff(pendingSpellResult.battle);
@@ -1002,9 +1004,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       const regeneratedHealth = hasBuff(monster, "Regenerating")
         ? Math.min(monster.maxHealth, enemyHealthAfterCurrentTurn + Math.max(1, Math.round(monster.maxHealth * 0.03)))
         : enemyHealthAfterCurrentTurn;
-      const cleanDrawPile = battle.drawPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
-      const cleanDiscardPile = battle.discardPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
-      const cleanHand = battle.hand.filter((card) => !isTemporaryCard(card) && !isClosingParenthesisHelper(card) && !card.consumedThisTurn);
+      const cleanDrawPile = pendingSpellResult.battle.drawPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
+      const cleanDiscardPile = pendingSpellResult.battle.discardPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
+      const cleanHand = pendingSpellResult.battle.hand.filter((card) => !isTemporaryCard(card) && !isClosingParenthesisHelper(card) && !card.consumedThisTurn);
       const baseDrawPile = hasBuff(monster, "Dazing")
         ? shuffle([...cleanDrawPile, makeZeroCard("Dazing")])
         : cleanDrawPile;
@@ -1030,6 +1032,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         ...immolatedDraw,
         enemyHealth: regeneratedHealth,
       };
+      const nextWeakenStacks = Math.max(nextBattleBase.weakenTurns > 0 ? nextBattleBase.weakenNext : 0, upgradeEffects.weaken);
+      const nextWeakenTurns = Math.max(nextBattleBase.weakenTurns, upgradeEffects.weaken > 0 ? 2 : 0);
       const nextIntent = Math.round(nextAction.intent * (1 + nextBattleBase.enrageStacks * 0.1));
       const nextSecondaryIntent = Math.round(nextAction.secondaryIntent * (1 + nextBattleBase.enrageStacks * 0.1));
       setBattle((current) => ({
@@ -1043,7 +1047,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         enemySpellCount: stunnedNext ? 0 : nextAction.spells?.length ?? 0,
         enemyArmor: nextAction.armor,
         enemyStunned: stunnedNext,
-        weakenNext: upgradeEffects.weaken,
+        weakenNext: nextWeakenStacks,
+        weakenTurns: nextWeakenStacks > 0 ? nextWeakenTurns : 0,
         playerArmor: (countered && hasItem(itemIds, "quarterstaff") ? monster.level * 5 : 0)
           + (hasItem(itemIds, "skene-cleat") && nextTurn === 2 ? monster.level * 6 : 0)
           + (hasItem(itemIds, "tiller") && nextTurn === 3 ? monster.level * 7 : 0),
@@ -1290,6 +1295,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <Combatant
           name="Mathknight"
           sprite={"\u265E"}
+          statusBuffs={activeStatuses}
           health={battle.playerHealth}
           maxHealth={battle.playerMaxHealth}
           armor={battle.playerArmor + (phase === "playing" ? upgradeEffects.armor : 0)}
@@ -1308,7 +1314,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
                 </span>
               ))}
               {displayedBlock > 0 && <span className="block-intent" title="Block"><Shield size={20} /> {displayedBlock}</span>}
-              {spellSymbols.map((symbol) => <span className="spell-intent" title={symbol.title} key={symbol.id}>{symbol.label}</span>)}
+              {spellSymbols.map((symbol) => <span className="spell-intent" title="Spell cast" key={symbol}>{"\u2726"}</span>)}
             </strong>
           </div>
           <p className="combat-message">{message}</p>
@@ -1358,6 +1364,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
                     card={card}
                     onClick={() => selectedCards.some((selected) => selected.id === card.id) ? removeCard(card) : addCard(card)}
                     disabled={card.consumedThisTurn || cardLockedByPolarizing(card, monster, turn) || phase !== "playing"}
+                    played={selectedCards.some((selected) => selected.id === card.id)}
                     forced={battle.forcedCardId === card.id}
                     level={monster.level}
                   />

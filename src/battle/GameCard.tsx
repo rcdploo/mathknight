@@ -2,7 +2,7 @@ import { cardById, cardDescription } from "./cardCatalog";
 import type { BattleCard } from "./battleEngine";
 
 export default function GameCard({
-  card, onClick, disabled = false, bottled = false, preview = false, forced = false, price, badge, level,
+  card, onClick, disabled = false, bottled = false, preview = false, forced = false, played = false, price, badge, level,
 }: {
   card: BattleCard;
   onClick: () => void;
@@ -10,6 +10,7 @@ export default function GameCard({
   bottled?: boolean;
   preview?: boolean;
   forced?: boolean;
+  played?: boolean;
   price?: number;
   badge?: string;
   level?: number;
@@ -17,7 +18,7 @@ export default function GameCard({
   const typeClass = card.type.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
   const upgradeCount = Math.min(card.upgrades.length, 5);
   return <button
-    className={`battle-card ${card.kind} type-${typeClass} rarity-${card.rarity.toLowerCase()} upgrades-${upgradeCount} ${preview ? "preview" : ""} ${forced ? "forced" : ""}`}
+    className={`battle-card ${card.kind} type-${typeClass} rarity-${card.rarity.toLowerCase()} upgrades-${upgradeCount} ${preview ? "preview" : ""} ${forced ? "forced" : ""} ${played ? "played" : ""}`}
     onClick={onClick}
     disabled={!preview && disabled}
   >

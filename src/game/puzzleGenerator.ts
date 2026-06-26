@@ -16,6 +16,17 @@ function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function advancedLesson(level: LevelConfig) {
+  return level.kind === "level3" || level.kind === "boss";
+}
+
+function withoutTinySingleDigits(range: [number, number], advanced: boolean): [number, number] {
+  if (!advanced) return range;
+  const [min, max] = range;
+  if (max > 9) return range;
+  return [Math.max(2, min), max];
+}
+
 function shuffle<T>(items: T[]) {
   const copy = [...items];
   for (let index = copy.length - 1; index > 0; index -= 1) {
@@ -33,20 +44,24 @@ function gcd(left: number, right: number): number {
   return right === 0 ? Math.abs(left) : gcd(right, left % right);
 }
 
-function fractionRanges(stage: Stage) {
+function fractionRanges(level: LevelConfig) {
+  const stage = level.stage;
+  const advanced = advancedLesson(level);
   const range = stageRanges[stage];
-  const leftSize = range.left[1] - range.left[0];
-  const rightSize = range.right[1] - range.right[0];
-  if (range.right[1] > range.left[1] || rightSize > leftSize) return { numerator: range.right, denominator: range.left };
-  return { numerator: range.left, denominator: range.right };
+  const left = withoutTinySingleDigits(range.left, advanced);
+  const right = withoutTinySingleDigits(range.right, advanced);
+  const leftSize = left[1] - left[0];
+  const rightSize = right[1] - right[0];
+  if (right[1] > left[1] || rightSize > leftSize) return { numerator: right, denominator: left };
+  return { numerator: left, denominator: right };
 }
 
 function conciseNumber(value: number) {
   return String(Number(value.toFixed(4)));
 }
 
-function makeFractionRepresentations(stage: Stage) {
-  const ranges = fractionRanges(stage);
+function makeFractionRepresentations(level: LevelConfig) {
+  const ranges = fractionRanges(level);
   for (let attempt = 0; attempt < 800; attempt += 1) {
     const numerator = randomInt(Math.max(1, ranges.numerator[0]), ranges.numerator[1]);
     const denominator = randomInt(Math.max(1, ranges.denominator[0]), ranges.denominator[1]);
@@ -83,7 +98,7 @@ function makeFractionRepresentations(stage: Stage) {
       } as Record<FractionForm, string | undefined>,
     };
   }
-  throw new Error(`Could not generate a familiar fraction for stage ${stage}.`);
+  throw new Error(`Could not generate a familiar fraction for ${level.id}.`);
 }
 
 function formPair(fractionCardCount: number): [FractionForm, FractionForm] {
@@ -109,7 +124,7 @@ function generateFractionPuzzle(level: LevelConfig): PuzzleCard[] {
   for (let index = 0; index < level.pairs; index += 1) {
     let guard = 0;
     while (guard < 800) {
-      const representation = makeFractionRepresentations(level.stage);
+      const representation = makeFractionRepresentations(level);
       const valueKey = representation.value.toFixed(8);
       const [blueForm, greenForm] = formPair(fractionCounts[index]);
       const blue = representation.labels[blueForm];
@@ -132,8 +147,9 @@ function generateFractionPuzzle(level: LevelConfig): PuzzleCard[] {
 
 function makePair(level: LevelConfig, index: number): PuzzlePair {
   const range = stageRanges[level.stage];
-  let left = randomInt(...range.left);
-  let right = randomInt(...range.right);
+  const advanced = advancedLesson(level);
+  let left = randomInt(...withoutTinySingleDigits(range.left, advanced));
+  let right = randomInt(...withoutTinySingleDigits(range.right, advanced));
   let result = 0;
   let symbol = "+";
 
