@@ -1205,7 +1205,7 @@ button {
 .boss-item-reward > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: #24121f; color: #ffb8eb; font-weight: 900; }
 .boss-item-reward small { color: #eab4db; text-transform: uppercase; }
 .boss-item-reward p { margin: 0; color: #eadde7; font-size: .78rem; line-height: 1.4; }
-.reward-item-row { display: flex; justify-content: center; margin: 0 0 24px; }
+.reward-item-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; margin: 0 0 24px; }
 .reward-item-square { display: grid; place-items: center; align-content: center; gap: 8px; width: min(220px, 100%); aspect-ratio: 1; padding: 18px; border: 4px solid #e7a8d8; border-radius: 8px; background: #523752; color: white; text-align: center; }
 .reward-item-square.rarity-common { border-color: #f2f0e8; }
 .reward-item-square.rarity-uncommon { border-color: #55aee6; }

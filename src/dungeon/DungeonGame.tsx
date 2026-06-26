@@ -634,12 +634,27 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
   }
 
   if (choice.kind === "forge") {
+    if (choice.itemIds && choice.itemIds.length > 0) {
+      const acquiredItems = choice.itemIds.map((id) => itemById.get(id)).filter((item): item is ItemDefinition => item !== undefined);
+      return <main className="battle-game reward-screen"><section className="reward-panel">
+        <p>Forge</p><h1>Items acquired</h1>
+        <div className="reward-item-row">
+          {acquiredItems.map((item) => <div className={`reward-item-square rarity-${item.rarity.toLowerCase()}`} key={item.id}>
+            <strong>{itemSymbol(item)}</strong>
+            <span>Item acquired</span>
+            <b>{item.name}</b>
+            <small>{item.effect}</small>
+          </div>)}
+        </div>
+        <div className="battle-actions"><button onClick={() => onUpdate(null)}>Continue</button></div>
+      </section></main>;
+    }
     const eligible = deck.filter((card) => card.upgrades.length > 0);
     function forge(card: BattleCard) {
       persistDeck(deck.filter((entry) => entry.id !== card.id));
       const items = surfaceItems(2);
       saveRunItems([...loadRunItems(), ...items.map((item) => item.id)]);
-      onUpdate(null);
+      onUpdate({ kind: "forge", itemId: "forge", itemIds: items.map((item) => item.id) });
     }
     return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
       <p>Forge</p><h1>Destroy an upgraded card</h1>

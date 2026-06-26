@@ -640,7 +640,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     ? [...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
     : [...battle.discardPile].reverse();
   const statusTiles: Array<StatusTile | null> = [
-    battle.heroicWillRemaining > 0 ? { name: "Heroic Will", symbol: "H", value: battle.heroicWillRemaining, tone: "buff" as const, effect: "Lethal damage leaves you at 25% HP and removes all debuffs." } : null,
     battle.discardDamageStacks > 0 ? { name: "Fertilizer", symbol: "F", value: battle.discardDamageStacks, tone: "buff" as const, effect: `Your damage is increased by ${battle.discardDamageStacks * 10}% this turn.` } : null,
     battle.initiativeTurns > 0 ? { name: "Initiative", symbol: "I", value: battle.initiativeTurns, tone: "buff" as const, effect: "Your damage is increased by 10%." } : null,
     battle.crippleTurns > 0 ? { name: "Cripple", symbol: "C", value: battle.crippleTurns, tone: "debuff" as const, effect: "You can use at most one operator." } : null,

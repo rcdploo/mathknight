@@ -24,7 +24,7 @@ export type PendingItemChoice =
   | { kind: "rewards"; itemId: string; rewardSets: BattleCard[][] }
   | { kind: "aluminum"; itemId: "aluminum"; remaining: number; selectedIds: string[] }
   | { kind: "fresh-paint"; itemId: "fresh-paint"; remaining: number; selectedIds: string[] }
-  | { kind: "forge"; itemId: "forge" };
+  | { kind: "forge"; itemId: "forge"; itemIds?: string[] };
 
 function parseCsv(text: string) {
   const rows: string[][] = [];
