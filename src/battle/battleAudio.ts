@@ -16,6 +16,13 @@ let combatIntensity: CombatMusicIntensity = "standard";
 const combatOscillators = new Set<OscillatorNode>();
 type AudioGroup = "ambient" | "combat" | "effects";
 const masterGains: Partial<Record<AudioGroup, GainNode>> = {};
+const AMBIENT_MIX = 1.4;
+const STANDARD_COMBAT_MIX = 0.65;
+const BOSS_COMBAT_MIX = 0.45;
+
+function mixedVolume(volume: number, mix: number) {
+  return volume * mix;
+}
 
 function audioContext() {
   if (!context) {
@@ -96,8 +103,8 @@ function scheduleMusicLoop() {
   const melody = [220, 261.63, 293.66, 261.63, 246.94, 293.66, 329.63, 293.66];
   for (let beat = 0; beat < 64; beat += 1) {
     const step = beat % 8;
-    if (beat % 2 === 0) tone(bass[step], start + beat * 0.5, 0.42, 0.04, "triangle", "ambient");
-    if (beat % 4 === 1) tone(melody[step], start + beat * 0.5, 0.3, 0.03, "sine", "ambient");
+    if (beat % 2 === 0) tone(bass[step], start + beat * 0.5, 0.42, mixedVolume(0.04, AMBIENT_MIX), "triangle", "ambient");
+    if (beat % 4 === 1) tone(melody[step], start + beat * 0.5, 0.3, mixedVolume(0.03, AMBIENT_MIX), "sine", "ambient");
   }
   musicScheduledUntil = start + 32;
 }
@@ -143,10 +150,10 @@ function scheduleStandardCombatLoop() {
   for (let step = 0; step < 32; step += 1) {
     const index = step % 8;
     const at = start + step * stepLength;
-    tone(bass[index], at, 0.2, 0.035, "sawtooth", "combat");
-    if (step % 2 === 0) tone(lead[index], at + 0.025, 0.13, 0.022, "square", "combat");
-    if (step % 4 === 0) tone(65.41, at, 0.14, 0.05, "triangle", "combat");
-    if (step % 4 === 2) tone(196, at, 0.055, 0.018, "square", "combat");
+    tone(bass[index], at, 0.2, mixedVolume(0.035, STANDARD_COMBAT_MIX), "sawtooth", "combat");
+    if (step % 2 === 0) tone(lead[index], at + 0.025, 0.13, mixedVolume(0.022, STANDARD_COMBAT_MIX), "square", "combat");
+    if (step % 4 === 0) tone(65.41, at, 0.14, mixedVolume(0.05, STANDARD_COMBAT_MIX), "triangle", "combat");
+    if (step % 4 === 2) tone(196, at, 0.055, mixedVolume(0.018, STANDARD_COMBAT_MIX), "square", "combat");
   }
   combatScheduledUntil = start + 32 * stepLength;
 }
@@ -161,14 +168,14 @@ function scheduleEpicCombatLoop() {
   for (let step = 0; step < 32; step += 1) {
     const index = step % 8;
     const at = start + step * stepLength;
-    tone(bass[index], at, 0.17, 0.045, "sawtooth", "combat");
-    tone(bass[index] * 2, at, 0.12, 0.018, "square", "combat");
+    tone(bass[index], at, 0.17, mixedVolume(0.045, BOSS_COMBAT_MIX), "sawtooth", "combat");
+    tone(bass[index] * 2, at, 0.12, mixedVolume(0.018, BOSS_COMBAT_MIX), "square", "combat");
     if (step % 2 === 0) {
-      tone(brass[index], at + 0.02, 0.24, 0.032, "triangle", "combat");
-      tone(brass[index] * 1.5, at + 0.025, 0.18, 0.014, "sine", "combat");
+      tone(brass[index], at + 0.02, 0.24, mixedVolume(0.032, BOSS_COMBAT_MIX), "triangle", "combat");
+      tone(brass[index] * 1.5, at + 0.025, 0.18, mixedVolume(0.014, BOSS_COMBAT_MIX), "sine", "combat");
     }
-    if (step % 4 === 0) tone(55, at, 0.16, 0.075, "triangle", "combat");
-    if (step % 4 === 2) tone(220, at, 0.045, 0.028, "square", "combat");
+    if (step % 4 === 0) tone(55, at, 0.16, mixedVolume(0.075, BOSS_COMBAT_MIX), "triangle", "combat");
+    if (step % 4 === 2) tone(220, at, 0.045, mixedVolume(0.028, BOSS_COMBAT_MIX), "square", "combat");
   }
   combatScheduledUntil = start + 32 * stepLength;
 }
