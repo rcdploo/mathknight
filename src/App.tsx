@@ -58,6 +58,9 @@ export default function App() {
   if (destination === "quartermaster") {
     return <Quartermaster onExit={() => setDestination("hub")} onTraining={() => setDestination("memory")} />;
   }
+  if (destination === "settings") {
+    return <SettingsScreen onExit={() => setDestination("hub")} />;
+  }
 
   return (
     <main className="game-hub">
@@ -84,9 +87,9 @@ export default function App() {
           <ShoppingBag size={30} />
           <span><strong>Quartermaster</strong><small>Spend coins on permanent upgrades.</small></span>
         </button>
-        <button className="hub-destination" disabled>
+        <button className="hub-destination" onClick={() => setDestination("settings")}>
           <Settings size={30} />
-          <span><strong>Settings</strong><small>Coming later</small></span>
+          <span><strong>Settings</strong><small>Music and sound effects.</small></span>
         </button>
       </section>
     </main>

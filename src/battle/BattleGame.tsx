@@ -459,7 +459,7 @@ function createBattle(monster: GeneratedMonster) {
     crystalDiscountCardId: hasItem(itemIds, "crystal") ? choice(opening.hand)?.id ?? null : null,
     nextTurnDraw: 0,
     discardDamageStacks: 0,
-    initiativeTurns: 0,
+    initiativeInstances: [] as number[],
     phoenixUsed: false,
   };
 }
@@ -525,7 +525,10 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
         crystalDiscountCardId: parsed.battle.crystalDiscountCardId ?? null,
         nextTurnDraw: parsed.battle.nextTurnDraw ?? 0,
         discardDamageStacks: parsed.battle.discardDamageStacks ?? 0,
-        initiativeTurns: parsed.battle.initiativeTurns ?? 0,
+        initiativeInstances: parsed.battle.initiativeInstances
+          ?? (((parsed.battle as typeof parsed.battle & { initiativeTurns?: number }).initiativeTurns ?? 0) > 0
+            ? [(parsed.battle as typeof parsed.battle & { initiativeTurns?: number }).initiativeTurns!]
+            : []),
         phoenixUsed: parsed.battle.phoenixUsed ?? false,
         playerWeakenInstances: parsed.battle.playerWeakenInstances ?? (parsed.battle.playerWeakenTurns > 0 ? [parsed.battle.playerWeakenTurns] : []),
         weakenTurns: parsed.battle.weakenTurns ?? (parsed.battle.weakenNext > 0 ? 1 : 0),
@@ -668,7 +671,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     : [...battle.discardPile].reverse();
   const statusTiles: Array<StatusTile | null> = [
     battle.discardDamageStacks > 0 ? { name: "Fertilizer", symbol: "F", value: battle.discardDamageStacks, tone: "buff" as const, effect: `Your damage is increased by ${battle.discardDamageStacks * 10}% this turn.` } : null,
-    battle.initiativeTurns > 0 ? { name: "Initiative", symbol: "I", value: battle.initiativeTurns, tone: "buff" as const, effect: "Your damage is increased by 10%." } : null,
     battle.crippleTurns > 0 ? { name: "Cripple", symbol: "C", value: battle.crippleTurns, tone: "debuff" as const, effect: "You can use at most one operator." } : null,
     battle.addleTurns > 0 ? { name: "Addle", symbol: "A", value: battle.addleTurns, tone: "debuff" as const, effect: "Your maximum hand size is reduced by 20%." } : null,
     battle.confoundTurns > 0 ? { name: "Perplex", symbol: "P", value: battle.confoundTurns, tone: "debuff" as const, effect: "You cannot use your bottled card." } : null,
@@ -677,6 +679,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     battle.immolationTurns > 0 ? { name: "Immolation", symbol: "I", value: battle.immolationTurns, tone: "debuff" as const, effect: "Digit and variable values are reduced by 1 when drawn." } : null,
   ];
   const activeStatuses = [
+    ...battle.initiativeInstances.map((turns) => ({ name: "Initiative", symbol: "I", value: turns, tone: "buff" as const, effect: "Your damage is multiplied by 1.1. Multiple Initiatives stack multiplicatively." })),
     ...playerWeakenInstances.map((turns) => ({ name: "Weaken", symbol: "W", value: turns, tone: "debuff" as const, effect: "Your submitted expression deals 10% less damage, rounded up. Multiple Weakens stack." })),
     ...statusTiles.filter((status): status is StatusTile => status !== null),
   ];
@@ -905,7 +908,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const parityBonus = value % 2 !== 0 && hasItem(itemIds, "oddjob") ? 1.15 : 1;
     const healthBonus = hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .25 ? 1.2 : hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? 1.1 : 1;
     const fertilizerBonus = 1 + battle.discardDamageStacks * .1;
-    const initiativeBonus = battle.initiativeTurns > 0 ? 1.1 : 1;
+    const initiativeBonus = 1.1 ** battle.initiativeInstances.length;
     const boostedDamage = Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * fertilizerBonus * initiativeBonus);
     const outgoingDamage = playerWeakenStackCount > 0 && !countered
       ? applyPlayerWeakness(boostedDamage)
@@ -971,7 +974,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       confoundTurns: Math.max(0, battle.confoundTurns - 1),
       energyDrainTurns: Math.max(0, battle.energyDrainTurns - 1),
       immolationTurns: monster.bossId === "karebear" ? battle.immolationTurns : Math.max(0, battle.immolationTurns - 1),
-      initiativeTurns: Math.max(0, battle.initiativeTurns - 1),
+      initiativeInstances: battle.initiativeInstances
+        .map((turns) => Math.max(0, turns - 1))
+        .filter((turns) => turns > 0),
       weakenTurns: Math.max(0, battle.weakenTurns - 1),
       heroicWillRemaining: battle.heroicWillRemaining - (heroicWillTriggered ? 1 : 0),
     };
@@ -1176,7 +1181,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       };
       const nextWeakenStacks = Math.max(nextBattleBase.weakenTurns > 0 ? nextBattleBase.weakenNext : 0, upgradeEffects.weaken);
       const nextWeakenTurns = Math.max(nextBattleBase.weakenTurns, upgradeEffects.weaken > 0 ? 2 : 0);
-      const nextInitiativeTurns = Math.max(nextBattleBase.initiativeTurns, upgradeEffects.initiative > 0 ? 2 : 0);
+      const nextInitiativeInstances = [
+        ...nextBattleBase.initiativeInstances,
+        ...Array.from({ length: upgradeEffects.initiative }, () => 2),
+      ];
       const nextIntent = Math.round(nextAction.intent * (1 + nextBattleBase.enrageStacks * 0.1));
       const nextSecondaryIntent = Math.round(nextAction.secondaryIntent * (1 + nextBattleBase.enrageStacks * 0.1));
       const openingArmor = (countered && hasItem(itemIds, "quarterstaff") ? monster.level * 5 : 0)
@@ -1209,7 +1217,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         enemyStunned: stunnedNext,
         weakenNext: nextWeakenStacks,
         weakenTurns: nextWeakenStacks > 0 ? nextWeakenTurns : 0,
-        initiativeTurns: nextInitiativeTurns,
+        initiativeInstances: nextInitiativeInstances,
         playerArmor: openingArmor,
         monsterActionDeck: nextAction.actionDeck,
         monsterLastAction: nextAction.action,
