@@ -23,15 +23,15 @@ const bossMemorizeSeconds = 30;
 const bossMatchSeconds = 15;
 const matchBorderColors = ["#f0ca73", "#6cb5a1", "#73c8dc", "#d77bb5", "#d77a66", "#9ea56c", "#b69be4", "#e39d5c", "#8fd3a9", "#b8c7d9"];
 
-function playTone(muted: boolean, frequency: number, duration = 0.08) {
-  if (muted) return;
+function playTone(effectsVolume: number, frequency: number, duration = 0.08) {
+  if (effectsVolume <= 0) return;
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   const context = new AudioContextClass();
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   oscillator.frequency.value = frequency;
   oscillator.type = "sine";
-  gain.gain.value = 0.045;
+  gain.gain.value = 0.045 * effectsVolume;
   oscillator.connect(gain);
   gain.connect(context.destination);
   oscillator.start();
@@ -162,7 +162,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
     const nextProgress = recordLevelResult(progress, selectedLevel, finalResult);
     setProgress(nextProgress);
     setResult(finalResult);
-    playTone(progress.settings.muted, completed ? 660 : 180, completed ? 0.35 : 0.2);
+    playTone(progress.settings.effectsVolume, completed ? 660 : 180, completed ? 0.35 : 0.2);
     setTimeout(() => setScreen("result"), completed ? 650 : 1200);
   }
 
@@ -171,7 +171,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
     if (selectedLevel.isBoss && bossPhase !== "match") return;
     if (flippedIds.length >= 2) return;
 
-    playTone(progress.settings.muted, 330);
+    playTone(progress.settings.effectsVolume, 330);
     const nextFlipped = [...flippedIds, card.id];
     setFlippedIds(nextFlipped);
 
@@ -186,7 +186,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
     setIsResolving(true);
 
     if (isMatch) {
-      playTone(progress.settings.muted, 560, 0.12);
+      playTone(progress.settings.effectsVolume, 560, 0.12);
       setTimeout(() => {
         const nextCards = cards.map((item) => (item.pairId === card.pairId ? { ...item, matched: true } : item));
         setCards(nextCards);
@@ -198,7 +198,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
       return;
     }
 
-    playTone(progress.settings.muted, 180, 0.12);
+    playTone(progress.settings.effectsVolume, 180, 0.12);
     const nextTurnsRemaining = selectedLevel.isBoss ? turnsRemaining : turnsRemaining - 1;
     setTurnsRemaining(nextTurnsRemaining);
     setTimeout(

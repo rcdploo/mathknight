@@ -1,3 +1,4 @@
+import { loadProgress } from "../game/progressStore";
 export type BattleSound = "card" | "hero-hit" | "enemy-hit" | "counter" | "victory" | "defeat";
 
 let context: AudioContext | null = null;
@@ -13,6 +14,8 @@ let combatStarting = false;
 let combatScheduledUntil = 0;
 let combatIntensity: CombatMusicIntensity = "standard";
 const combatOscillators = new Set<OscillatorNode>();
+type AudioGroup = "ambient" | "combat" | "effects";
+const masterGains: Partial<Record<AudioGroup, GainNode>> = {};
 
 function audioContext() {
   if (!context) {
@@ -20,6 +23,29 @@ function audioContext() {
     context = new AudioContextClass();
   }
   return context;
+}
+
+function volumeFor(group: AudioGroup) {
+  const settings = loadProgress().settings;
+  return group === "effects" ? settings.effectsVolume : settings.musicVolume;
+}
+
+function outputFor(group: AudioGroup) {
+  const audio = audioContext();
+  if (!masterGains[group]) {
+    const gain = audio.createGain();
+    gain.gain.value = volumeFor(group);
+    gain.connect(audio.destination);
+    masterGains[group] = gain;
+  }
+  return masterGains[group]!;
+}
+
+export function updateAudioLevels() {
+  (Object.keys(masterGains) as AudioGroup[]).forEach((group) => {
+    const gain = masterGains[group];
+    if (gain) gain.gain.setValueAtTime(volumeFor(group), audioContext().currentTime);
+  });
 }
 
 function tone(frequency: number, start: number, duration: number, volume: number, type: OscillatorType = "sine", group?: "ambient" | "combat") {
@@ -32,7 +58,7 @@ function tone(frequency: number, start: number, duration: number, volume: number
   gain.gain.exponentialRampToValueAtTime(volume, start + 0.012);
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
   oscillator.connect(gain);
-  gain.connect(audio.destination);
+  gain.connect(outputFor(group ?? "effects"));
   const trackedOscillators = group === "ambient" ? ambientOscillators : group === "combat" ? combatOscillators : null;
   if (trackedOscillators) {
     trackedOscillators.add(oscillator);

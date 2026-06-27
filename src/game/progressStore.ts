@@ -8,6 +8,8 @@ export const defaultProgress: PlayerProgress = {
   coins: 0,
   settings: {
     muted: false,
+    musicVolume: 0.7,
+    effectsVolume: 0.8,
   },
   puzzles: {},
 };
@@ -19,7 +21,15 @@ export function loadProgress(): PlayerProgress {
   try {
     const parsed = JSON.parse(raw) as PlayerProgress;
     if (parsed.schemaVersion !== 1) return structuredClone(defaultProgress);
-    return parsed;
+    const legacyMuted = parsed.settings?.muted ?? false;
+    return {
+      ...parsed,
+      settings: {
+        muted: legacyMuted,
+        musicVolume: parsed.settings?.musicVolume ?? (legacyMuted ? 0 : .7),
+        effectsVolume: parsed.settings?.effectsVolume ?? (legacyMuted ? 0 : .8),
+      },
+    };
   } catch {
     return structuredClone(defaultProgress);
   }
@@ -112,7 +122,13 @@ export function recordLevelResult(progress: PlayerProgress, level: LevelConfig, 
 }
 
 export function setMuted(progress: PlayerProgress, muted: boolean) {
-  const next = { ...progress, settings: { ...progress.settings, muted } };
+  return setAudioSettings(progress, { effectsVolume: muted ? 0 : .8 });
+}
+
+export function setAudioSettings(progress: PlayerProgress, changes: Partial<Pick<PlayerProgress["settings"], "musicVolume" | "effectsVolume">>) {
+  const settings = { ...progress.settings, ...changes };
+  settings.muted = settings.effectsVolume === 0;
+  const next = { ...progress, settings };
   saveProgress(next);
   return next;
 }

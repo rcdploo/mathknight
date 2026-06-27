@@ -50,6 +50,8 @@ export type PlayerProgress = {
   coins: number;
   settings: {
     muted: boolean;
+    musicVolume: number;
+    effectsVolume: number;
   };
   puzzles: Record<string, PuzzleProgress>;
 };

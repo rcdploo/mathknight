@@ -41,6 +41,22 @@ function starsForStages(progress: PlayerProgress, unit: Unit, includedStages: St
   );
 }
 
+const earlyTrialDungeonGateExemptUnits: Unit[] = ["addition", "subtraction", "multiplication"];
+const fullyDungeonGatedTrial4Units: Unit[] = ["multiplication", "division", "fractions", "algebra"];
+
+function requiresDungeonLevel3(level: LevelConfig) {
+  if (level.stage === "4" && fullyDungeonGatedTrial4Units.includes(level.unit)) return true;
+
+  if (
+    (level.stage === "1" || level.stage === "2")
+    && earlyTrialDungeonGateExemptUnits.includes(level.unit)
+  ) {
+    return false;
+  }
+
+  return level.kind === "level3" || level.kind === "boss";
+}
+
 export function getUnitUnlockState(progress: PlayerProgress, unit: Unit): UnlockState {
   const requirement = unitStarRequirements[unit];
   if (!requirement) return { unlocked: true };
@@ -64,26 +80,33 @@ export function getStageUnlockState(progress: PlayerProgress, unit: Unit, stage:
 }
 
 function lessonUnlockState(progress: PlayerProgress, level: LevelConfig, dungeonLevel: number): UnlockState {
-  if (level.kind === "level1") return { unlocked: true };
+  if (level.kind === "level1") {
+    return requiresDungeonLevel3(level) && dungeonLevel < 3
+      ? { unlocked: false, reason: "Requires Dungeon Level 3" }
+      : { unlocked: true };
+  }
   if (level.kind === "level2") {
-    return isCompleted(progress, getLevelId(level.unit, level.stage, "level1"))
-      ? { unlocked: true }
-      : { unlocked: false, reason: "Requires completing Lesson 1" };
+    if (!isCompleted(progress, getLevelId(level.unit, level.stage, "level1"))) {
+      return { unlocked: false, reason: "Requires completing Lesson 1" };
+    }
+    return requiresDungeonLevel3(level) && dungeonLevel < 3
+      ? { unlocked: false, reason: "Requires Dungeon Level 3" }
+      : { unlocked: true };
   }
   if (level.kind === "level3") {
     if (!isCompleted(progress, getLevelId(level.unit, level.stage, "level2"))) {
       return { unlocked: false, reason: "Requires completing Lesson 2" };
     }
-    return dungeonLevel >= 3
-      ? { unlocked: true }
-      : { unlocked: false, reason: "Requires Dungeon Level 3" };
+    return requiresDungeonLevel3(level) && dungeonLevel < 3
+      ? { unlocked: false, reason: "Requires Dungeon Level 3" }
+      : { unlocked: true };
   }
   if (!isCompleted(progress, getLevelId(level.unit, level.stage, "level3"))) {
     return { unlocked: false, reason: "Requires completing Lesson 3" };
   }
-  return dungeonLevel >= 3
-    ? { unlocked: true }
-    : { unlocked: false, reason: "Requires Dungeon Level 3" };
+  return requiresDungeonLevel3(level) && dungeonLevel < 3
+    ? { unlocked: false, reason: "Requires Dungeon Level 3" }
+    : { unlocked: true };
 }
 
 export function getLevelUnlockState(progress: PlayerProgress, level: LevelConfig, dungeonLevel: number): UnlockState {

@@ -5,9 +5,10 @@ import RunOverview from "./dungeon/RunOverview";
 import { resetAllGameProgress } from "./game/resetGame";
 import Quartermaster from "./quartermaster/Quartermaster";
 import TrainingGrounds from "./training/TrainingGrounds";
+import SettingsScreen from "./settings/SettingsScreen";
 import { startAmbientMusic, stopAmbientMusic } from "./battle/battleAudio";
 
-type GameDestination = "hub" | "memory" | "battle" | "quartermaster";
+type GameDestination = "hub" | "memory" | "battle" | "quartermaster" | "settings";
 
 export default function App() {
   const [destination, setDestination] = useState<GameDestination>("hub");
