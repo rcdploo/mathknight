@@ -664,7 +664,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }
   }, [deckUpgradedCount, dungeonLevel, selectedCards, turn]);
   const viewedPile = pileView === "deck"
-    ? [...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
+    ? [battle.bottledCard, ...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
     : [...battle.discardPile].reverse();
   const statusTiles: Array<StatusTile | null> = [
     battle.discardDamageStacks > 0 ? { name: "Fertilizer", symbol: "F", value: battle.discardDamageStacks, tone: "buff" as const, effect: `Your damage is increased by ${battle.discardDamageStacks * 10}% this turn.` } : null,
@@ -1460,7 +1460,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             </div>
             <p>{pileView === "deck" ? "Earliest acquired to latest acquired." : "Most recently discarded first."}</p>
             <div className="pile-card-grid">
-              {viewedPile.map((card) => <GameCard key={card.id} card={card} onClick={() => undefined} preview level={monster.level} />)}
+              {viewedPile.map((card) => <GameCard key={card.id} card={card} onClick={() => undefined} preview bottled={card.id === battle.bottledCard.id} level={monster.level} />)}
             </div>
           </section>
         </div>
