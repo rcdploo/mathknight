@@ -1,4 +1,4 @@
-import type { LevelConfig, LevelResult, PlayerProgress, PuzzleProgress } from "./types";
+import type { LevelConfig, LevelResult, PlayerProgress, PuzzleProgress, RunDifficulty } from "./types";
 
 const storageKey = "mathknight.memoryMatch.progress.v1";
 const saveCodePrefix = "MK1";
@@ -10,6 +10,12 @@ export const defaultProgress: PlayerProgress = {
     muted: false,
     musicVolume: 0.7,
     effectsVolume: 0.8,
+  },
+  run: {
+    difficulty: "normal",
+    normalCompleted: false,
+    trainingIncomeByLevel: {},
+    deferredTrainingIncome: 0,
   },
   puzzles: {},
 };
@@ -28,6 +34,12 @@ export function loadProgress(): PlayerProgress {
         muted: legacyMuted,
         musicVolume: parsed.settings?.musicVolume ?? (legacyMuted ? 0 : .7),
         effectsVolume: parsed.settings?.effectsVolume ?? (legacyMuted ? 0 : .8),
+      },
+      run: {
+        difficulty: parsed.run?.difficulty ?? "normal",
+        normalCompleted: parsed.run?.normalCompleted ?? false,
+        trainingIncomeByLevel: parsed.run?.trainingIncomeByLevel ?? {},
+        deferredTrainingIncome: parsed.run?.deferredTrainingIncome ?? 0,
       },
     };
   } catch {
@@ -65,7 +77,7 @@ export function importProgressCode(code: string): PlayerProgress {
   }
 
   saveProgress(parsed);
-  return parsed;
+  return loadProgress();
 }
 
 function readLocalProgress() {
@@ -119,6 +131,48 @@ export function recordLevelResult(progress: PlayerProgress, level: LevelConfig, 
   };
   saveProgress(next);
   return next;
+}
+
+export function recordTrainingResult(progress: PlayerProgress, level: LevelConfig, result: LevelResult, dungeonLevel: number) {
+  if (progress.run.difficulty !== "impossible" || result.coinsEarned <= 0) {
+    return { progress: recordLevelResult(progress, level, result), awarded: result.coinsEarned, deferred: 0 };
+  }
+  const levelKey = String(dungeonLevel);
+  const earned = progress.run.trainingIncomeByLevel[levelKey] ?? 0;
+  const cap = 1000 + 1000 * dungeonLevel;
+  const awarded = Math.min(result.coinsEarned, Math.max(0, cap - earned));
+  const deferred = result.coinsEarned - awarded;
+  const adjustedResult = { ...result, coinsEarned: awarded };
+  const recorded = recordLevelResult(progress, level, adjustedResult);
+  const next = {
+    ...recorded,
+    run: {
+      ...recorded.run,
+      trainingIncomeByLevel: { ...recorded.run.trainingIncomeByLevel, [levelKey]: earned + awarded },
+      deferredTrainingIncome: recorded.run.deferredTrainingIncome + deferred,
+    },
+  };
+  saveProgress(next);
+  return { progress: next, awarded, deferred };
+}
+
+export function releaseDeferredTrainingIncome(progress: PlayerProgress) {
+  const amount = progress.run.deferredTrainingIncome;
+  if (amount <= 0) return { progress, amount: 0 };
+  const next = { ...progress, coins: progress.coins + amount, run: { ...progress.run, deferredTrainingIncome: 0 } };
+  saveProgress(next);
+  return { progress: next, amount };
+}
+
+export function markNormalCompleted(progress = loadProgress()) {
+  if (progress.run.normalCompleted) return progress;
+  const next = { ...progress, run: { ...progress.run, normalCompleted: true } };
+  saveProgress(next);
+  return next;
+}
+
+export function difficultyLabel(difficulty: RunDifficulty) {
+  return difficulty[0].toUpperCase() + difficulty.slice(1);
 }
 
 export function setMuted(progress: PlayerProgress, muted: boolean) {

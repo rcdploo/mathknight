@@ -2,6 +2,7 @@ export type Unit = "addition" | "subtraction" | "multiplication" | "division" | 
 export type Stage = "1" | "2" | "3a" | "3b" | "4";
 export type LevelKind = "level1" | "level2" | "level3" | "boss";
 export type CardKind = "expression" | "result";
+export type RunDifficulty = "normal" | "elite" | "impossible";
 
 export type LevelConfig = {
   id: string;
@@ -52,6 +53,12 @@ export type PlayerProgress = {
     muted: boolean;
     musicVolume: number;
     effectsVolume: number;
+  };
+  run: {
+    difficulty: RunDifficulty;
+    normalCompleted: boolean;
+    trainingIncomeByLevel: Record<string, number>;
+    deferredTrainingIncome: number;
   };
   puzzles: Record<string, PuzzleProgress>;
 };

@@ -3,6 +3,8 @@ import { RotateCcw, Settings, ShoppingBag, Swords } from "lucide-react";
 import DungeonGame from "./dungeon/DungeonGame";
 import RunOverview from "./dungeon/RunOverview";
 import { resetAllGameProgress } from "./game/resetGame";
+import { difficultyLabel, loadProgress } from "./game/progressStore";
+import type { RunDifficulty } from "./game/types";
 import Quartermaster from "./quartermaster/Quartermaster";
 import TrainingGrounds from "./training/TrainingGrounds";
 import SettingsScreen from "./settings/SettingsScreen";
@@ -13,6 +15,7 @@ type GameDestination = "hub" | "memory" | "battle" | "quartermaster" | "settings
 export default function App() {
   const [destination, setDestination] = useState<GameDestination>("hub");
   const [inBattle, setInBattle] = useState(false);
+  const [newGameOpen, setNewGameOpen] = useState(false);
   const ambientAllowed = destination !== "battle" || !inBattle;
 
   useEffect(() => {
@@ -34,11 +37,19 @@ export default function App() {
   }, [ambientAllowed]);
 
   function startNewGame() {
+    if (loadProgress().run.normalCompleted) {
+      setNewGameOpen(true);
+      return;
+    }
+    beginNewGame("normal");
+  }
+
+  function beginNewGame(difficulty: RunDifficulty) {
     const confirmed = window.confirm(
-      "Start a new game? This will permanently reset the dungeon, deck, coins, and all Training Grounds progress.",
+      `Start a new ${difficultyLabel(difficulty)} game? This resets the dungeon, deck, and coins.${difficulty === "normal" ? " Training Grounds progress will also reset." : " Training Grounds progress will be preserved."}`,
     );
     if (!confirmed) return;
-    resetAllGameProgress();
+    resetAllGameProgress(difficulty);
     window.location.reload();
   }
 
@@ -73,6 +84,17 @@ export default function App() {
           <RotateCcw size={18} /> New Game
         </button>
       </header>
+      {newGameOpen && <div className="modal-backdrop">
+        <section className="difficulty-modal" role="dialog" aria-modal="true" aria-labelledby="difficulty-title">
+          <p>New Expedition</p><h2 id="difficulty-title">Choose Difficulty</h2>
+          <div className="difficulty-options">
+            <button onClick={() => beginNewGame("normal")}><strong>Normal</strong><small>Standard monster scaling. Training Grounds can be reset and replayed.</small></button>
+            <button onClick={() => beginNewGame("elite")}><strong>Elite</strong><small>Stronger monsters. Training Grounds progress cannot be reset.</small></button>
+            <button onClick={() => beginNewGame("impossible")}><strong>Impossible</strong><small>Extreme scaling. Training Grounds cannot be reset or replayed, and income is capped by dungeon level.</small></button>
+          </div>
+          <button className="difficulty-cancel" onClick={() => setNewGameOpen(false)}>Cancel</button>
+        </section>
+      </div>}
       <div className="hub-run-overview"><RunOverview /></div>
       <section className="hub-destinations" aria-label="Game destinations">
         <button className="hub-destination battle-destination" onClick={() => setDestination("battle")}>

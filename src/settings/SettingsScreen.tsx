@@ -1,7 +1,7 @@
-import { ArrowLeft, Music, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
 import { useState } from "react";
 import { playBattleSound, updateAudioLevels } from "../battle/battleAudio";
-import { loadProgress, setAudioSettings } from "../game/progressStore";
+import { difficultyLabel, loadProgress, setAudioSettings } from "../game/progressStore";
 import type { PlayerProgress } from "../game/types";
 
 export default function SettingsScreen({ onExit }: { onExit: () => void }) {
@@ -42,6 +42,21 @@ export default function SettingsScreen({ onExit }: { onExit: () => void }) {
         onChange={(value) => update("effectsVolume", value)}
         onTest={() => playBattleSound("card")}
       />
+    </section>
+    <section className="settings-panel difficulty-settings" aria-labelledby="difficulty-settings-title">
+      <div className="settings-section-heading">
+        <Shield size={22} />
+        <div><p>Current Run</p><h2 id="difficulty-settings-title">Difficulty</h2></div>
+      </div>
+      <div className="difficulty-setting-row">
+        <div><strong>{difficultyLabel(progress.run.difficulty)}</strong><small>Difficulty is locked for the duration of this run.</small></div>
+        <LockKeyhole size={20} />
+      </div>
+      <p className="difficulty-unlock-note">
+        {progress.run.normalCompleted
+          ? "Elite and Impossible are unlocked. Choose a difficulty when starting a New Game."
+          : "Elite and Impossible difficulties unlock together after defeating the game on Normal."}
+      </p>
     </section>
   </main>;
 }

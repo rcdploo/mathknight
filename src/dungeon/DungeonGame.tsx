@@ -9,7 +9,8 @@ import RunOverview from "./RunOverview";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
 import { generateBoss, generateMonster, generateRoomGold, nextDungeonLevel, type DungeonRoom, type DungeonLevel, type GeneratedMonster } from "../battle/monsterGenerator";
-import { loadProgress, saveProgress } from "../game/progressStore";
+import { loadProgress, markNormalCompleted, releaseDeferredTrainingIncome, saveProgress } from "../game/progressStore";
+import type { RunDifficulty } from "../game/types";
 import { totalStars } from "../game/unlockRules";
 import { bottleCapacityCost, characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, loadRunBottle, loadRunDeck, savePermanentLoadout, saveRunBottle } from "../quartermaster/quartermasterStore";
 
@@ -37,6 +38,7 @@ type LevelUpSummary = {
   priorHandSize: number;
   currentHandSize: number;
   unlocks: string[];
+  trainingIncomeReleased: number;
 };
 
 const dungeonStorageKey = "mathknight.dungeon.level1.v6";
@@ -115,14 +117,14 @@ function shouldGenerateMonster(type: RoomType) {
   return type === "battle" || type === "elite" || type === "boss";
 }
 
-function generateDungeon(level: DungeonLevel, bossNames: string[] = []): DungeonState {
+function generateDungeon(level: DungeonLevel, bossNames: string[] = [], difficulty: RunDifficulty = loadProgress().run.difficulty): DungeonState {
   const laneRooms = generateLaneRooms(level);
   const usedTypeNames: string[] = [];
   const makeMonster = (type: RoomType, step: number) => {
     if (!shouldGenerateMonster(type)) return undefined;
     const monster = type === "boss"
-      ? generateBoss(level, bossNames)
-      : generateMonster(level, roomNumberForMonster(step), usedTypeNames, type === "elite" ? 2 : 0);
+      ? generateBoss(level, bossNames, difficulty)
+      : generateMonster(level, roomNumberForMonster(step), usedTypeNames, type === "elite" ? 2 : 0, difficulty);
     usedTypeNames.push(monster.type.name);
     return monster;
   };
@@ -163,7 +165,7 @@ function loadDungeon() {
     const savedBossNames = saved.bossNames ?? [];
     const bossNode = saved.nodes.find((node) => node.id === "boss");
     if (!bossNode?.monster?.bossId) {
-      const replacementBoss = generateBoss(saved.level, savedBossNames.slice(0, -1));
+      const replacementBoss = generateBoss(saved.level, savedBossNames.slice(0, -1), loadProgress().run.difficulty);
       return {
         ...saved,
         runId: saved.runId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -251,6 +253,7 @@ export default function DungeonGame({
         <span>New unlocks</span>
         {levelUpSummary.unlocks.map((unlock) => <strong key={unlock}>{unlock}</strong>)}
       </div>}
+      {levelUpSummary.trainingIncomeReleased > 0 && <p className="level-up-reset">${levelUpSummary.trainingIncomeReleased} in banked Training Grounds earnings is now available.</p>}
       <p className="level-up-reset">The Dungeon has been reset with harder monsters.</p>
       <div className="battle-actions"><button onClick={() => setLevelUpSummary(null)}>Enter Level {levelUpSummary.currentLevel}</button></div>
     </section></main>;
@@ -273,7 +276,7 @@ export default function DungeonGame({
       setDungeon((current) => {
         const usedTypeNames = current.nodes.flatMap((candidate) => candidate.monster ? [candidate.monster.type.name] : []);
         const monster = shouldGenerateMonster(resolvedType)
-          ? generateMonster(current.level, roomNumberForMonster(node.step), usedTypeNames, resolvedType === "elite" ? 2 : 0)
+          ? generateMonster(current.level, roomNumberForMonster(node.step), usedTypeNames, resolvedType === "elite" ? 2 : 0, loadProgress().run.difficulty)
           : undefined;
         const shopResolved = resolvedType === "shop";
         return {
@@ -313,6 +316,11 @@ export default function DungeonGame({
     const completedNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (completedNode?.type === "boss") {
       const nextLevel = nextDungeonLevel(dungeon.level);
+      let currentProgress = loadProgress();
+      if (dungeon.level === 5 && currentProgress.run.difficulty === "normal") currentProgress = markNormalCompleted(currentProgress);
+      const releasedTraining = nextLevel > dungeon.level && currentProgress.run.difficulty === "impossible"
+        ? releaseDeferredTrainingIncome(currentProgress)
+        : { progress: currentProgress, amount: 0 };
       const loadout = loadPermanentLoadout();
       const itemIds = loadRunItems();
       const applyBossStats = (stats: ReturnType<typeof characterStatsForLevel>) => ({
@@ -349,8 +357,9 @@ export default function DungeonGame({
         priorHandSize: priorStats.handSize,
         currentHandSize: nextStats.handSize,
         unlocks,
+        trainingIncomeReleased: releasedTraining.amount,
       });
-      const nextDungeon = generateDungeon(nextLevel, dungeon.bossNames);
+      const nextDungeon = generateDungeon(nextLevel, dungeon.bossNames, releasedTraining.progress.run.difficulty);
       nextDungeon.notice = nextLevel === dungeon.level
         ? "The final boss is defeated. Level 5 is mastered."
         : `Level ${dungeon.level} conquered. Level ${nextLevel} begins.`;

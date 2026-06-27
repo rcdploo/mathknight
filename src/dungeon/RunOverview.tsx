@@ -2,7 +2,7 @@ import { Coins, Heart, Layers3, Shield, Sparkles, X, Zap } from "lucide-react";
 import { useState } from "react";
 import { itemById, itemSymbol, loadRunItems } from "../battle/itemCatalog";
 import GameCard from "../battle/GameCard";
-import { loadProgress } from "../game/progressStore";
+import { difficultyLabel, loadProgress } from "../game/progressStore";
 import { characterStatsForLevel, loadPermanentLoadout, loadRunBottle, loadRunDeck } from "../quartermaster/quartermasterStore";
 
 const dungeonStorageKey = "mathknight.dungeon.level1.v6";
@@ -46,7 +46,8 @@ export default function RunOverview({ position }: { position?: RunPosition }) {
   };
   const savedHealth = Number(window.localStorage.getItem(runHealthKey));
   const health = savedHealth > 0 ? Math.min(savedHealth, stats.maxHealth) : stats.maxHealth;
-  const gold = loadProgress().coins;
+  const progress = loadProgress();
+  const gold = progress.coins;
   const deck = loadRunDeck();
   const bottle = loadRunBottle();
   const items = runItemIds.flatMap((id) => {
@@ -71,6 +72,8 @@ export default function RunOverview({ position }: { position?: RunPosition }) {
         </div>
 
         <div className="run-progress-banner">
+          <div><span>Difficulty</span><strong>{difficultyLabel(progress.run.difficulty)}</strong></div>
+          <div className="run-progress-divider" aria-hidden="true" />
           <div><span>Dungeon Level</span><strong>{runPosition.level}</strong></div>
           <div className="run-progress-divider" aria-hidden="true" />
           <div><span>Room</span><strong>{runPosition.room} <small>/ 10</small></strong></div>

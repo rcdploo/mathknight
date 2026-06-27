@@ -1164,25 +1164,32 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       const cleanDrawPile = pendingSpellResult.battle.drawPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
       const cleanDiscardPile = pendingSpellResult.battle.discardPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
       const cleanHand = pendingSpellResult.battle.hand.filter((card) => !isTemporaryCard(card) && !isClosingParenthesisHelper(card) && !card.consumedThisTurn);
+      const hypnoticActive = hasBuff(monster, "Hypnotic");
+      const retainedHand = hypnoticActive
+        ? cleanHand.filter((card) => !selectedCards.some((selected) => selected.id === card.id) && !card.generatedById)
+        : [];
+      const retainedIds = new Set(retainedHand.map((card) => card.id));
       const baseDrawPile = hasBuff(monster, "Dazing")
         ? shuffle([...cleanDrawPile, makeZeroCard("Dazing")])
         : cleanDrawPile;
-      const discardSource = hasBuff(monster, "Hypnotic")
-        ? cleanDiscardPile
-        : [...cleanDiscardPile, ...cleanHand.filter((card) => !card.generatedById)];
+      const discardSource = [
+        ...cleanDiscardPile,
+        ...cleanHand.filter((card) => !card.generatedById && !retainedIds.has(card.id)),
+      ];
       const rhythmicDraw = hasItem(itemIds, "tabor") && nextTurn % 3 === 0 ? 1
         : hasItem(itemIds, "war-drum") && nextTurn % 4 === 0 ? 2
           : hasItem(itemIds, "taiko") && nextTurn % 5 === 0 ? 3 : 0;
       const nextHandSize = (pendingSpellResult.battle.addleTurns > 0 ? Math.max(1, Math.round(battle.handSize * 0.8)) : battle.handSize) + rhythmicDraw + pendingSpellResult.battle.nextTurnDraw;
-      const nextDraw = drawHand(baseDrawPile, discardSource, nextHandSize);
-      const immolatedDraw = pendingSpellResult.battle.immolationTurns > 0
+      const drawnCards = drawHand(baseDrawPile, discardSource, Math.max(0, nextHandSize - retainedHand.length));
+      const processedDraw = pendingSpellResult.battle.immolationTurns > 0
         ? {
-            ...nextDraw,
-            hand: reduceDigits(nextDraw.hand, 1),
-            drawPile: reduceDigits(nextDraw.drawPile, 1),
-            discardPile: reduceDigits(nextDraw.discardPile, 1),
+            ...drawnCards,
+            hand: reduceDigits(drawnCards.hand, 1),
+            drawPile: reduceDigits(drawnCards.drawPile, 1),
+            discardPile: reduceDigits(drawnCards.discardPile, 1),
           }
-        : nextDraw;
+        : drawnCards;
+      const immolatedDraw = { ...processedDraw, hand: [...retainedHand, ...processedDraw.hand] };
       const forcedCard = pendingSpellResult.battle.usurpDraws > 0 ? choice(immolatedDraw.hand) : null;
       const batteryCarry = hasItem(itemIds, "battery") ? Math.max(0, availableEnergy - energyUsed) : 0;
       const nextBattleBase = {
@@ -1207,7 +1214,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         ...(rhythmicDraw > 0 ? [`Rhythm items draw ${rhythmicDraw} extra ${rhythmicDraw === 1 ? "card" : "cards"}.`] : []),
         ...(pendingSpellResult.battle.nextTurnDraw > 0 ? [`Counter effects draw ${pendingSpellResult.battle.nextTurnDraw} extra ${pendingSpellResult.battle.nextTurnDraw === 1 ? "card" : "cards"}.`] : []),
         ...(hasBuff(monster, "Dazing") ? ["Dazing shuffled a temporary 0 into the deck."] : []),
-        ...(hasBuff(monster, "Hypnotic") && cleanHand.length > 0 ? [`Hypnotic retained ${cleanHand.length} unplayed ${cleanHand.length === 1 ? "card" : "cards"}.`] : []),
+        ...(retainedHand.length > 0 ? [`Hypnotic retained ${retainedHand.length} unplayed ${retainedHand.length === 1 ? "card" : "cards"}.`] : []),
         ...(pendingSpellResult.battle.immolationTurns > 0 ? ["Immolation reduced drawn digits and variables by 1."] : []),
         ...(forcedCard ? [`Usurp requires ${forcedCard.label} this turn.`] : []),
         ...(batteryCarry > 0 ? [`Battery carries ${batteryCarry} unused energy forward.`] : []),

@@ -8,7 +8,7 @@ import {
   importProgressCode,
   loadProgress,
   localStorageAvailable,
-  recordLevelResult,
+  recordTrainingResult,
   setMuted,
 } from "../game/progressStore";
 import { calculateCoins, calculateStars, getUnitValue } from "../game/scoring";
@@ -84,6 +84,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   const [turnsRemaining, setTurnsRemaining] = useState(15);
   const [turnsUsed, setTurnsUsed] = useState(0);
   const [result, setResult] = useState<LevelResult | null>(null);
+  const [deferredThisResult, setDeferredThisResult] = useState(0);
   const [bossPhase, setBossPhase] = useState<"memorize" | "match">("memorize");
   const [bossSeconds, setBossSeconds] = useState(bossMemorizeSeconds);
   const [savePanelOpen, setSavePanelOpen] = useState(false);
@@ -120,6 +121,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   }
 
   function startLevel(level: LevelConfig) {
+    if (progress.run.difficulty === "impossible" && progress.puzzles[level.id]?.completed) return;
     hasEndedRef.current = false;
     setSelectedLevel(level);
     setCards(generatePuzzle(level));
@@ -128,6 +130,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
     setTurnsRemaining(level.maxTurns ?? 0);
     setTurnsUsed(0);
     setResult(null);
+    setDeferredThisResult(0);
     setBossPhase(level.isBoss ? "memorize" : "match");
     setBossSeconds(level.isBoss ? bossMemorizeSeconds : 0);
     setGameMode("playing");
@@ -158,9 +161,11 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
     const stars = completed ? calculateStars(selectedLevel.pairs, finalTurnsUsed) : 0;
     const nextWinCount = currentProgress.wins + (completed ? 1 : 0);
     const coinsEarned = completed ? calculateCoins(selectedLevel, stars, nextWinCount) : 0;
-    const finalResult = { completed, stars, turnsUsed: finalTurnsUsed, coinsEarned };
-    const nextProgress = recordLevelResult(progress, selectedLevel, finalResult);
-    setProgress(nextProgress);
+    const rawResult = { completed, stars, turnsUsed: finalTurnsUsed, coinsEarned };
+    const recorded = recordTrainingResult(progress, selectedLevel, rawResult, dungeonLevel);
+    const finalResult = { ...rawResult, coinsEarned: recorded.awarded };
+    setProgress(recorded.progress);
+    setDeferredThisResult(recorded.deferred);
     setResult(finalResult);
     playTone(progress.settings.effectsVolume, completed ? 660 : 180, completed ? 0.35 : 0.2);
     setTimeout(() => setScreen("result"), completed ? 650 : 1200);
@@ -252,6 +257,8 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   }, [bossPhase, screen, selectedLevel.isBoss, turnsUsed]);
 
   const nextLevel = result?.completed ? findNextUnlocked(progress, selectedLevel, dungeonLevel) : undefined;
+  const impossibleIncomeCap = 1000 + 1000 * dungeonLevel;
+  const impossibleIncomeEarned = progress.run.trainingIncomeByLevel[String(dungeonLevel)] ?? 0;
 
   return (
     <main className="app">
@@ -293,6 +300,12 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
       {!canAutoSave && (
         <div className="storage-warning">Local auto-save is blocked here. Use a Knight Code to back up progress.</div>
       )}
+
+      {progress.run.difficulty === "impossible" && <div className="impossible-training-banner">
+        <strong>Impossible income limit — Level {dungeonLevel}</strong>
+        <span>${impossibleIncomeEarned} / ${impossibleIncomeCap} earned</span>
+        <small>${Math.max(0, impossibleIncomeCap - impossibleIncomeEarned)} available · ${progress.run.deferredTrainingIncome} banked for the next dungeon level</small>
+      </div>}
 
       {savePanelOpen && (
         <div className="modal-backdrop">
@@ -378,15 +391,16 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
                           const unlockState = getLevelUnlockState(progress, level, dungeonLevel);
                           const unlocked = unlockState.unlocked;
                           const entry = progress.puzzles[level.id];
+                          const replayLocked = progress.run.difficulty === "impossible" && Boolean(entry?.completed);
                           const nextWinCount = (entry?.wins ?? 0) + 1;
                           const minimumReward = calculateCoins(level, 1, nextWinCount);
                           const maximumReward = calculateCoins(level, 5, nextWinCount);
                           return (
                             <button
                               data-testid={`level-${level.id}`}
-                              className={`lesson-button ${unlocked ? "" : "locked"} ${entry?.completed ? "complete" : ""}`}
+                              className={`lesson-button ${unlocked && !replayLocked ? "" : "locked"} ${entry?.completed ? "complete" : ""}`}
                               key={level.id}
-                              disabled={!unlocked}
+                              disabled={!unlocked || replayLocked}
                               onClick={() => startLevel(level)}
                             >
                               <span className="lesson-title-row">
@@ -406,7 +420,9 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
                                 )}
                               </span>
                               <small>
-                                {unlocked
+                                {replayLocked
+                                  ? "Completed · No replay on Impossible"
+                                  : unlocked
                                   ? `$${minimumReward}-$${maximumReward}`
                                   : unlockState.reason === "Requires Dungeon Level 3"
                                     ? "Locked: Requires Dungeon Level 3+"
@@ -485,11 +501,12 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
               </span>
               <span>{result.turnsUsed} turns used</span>
               <span>${result.coinsEarned} coins earned</span>
+              {deferredThisResult > 0 && <span>${deferredThisResult} banked for the next dungeon level</span>}
               <span>Best: {Math.max(currentProgress.bestStars, result.stars)} stars</span>
             </div>
             <div className="result-actions">
-              <button onClick={() => startLevel(selectedLevel)}>Retry</button>
-              {nextLevel && <button onClick={() => startLevel(nextLevel as LevelConfig)}>Next Trial</button>}
+              {!(progress.run.difficulty === "impossible" && result.completed) && <button onClick={() => startLevel(selectedLevel)}>Retry</button>}
+              {nextLevel && !(progress.run.difficulty === "impossible" && progress.puzzles[nextLevel.id]?.completed) && <button onClick={() => startLevel(nextLevel as LevelConfig)}>Next Trial</button>}
               {result.completed && <button onClick={() => { setGameMode("reviewing"); setScreen("game"); }}>View Results</button>}
               <button onClick={onDungeon}>Back to Dungeon</button>
             </div>

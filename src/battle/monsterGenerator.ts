@@ -77,6 +77,41 @@ const baseHp: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
   5: { 1: 480, 2: 512, 3: 560, 4: 400, 6: 640, 7: 704, 8: 752, 9: 800, Boss: 2000 },
 };
 
+const eliteDamage: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
+  1: { 1: 7, 2: 8, 3: 8, 4: 9, 6: 9, 7: 10, 8: 10, 9: 11, Boss: 13 },
+  2: { 1: 14, 2: 16, 3: 16, 4: 18, 6: 18, 7: 20, 8: 20, 9: 22, Boss: 26 },
+  3: { 1: 28, 2: 32, 3: 32, 4: 36, 6: 36, 7: 40, 8: 40, 9: 44, Boss: 52 },
+  4: { 1: 56, 2: 64, 3: 64, 4: 72, 6: 72, 7: 80, 8: 80, 9: 88, Boss: 104 },
+  5: { 1: 112, 2: 128, 3: 128, 4: 144, 6: 144, 7: 160, 8: 160, 9: 176, Boss: 208 },
+};
+const eliteHp: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
+  1: { 1: 38, 2: 40, 3: 44, 4: 46, 6: 50, 7: 55, 8: 59, 9: 63, Boss: 156 },
+  2: { 1: 114, 2: 120, 3: 132, 4: 138, 6: 150, 7: 165, 8: 177, 9: 189, Boss: 468 },
+  3: { 1: 570, 2: 600, 3: 660, 4: 690, 6: 750, 7: 825, 8: 885, 9: 945, Boss: 2340 },
+  4: { 1: 4560, 2: 4800, 3: 5280, 4: 5520, 6: 6000, 7: 6600, 8: 7080, 9: 7560, Boss: 18720 },
+  5: { 1: 50160, 2: 52800, 3: 58080, 4: 60720, 6: 66000, 7: 72600, 8: 77880, 9: 83160, Boss: 205920 },
+};
+const impossibleDamage: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
+  1: { 1: 8, 2: 9, 3: 9, 4: 10, 6: 10, 7: 11, 8: 11, 9: 12, Boss: 15 },
+  2: { 1: 16, 2: 18, 3: 18, 4: 20, 6: 20, 7: 22, 8: 22, 9: 24, Boss: 30 },
+  3: { 1: 32, 2: 36, 3: 36, 4: 40, 6: 40, 7: 44, 8: 44, 9: 48, Boss: 60 },
+  4: { 1: 64, 2: 72, 3: 72, 4: 80, 6: 80, 7: 88, 8: 88, 9: 96, Boss: 120 },
+  5: { 1: 128, 2: 144, 3: 144, 4: 160, 6: 160, 7: 176, 8: 176, 9: 192, Boss: 240 },
+};
+const impossibleHp: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
+  1: { 1: 48, 2: 50, 3: 55, 4: 58, 6: 63, 7: 69, 8: 74, 9: 79, Boss: 195 },
+  2: { 1: 126, 2: 133, 3: 150, 4: 160, 6: 177, 7: 199, 8: 217, 9: 236, Boss: 729 },
+  3: { 1: 685, 2: 737, 3: 866, 4: 945, 6: 1083, 7: 1269, 8: 1426, 9: 1597, Boss: 7323 },
+  4: { 1: 17928, 2: 20008, 3: 25485, 4: 29050, 6: 35640, 7: 45206, 8: 53849, 9: 63820, Boss: 626662 },
+  5: { 1: 207451, 2: 237960, 3: 322000, 4: 379256, 6: 489691, 7: 659166, 8: 820299, 9: 1014369, Boss: 17631599 },
+};
+
+function scalingFor(difficulty: RunDifficulty) {
+  if (difficulty === "elite") return { damage: eliteDamage, hp: eliteHp };
+  if (difficulty === "impossible") return { damage: impossibleDamage, hp: impossibleHp };
+  return { damage: baseDamage, hp: baseHp };
+}
+
 const buffBudget: Record<DungeonLevel, Record<DungeonRoom, number | null>> = {
   1: { 1: 0, 2: 0, 3: 0, 4: 0, 6: 0, 7: 0, 8: 0, 9: 0, Boss: 1 },
   2: { 1: 1, 2: 1, 3: 1, 4: 1, 6: 1, 7: 1, 8: 1, 9: 1, Boss: 2 },
@@ -231,7 +266,7 @@ function selectBuffs(totalDifficulty: number, usage: MonsterUsage, type: Monster
   return selected;
 }
 
-export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedTypeNames: string[], buffBonus = 0): GeneratedMonster {
+export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedTypeNames: string[], buffBonus = 0, difficulty: RunDifficulty = "normal"): GeneratedMonster {
   const usage = loadUsage();
   const compatibleTypes = monsterTypes.filter((type) =>
     allowedComplexities(room).includes(type.complexity)
@@ -247,8 +282,9 @@ export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedType
   const subtitleBuffs = titleBuff ? [titleBuff, ...sortedBuffs.filter((buff) => buff.name !== titleBuff.name)] : sortedBuffs;
   const fatMultiplier = buffs.some((buff) => buff.name === "Fat") ? 1.3 : 1;
   const mightyMultiplier = buffs.some((buff) => buff.name === "Mighty") ? 1.3 : 1;
-  const hp = Math.round((baseHp[level][room] ?? 30) * type.hpMultiplier * fatMultiplier);
-  const damage = Math.max(1, Math.round((baseDamage[level][room] ?? 6) * mightyMultiplier));
+  const scaling = scalingFor(difficulty);
+  const hp = Math.round((scaling.hp[level][room] ?? 30) * type.hpMultiplier * fatMultiplier);
+  const damage = Math.max(1, Math.round((scaling.damage[level][room] ?? 6) * mightyMultiplier));
   const reward = Math.max(0, Math.round((baseReward[level][room] ?? 0) * randomBetween(0.9, 1.1)));
 
   incrementUsage(usage, "types", type.name);
@@ -272,7 +308,7 @@ export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedType
   };
 }
 
-export function generateBoss(level: DungeonLevel, usedBossNames: string[]): GeneratedMonster {
+export function generateBoss(level: DungeonLevel, usedBossNames: string[], difficulty: RunDifficulty = "normal"): GeneratedMonster {
   const available = bossDefinitions.filter((boss) =>
     !usedBossNames.some((usedName) => usedName === boss.name || usedName.endsWith(` ${boss.name}`))
   );
@@ -299,6 +335,7 @@ export function generateBoss(level: DungeonLevel, usedBossNames: string[]): Gene
   const subtitleBuffs = titleBuff ? [titleBuff, ...sortedBuffs.filter((buff) => buff.name !== titleBuff.name)] : sortedBuffs;
   const fatMultiplier = buffs.some((buff) => buff.name === "Fat") ? 1.3 : 1;
   const mightyMultiplier = buffs.some((buff) => buff.name === "Mighty") ? 1.3 : 1;
+  const scaling = scalingFor(difficulty);
   return {
     id: `${level}-Boss-${boss.id}-${Math.random().toString(36).slice(2, 9)}`,
     level,
@@ -309,8 +346,8 @@ export function generateBoss(level: DungeonLevel, usedBossNames: string[]): Gene
     attackPattern: { name: `Boss: ${boss.name}`, hasSpells: boss.spells.length > 0, difficulty: 4, description: "Unique scripted boss pattern" },
     buffs,
     spells: boss.spells,
-    maxHealth: Math.round((baseHp[level].Boss ?? 125) * fatMultiplier),
-    baseAttack: Math.max(1, Math.round((baseDamage[level].Boss ?? 12) * mightyMultiplier)),
+    maxHealth: Math.round((scaling.hp[level].Boss ?? 125) * fatMultiplier),
+    baseAttack: Math.max(1, Math.round((scaling.damage[level].Boss ?? 12) * mightyMultiplier)),
     reward: Math.max(0, Math.round((baseReward[level].Boss ?? 0) * randomBetween(0.9, 1.1))),
     bossId: boss.id,
   };
@@ -334,3 +371,4 @@ export function nextDungeonLevel(level: DungeonLevel): DungeonLevel {
 }
 
 
+import type { RunDifficulty } from "../game/types";
