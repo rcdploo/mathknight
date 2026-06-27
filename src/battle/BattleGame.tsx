@@ -438,8 +438,8 @@ function createBattle(monster: GeneratedMonster) {
     enemySpellCount: openingAction.spells?.length ?? 0,
     enemyMaxHealth,
     enemyStunned: false,
-    weakenNext: hasItem(itemIds, "caltrops") ? 3 : 0,
-    weakenTurns: hasItem(itemIds, "caltrops") ? 1 : 0,
+    weakenNext: hasItem(itemIds, "caltrops") ? 1 : 0,
+    weakenTurns: hasItem(itemIds, "caltrops") ? 3 : 0,
     monsterActionDeck: openingAction.actionDeck,
     monsterLastAction: openingAction.action,
     monsterMessage: openingAction.text,
@@ -531,7 +531,12 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
             : []),
         phoenixUsed: parsed.battle.phoenixUsed ?? false,
         playerWeakenInstances: parsed.battle.playerWeakenInstances ?? (parsed.battle.playerWeakenTurns > 0 ? [parsed.battle.playerWeakenTurns] : []),
-        weakenTurns: parsed.battle.weakenTurns ?? (parsed.battle.weakenNext > 0 ? 1 : 0),
+        weakenNext: parsed.battle.weakenNext === 3 && parsed.battle.weakenTurns === 1 && hasItem(parsed.battle.itemIds ?? loadRunItems(), "caltrops")
+          ? 1
+          : parsed.battle.weakenNext,
+        weakenTurns: parsed.battle.weakenNext === 3 && parsed.battle.weakenTurns === 1 && hasItem(parsed.battle.itemIds ?? loadRunItems(), "caltrops")
+          ? 3
+          : parsed.battle.weakenTurns ?? (parsed.battle.weakenNext > 0 ? 1 : 0),
         enemyFakeIntentFirst: parsed.battle.enemyFakeIntentFirst ?? false,
         maxEnergy: parsed.battle.maxEnergy ?? characterStatsForLevel(monster.level).energy,
         handSize: parsed.battle.handSize ?? characterStatsForLevel(monster.level).handSize,
@@ -904,7 +909,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setCombatCallout("Critical Hit! +50% damage");
       window.setTimeout(() => setCombatCallout(null), 800);
     }
-    const baseDamage = countered ? matchedCounterIntent : value;
+    const baseDamage = value;
     const parityBonus = value % 2 !== 0 && hasItem(itemIds, "oddjob") ? 1.15 : 1;
     const healthBonus = hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .25 ? 1.2 : hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? 1.1 : 1;
     const fertilizerBonus = 1 + battle.discardDamageStacks * .1;
@@ -920,7 +925,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const enemyArmorForHit = countered ? 0 : battle.enemyArmor;
     const enemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, outgoingDamage);
     const damageSources = [
-      ...(baseDamage !== value ? ["oboe"] : []),
       ...(criticalHit ? ["critical hit"] : []),
       ...(parityBonus > 1 ? ["oddjob"] : []),
       ...(healthBonus > 1 ? ["adrenaline"] : []),
