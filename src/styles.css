@@ -1345,6 +1345,11 @@ button {
 .difficulty-options strong { font: 700 1.15rem Georgia,serif; }
 .difficulty-options small { color: #b9b3a7; line-height: 1.4; }
 .difficulty-cancel { margin-top: 14px; }
+.save-settings { margin-top: -18px; }
+.save-settings-copy { margin: 14px 0; color: #c7c0b4; line-height: 1.5; }
+.save-settings textarea { width: 100%; min-height: 140px; resize: vertical; padding: 12px; border: 1px solid rgba(108,181,161,.42); border-radius: 8px; outline: none; background: #151d1b; color: #e8f5f0; font: .8rem/1.45 ui-monospace,SFMono-Regular,Consolas,monospace; overflow-wrap: anywhere; }
+.save-settings textarea:focus { border-color: #6cb5a1; }
+.legacy-save-note { display: block; margin-top: 13px; color: #8f8b82; line-height: 1.4; }
 .impossible-training-banner { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 7px 18px; padding: 10px clamp(16px,3vw,36px); border-bottom: 1px solid rgba(215,122,102,.45); background: #432a28; color: #fff2ec; }
 .impossible-training-banner strong { color: #ffb4a4; }
 .impossible-training-banner small { width: 100%; color: #d9bcb5; }

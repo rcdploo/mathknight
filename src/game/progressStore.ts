@@ -1,7 +1,13 @@
 import type { LevelConfig, LevelResult, PlayerProgress, PuzzleProgress, RunDifficulty } from "./types";
 
 const storageKey = "mathknight.memoryMatch.progress.v1";
-const saveCodePrefix = "MK1";
+const legacySaveCodePrefix = "MK1";
+const saveCodePrefix = "MK2";
+
+type FullGameSave = {
+  version: 2;
+  entries: Record<string, string>;
+};
 
 export const defaultProgress: PlayerProgress = {
   schemaVersion: 1,
@@ -62,15 +68,37 @@ export function localStorageAvailable() {
   }
 }
 
-export function exportProgressCode(progress: PlayerProgress) {
-  const json = JSON.stringify(progress);
-  return `${saveCodePrefix}-${window.btoa(json)}`;
+export function exportProgressCode(_progress: PlayerProgress = loadProgress()) {
+  const entries: Record<string, string> = {};
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (!key?.startsWith("mathknight.") || key.endsWith(".test")) continue;
+    const value = window.localStorage.getItem(key);
+    if (value !== null) entries[key] = value;
+  }
+  const save: FullGameSave = { version: 2, entries };
+  return `${saveCodePrefix}-${encodeSavePayload(JSON.stringify(save))}`;
 }
 
 export function importProgressCode(code: string): PlayerProgress {
   const trimmed = code.trim();
-  const payload = trimmed.startsWith(`${saveCodePrefix}-`) ? trimmed.slice(saveCodePrefix.length + 1) : trimmed;
-  const parsed = JSON.parse(window.atob(payload)) as PlayerProgress;
+  if (trimmed.startsWith(`${saveCodePrefix}-`)) {
+    const parsed = JSON.parse(decodeSavePayload(trimmed.slice(saveCodePrefix.length + 1))) as FullGameSave;
+    if (parsed.version !== 2 || !parsed.entries || Object.entries(parsed.entries).some(([key, value]) => !key.startsWith("mathknight.") || typeof value !== "string")) {
+      throw new Error("This save code is not a valid Mathknight save.");
+    }
+    const currentKeys: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith("mathknight.")) currentKeys.push(key);
+    }
+    currentKeys.forEach((key) => window.localStorage.removeItem(key));
+    Object.entries(parsed.entries).forEach(([key, value]) => window.localStorage.setItem(key, value));
+    return loadProgress();
+  }
+
+  const legacyPayload = trimmed.startsWith(`${legacySaveCodePrefix}-`) ? trimmed.slice(legacySaveCodePrefix.length + 1) : trimmed;
+  const parsed = JSON.parse(decodeSavePayload(legacyPayload)) as PlayerProgress;
 
   if (parsed.schemaVersion !== 1 || typeof parsed.coins !== "number" || !parsed.puzzles) {
     throw new Error("This save code is not a valid Mathknight save.");
@@ -78,6 +106,19 @@ export function importProgressCode(code: string): PlayerProgress {
 
   saveProgress(parsed);
   return loadProgress();
+}
+
+function encodeSavePayload(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return window.btoa(binary);
+}
+
+function decodeSavePayload(value: string) {
+  const binary = window.atob(value);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
 function readLocalProgress() {

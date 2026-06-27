@@ -228,11 +228,10 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   }
 
   function restoreSaveCode() {
+    if (!window.confirm("Load this Knight Code? Your current local game will be replaced.")) return;
     try {
-      const nextProgress = importProgressCode(saveCodeInput);
-      setProgress(nextProgress);
-      setScreen("map");
-      setSaveMessage("Progress restored.");
+      importProgressCode(saveCodeInput);
+      window.location.reload();
     } catch {
       setSaveMessage("That Knight Code did not work.");
     }
