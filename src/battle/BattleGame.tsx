@@ -171,7 +171,7 @@ function monsterAction(monster: GeneratedMonster, turn: number, deck: string[], 
     prime: { intent: advancingPrime(monster.baseAttack, turn), armor: 0, text: `${monster.name} counts upward through prime strikes.` },
     "countdown-3": { intent: 3, armor: 0, text: `${monster.name} begins an explosive countdown.` },
     "countdown-2": { intent: 2, armor: 0, text: `${monster.name} continues the countdown.` },
-    "countdown-1": { intent: 1, armor: 0, text: `${monster.name} is about to explode.` },
+    "countdown-1": { intent: 1, armor: 0, text: `${monster.name} turns a deep red.` },
     explosion: { intent: Math.round(attack * Math.max(3, turn - 1)), armor: 0, text: `${monster.name} releases stored force.` },
   };
   const detail = details[action] ?? details.attack;
@@ -544,7 +544,9 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
         heroicWillRemaining: parsed.battle.heroicWillRemaining ?? (monster.level >= 4 ? loadPermanentLoadout().heroicWillUses : 0),
       },
     };
-    return parsed.phase === "resolving" ? { ...migrated, phase: "playing" as const } : migrated;
+    return parsed.phase === "resolving"
+      ? { ...migrated, selectedCards: [], bottleUsed: false, phase: "playing" as const }
+      : migrated;
   } catch {
     return createBattleSession(monster, bonusItem, bossReward);
   }
