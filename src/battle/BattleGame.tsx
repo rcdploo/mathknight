@@ -918,19 +918,20 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     if (healthBonus > 1) flashItems("adrenaline");
     if (battle.discardDamageStacks > 0) flashItems("fertilizer");
     const enemyArmorForHit = countered ? 0 : battle.enemyArmor;
-    const baseEnemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, baseDamage);
     const enemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, outgoingDamage);
-    const additionalDamage = Math.max(0, enemyHit.damage - baseEnemyHit.damage);
     const damageSources = [
-      ...(criticalHit ? ["Crit"] : []),
-      ...(parityBonus > 1 ? ["Oddjob"] : []),
-      ...(healthBonus > 1 ? ["Adrenaline"] : []),
-      ...(fertilizerBonus > 1 ? ["Fertilizer"] : []),
-      ...(initiativeBonus > 1 ? ["Initiative"] : []),
+      ...(baseDamage !== value ? ["oboe"] : []),
+      ...(criticalHit ? ["critical hit"] : []),
+      ...(parityBonus > 1 ? ["oddjob"] : []),
+      ...(healthBonus > 1 ? ["adrenaline"] : []),
+      ...(fertilizerBonus > 1 ? ["fertilizer"] : []),
+      ...(initiativeBonus > 1 ? ["initiative"] : []),
+      ...(playerWeakenStackCount > 0 && !countered ? ["weaken"] : []),
     ];
-    const damageText = additionalDamage > 0
-      ? `${baseEnemyHit.damage} + ${additionalDamage} (${damageSources.join(", ")})`
-      : `${enemyHit.damage}`;
+    const damageModifier = outgoingDamage - value;
+    const damageText = damageSources.length > 0
+      ? `${value} ${damageModifier >= 0 ? "+" : "-"} ${Math.abs(damageModifier)} (${damageSources.join(", ")})`
+      : `${value}`;
     const monsterDefeated = enemyHit.health === 0;
     const armorAfterExpression = battle.playerArmor + upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.ceil(Math.abs(value) * .15) : 0);
     const healingMultiplier = hasItem(itemIds, "second-wind") && battle.playerHealth <= battle.playerMaxHealth / 2 ? 2 : 1;
@@ -1032,11 +1033,21 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       ...(pendingSpellResult.battle.usurpDraws > battle.usurpDraws ? ["Usurp"] : []),
       ...(pendingSpellResult.battle.immolationTurns > battle.immolationTurns ? ["Immolation"] : []),
     ];
+    const upgradeEffectSummary = [
+      ...(criticalHit ? ["Critical Hit (+50% damage)"] : []),
+      ...(upgradeEffects.armor > 0 ? [`Armor (+${upgradeEffects.armor})`] : []),
+      ...(upgradeEffects.healing > 0 ? [`Healing (+${healingReceived} HP${healingReceived === 0 ? ", already full" : ""})`] : []),
+      ...(upgradeEffects.weaken > 0 && enemyHit.health > 0 ? [`Weaken (${upgradeEffects.weaken})`] : []),
+      ...(stunnedNext && enemyHit.health > 0 ? ["Bash (Stun)"] : []),
+      ...(reflectedDamage > 0 ? [`Reflecting (${reflectedDamage} damage returned)`] : []),
+      ...(upgradeEffects.initiative > 0 && enemyHit.health > 0 ? [`Initiative (+${upgradeEffects.initiative})`] : []),
+    ];
     const expressionLabel = expressionItems.map((item) => item.label).join(" ");
     const enemyArmorAbsorbed = Math.max(0, outgoingDamage - enemyHit.damage);
     const attackArmorAbsorbed = Math.max(0, incomingDamage - attackHit.damage);
     const recapEvents = [
-      `You dealt ${enemyHit.damage} damage${enemyArmorAbsorbed > 0 ? ` (${enemyArmorAbsorbed} blocked by enemy armor)` : ""}.`,
+      `Dealt ${damageText} damage${enemyArmorAbsorbed > 0 ? ` (${enemyArmorAbsorbed} blocked by enemy armor)` : ""}.`,
+      ...(upgradeEffectSummary.length > 0 ? [`Upgrade effects: ${upgradeEffectSummary.join(", ")}.`] : []),
       ...(expressionArmorGain > 0 ? [`You gained ${expressionArmorGain} armor.`] : []),
       ...(healingReceived > 0 ? [`You restored ${healingReceived} HP.`] : []),
       ...(countered

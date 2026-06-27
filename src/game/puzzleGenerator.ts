@@ -148,7 +148,11 @@ function generateFractionPuzzle(level: LevelConfig): PuzzleCard[] {
 function makePair(level: LevelConfig, index: number): PuzzlePair {
   const range = stageRanges[level.stage];
   const advanced = advancedLesson(level);
-  let left = randomInt(...withoutTinySingleDigits(range.left, advanced));
+  const leftRange = withoutTinySingleDigits(range.left, advanced);
+  const subtractionLeftRange: [number, number] = level.unit === "subtraction" && level.stage === "1" && advanced
+    ? [leftRange[0], Math.max(leftRange[1], level.pairs + 1)]
+    : leftRange;
+  let left = randomInt(...subtractionLeftRange);
   let right = randomInt(...withoutTinySingleDigits(range.right, advanced));
   let result = 0;
   let symbol = "+";
