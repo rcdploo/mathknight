@@ -1217,11 +1217,11 @@ button {
 .card-upgrade-icons .upgrade-energy { background: #e1bd4e; color: #362b09; }
 .card-upgrade-icons .upgrade-special { background: #d77bb5; color: #371127; }
 .card-upgrade-icons .upgrade-healing { background: #55b879; color: #102d1b; }
-.card-explainer { position: absolute; left: 50%; bottom: calc(100% + 10px); z-index: 30; display: none; width: 260px; padding: 12px; border: 1px solid #8f977f; border-radius: 6px; background: #171916; color: #ddd8cc; font-size: .72rem; font-weight: 400; line-height: 1.4; text-align: left; transform: translateX(-50%); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.card-explainer { position: absolute; left: 50%; bottom: calc(100% + 10px); z-index: 30; display: none; width: 260px; padding: 12px; border: 1px solid #8f977f; border-radius: 6px; background: #171916; color: #ddd8cc; font-size: .72rem; font-weight: 400; line-height: 1.4; text-align: left; transform: translateX(-50%); box-shadow: 0 10px 30px rgba(0,0,0,.5); pointer-events: none; }
 .card-explainer > strong, .card-explainer > span { display: block; }
 .card-explainer > strong { margin-bottom: 5px; color: #fff4d5; font-size: .9rem; }
 .card-explainer > span { margin-top: 7px; color: #bfe5ca; }
-.battle-card:hover .card-explainer, .battle-card:focus .card-explainer { display: block; }
+.battle-card:hover .card-explainer, .battle-card:focus-visible .card-explainer { display: block; }
 .pile-counts { display: grid; gap: 8px; }
 .pile-counts button { min-width: 84px; min-height: 34px; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; background: #292923; color: #d7d1c5; cursor: pointer; font-size: .72rem; font-weight: 800; }
 .pile-panel { width: min(760px, 100%); max-height: min(82vh, 720px); overflow: auto; padding: 22px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: #211f1b; }
