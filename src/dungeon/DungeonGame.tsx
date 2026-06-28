@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import BattleGame from "../battle/BattleGame";
 import { addRunItem, itemById, itemSymbol, loadPendingItemChoice, loadRunItems, saveRunItems, updatePendingItemChoice, surfaceItems, type ItemDefinition, type PendingItemChoice } from "../battle/itemCatalog";
-import { applyCardUpgrade, canApplyUpgrade, makeCatalogEntry, shuffle as shuffleCards, type BattleCard } from "../battle/battleEngine";
+import { applyCardUpgrade, canApplyUpgrade, ensureUniqueCardIds, makeCatalogEntry, shuffle as shuffleCards, type BattleCard } from "../battle/battleEngine";
 import { cardById, cardCatalog, cardDescription, type CardRarity } from "../battle/cardCatalog";
 import GameCard from "../battle/GameCard";
 import RunOverview from "./RunOverview";
@@ -633,7 +633,7 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
         </div>
       </div>
     )}
-    <div className="reward-cards">{state.rewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosen?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosen((current) => current?.id === card.id ? null : card)}>
+    <div className="reward-cards">{state.rewards.map((card) => <button className={`reward-option ${card.kind} rarity-${card.rarity.toLowerCase()} ${chosen?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosen((current) => current?.id === card.id ? null : card)}>
       <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
       {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
       <small>{cardDescription(card.catalogId, card.label, card.effect)}</small>
@@ -647,7 +647,11 @@ const runHealthKey = "mathknight.dungeon.runHealth.v1";
 
 function loadRunDeckCards() {
   try {
-    return JSON.parse(window.localStorage.getItem(runDeckKey) ?? "[]") as BattleCard[];
+    const deck = JSON.parse(window.localStorage.getItem(runDeckKey) ?? "[]") as BattleCard[];
+    const cleaned = deck.filter((card) => !card.upgrades.includes("card-removal"));
+    const normalized = ensureUniqueCardIds(cleaned);
+    if (cleaned.length !== deck.length || normalized.changed) window.localStorage.setItem(runDeckKey, JSON.stringify(normalized.cards));
+    return normalized.cards;
   } catch {
     return [];
   }
@@ -711,15 +715,17 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
     }
     if (rewardTargeting && chosenReward) {
       const selectedUpgrade = chosenReward;
-      const eligible = [...deck.filter((card) => canApplyUpgrade(card, selectedUpgrade.catalogId)), ...(bottleCanTake(selectedUpgrade.catalogId) ? [bottle] : [])];
+      const removable = selectedUpgrade.catalogId === "card-removal";
+      const eligible = removable ? deck : [...deck.filter((card) => canApplyUpgrade(card, selectedUpgrade.catalogId)), ...(bottleCanTake(selectedUpgrade.catalogId) ? [bottle] : [])];
       function applyReward(card: BattleCard) {
-        if (card.id === bottle.id) {
+        if (removable) finishReward(deck.filter((entry) => entry.id !== card.id));
+        else if (card.id === bottle.id) {
           saveRunBottle(applyCardUpgrade(bottle, selectedUpgrade.catalogId));
           finishReward();
         } else finishReward(deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, selectedUpgrade.catalogId) : entry));
       }
       return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
-        <p>{itemName}</p><h1>Apply {selectedUpgrade.label}</h1>
+        <p>{itemName}</p><h1>{removable ? "Choose a card to remove" : `Apply ${selectedUpgrade.label}`}</h1>
         <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} bottled={bottle.id === card.id} preview onClick={() => applyReward(card)} key={card.id} />)}</div>
         <div className="battle-actions"><button onClick={() => setRewardTargeting(false)}>Back</button></div>
       </section></main>;
@@ -732,7 +738,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
     return <main className="battle-game reward-screen"><section className="reward-panel">
       <p>{itemName}</p><h1>Choose one card</h1>
       <p className="room-event-message">{rewardChoice.rewardSets.length} reward{rewardChoice.rewardSets.length === 1 ? "" : "s"} remaining.</p>
-      <div className="reward-cards">{rewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
+      <div className="reward-cards">{rewards.map((card) => <button className={`reward-option ${card.kind} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
         <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{cardDescription(card.catalogId, card.label, card.effect)}</small>
       </button>)}</div>
       <div className="battle-actions"><button disabled={!chosenReward} onClick={chooseReward}>Choose reward</button></div>
@@ -893,33 +899,35 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
     const price = priceFor(targetSlot);
     const bottle = loadRunBottle();
     const targetsBottle = card.id === bottle.id;
-    if (targetsBottle && targetSlot.type === "upgrade") saveRunBottle(applyCardUpgrade(bottle, targetSlot.card.catalogId));
-    const nextDeck = targetSlot.type === "remove-card"
+    const removesCard = targetSlot.type === "remove-card" || (targetSlot.type === "upgrade" && targetSlot.card.catalogId === "card-removal");
+    if (targetsBottle && targetSlot.type === "upgrade" && !removesCard) saveRunBottle(applyCardUpgrade(bottle, targetSlot.card.catalogId));
+    const nextDeck = removesCard
       ? deck.filter((entry) => entry.id !== card.id)
       : targetSlot.type === "upgrade"
         ? targetsBottle ? deck : deck.map((entry) => entry.id === card.id ? applyCardUpgrade(entry, targetSlot.card.catalogId) : entry)
         : deck;
-    if (targetSlot.type === "remove-card") {
+    if (removesCard) {
       const loadout = loadPermanentLoadout();
       savePermanentLoadout({ ...loadout, removalPurchases: loadout.removalPurchases + 1 });
     }
     persist(markSold(targetSlot), nextDeck, coins - price);
-    setMessage(targetSlot.type === "remove-card" ? `${card.label} was removed.` : `${targetSlot.type === "upgrade" ? targetSlot.card.label : "Upgrade"} was applied to ${card.label}.`);
+    setMessage(removesCard ? `${card.label} was removed.` : `${targetSlot.type === "upgrade" ? targetSlot.card.label : "Upgrade"} was applied to ${card.label}.`);
     setTargetSlot(null);
   }
 
   if (targetSlot) {
     const bottle = loadRunBottle();
-    const bottleEligible = targetSlot.type === "upgrade" && canApplyUpgrade(bottle, targetSlot.card.catalogId)
+    const removesCard = targetSlot.type === "remove-card" || (targetSlot.type === "upgrade" && targetSlot.card.catalogId === "card-removal");
+    const bottleEligible = targetSlot.type === "upgrade" && !removesCard && canApplyUpgrade(bottle, targetSlot.card.catalogId)
       && bottleCapacityCost(applyCardUpgrade(bottle, targetSlot.card.catalogId)) <= loadPermanentLoadout().bottleMaxCost;
-    const eligible = targetSlot.type === "remove-card"
+    const eligible = removesCard
       ? deck
       : targetSlot.type === "upgrade"
         ? [...deck.filter((card) => canApplyUpgrade(card, targetSlot.card.catalogId)), ...(bottleEligible ? [bottle] : [])]
         : [];
     return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
-      <p>Shop purchase</p><h1>{targetSlot.type === "remove-card" ? "Choose a card to remove" : `Choose a card for ${targetSlot.type === "upgrade" ? targetSlot.card.label : "upgrade"}`}</h1>
-      <div className="shop-target-grid">{targetSlot.type === "remove-card" && <GameCard card={bottle} bottled preview disabled onClick={() => undefined} />}{eligible.map((card) => <GameCard card={card} bottled={bottle.id === card.id} preview onClick={() => chooseTarget(card)} key={card.id} />)}</div>
+      <p>Shop purchase</p><h1>{removesCard ? "Choose a card to remove" : `Choose a card for ${targetSlot.type === "upgrade" ? targetSlot.card.label : "upgrade"}`}</h1>
+      <div className="shop-target-grid">{removesCard && <GameCard card={bottle} bottled preview disabled onClick={() => undefined} />}{eligible.map((card) => <GameCard card={card} bottled={bottle.id === card.id} preview onClick={() => chooseTarget(card)} key={card.id} />)}</div>
       <div className="battle-actions"><button onClick={() => setTargetSlot(null)}>Cancel</button></div>
     </section></main>;
   }
@@ -927,7 +935,7 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
   if (randomRewardSlot) {
     return <main className="battle-game reward-screen"><section className="reward-panel">
       <p>Shop Card Reward</p><h1>Choose one card</h1>
-      <div className="reward-cards">{randomRewards.map((card) => <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenRandomReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenRandomReward((current) => current?.id === card.id ? null : card)}>
+      <div className="reward-cards">{randomRewards.map((card) => <button className={`reward-option ${card.kind} rarity-${card.rarity.toLowerCase()} ${chosenRandomReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenRandomReward((current) => current?.id === card.id ? null : card)}>
         <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
         {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
         <small>{cardDescription(card.catalogId, card.label, card.effect)}</small>

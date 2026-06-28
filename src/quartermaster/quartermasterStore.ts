@@ -1,5 +1,5 @@
 import { cardById } from "../battle/cardCatalog";
-import { makeStartingDeck, type BattleCard } from "../battle/battleEngine";
+import { ensureUniqueCardIds, makeStartingDeck, type BattleCard } from "../battle/battleEngine";
 
 export type PermanentLoadout = {
   deck: BattleCard[];
@@ -109,7 +109,11 @@ export function bottleCapacityCost(card: BattleCard, maxEnergy = 3) {
 export function loadRunDeck() {
   try {
     const raw = window.localStorage.getItem(runDeckKey);
-    return raw ? JSON.parse(raw) as BattleCard[] : loadPermanentLoadout().deck;
+    const deck = raw ? JSON.parse(raw) as BattleCard[] : loadPermanentLoadout().deck;
+    const cleaned = deck.filter((card) => !card.upgrades.includes("card-removal"));
+    const normalized = ensureUniqueCardIds(cleaned);
+    if (cleaned.length !== deck.length || normalized.changed) window.localStorage.setItem(runDeckKey, JSON.stringify(normalized.cards));
+    return normalized.cards;
   } catch {
     return loadPermanentLoadout().deck;
   }

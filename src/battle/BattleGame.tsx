@@ -10,7 +10,7 @@ import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsS
 import { generateCombatRewards } from "./rewardGenerator";
 import GameCard from "./GameCard";
 import {
-  applyCardUpgrade, applyDamage, canApplyUpgrade, drawHand, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
+  applyCardUpgrade, applyDamage, canApplyUpgrade, drawHand, ensureUniqueCardIds, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
   makeCard, makeCatalogEntry, resolveExpressionTokens, rollAny, shuffle, type BattleCard,
 } from "./battleEngine";
 
@@ -58,7 +58,11 @@ function loadRunDeck() {
   try {
     const raw = window.localStorage.getItem(runDeckKey);
     if (!raw) return loadPermanentLoadout().deck;
-    return JSON.parse(raw) as BattleCard[];
+    const deck = JSON.parse(raw) as BattleCard[];
+    const cleaned = deck.filter((card) => !card.upgrades.includes("card-removal"));
+    const normalized = ensureUniqueCardIds(cleaned);
+    if (cleaned.length !== deck.length || normalized.changed) saveRunDeck(normalized.cards);
+    return normalized.cards;
   } catch {
     return loadPermanentLoadout().deck;
   }
@@ -505,12 +509,15 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
     const raw = window.localStorage.getItem(battleSessionKey);
     if (!raw) return createBattleSession(monster, bonusItem, bossReward);
     const parsed = JSON.parse(raw) as BattleSession;
+    const sessionCards = [...(parsed.battle?.hand ?? []), ...(parsed.battle?.drawPile ?? []), ...(parsed.battle?.discardPile ?? [])];
+    const sessionIds = new Set(sessionCards.map((card) => card.id));
     if (
       parsed.monsterId !== monster.id
       || !parsed.battle?.hand
       || !parsed.rewards
       || parsed.rewards.some((reward) => reward.rewardSlot === undefined)
       || typeof parsed.turn !== "number"
+      || sessionIds.size !== sessionCards.length
     ) return createBattleSession(monster, bonusItem, bossReward);
     const migrated = {
       ...parsed,
@@ -1403,7 +1410,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <p>Battle Spoils</p><h1>Choose one card</h1>
           <div className="reward-cards">
             {rewards.map((card) => (
-              <button className={`reward-option ${card.kind === "upgrade" ? "upgrade" : ""} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward((current) => current?.id === card.id ? null : card)}>
+              <button className={`reward-option ${card.kind} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward((current) => current?.id === card.id ? null : card)}>
                 <strong>{card.label}</strong>
                 <span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
                 {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}

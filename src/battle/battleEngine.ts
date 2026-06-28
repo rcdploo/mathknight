@@ -28,11 +28,33 @@ export type DrawState = {
 
 let nextCardId = 0;
 
-export function makeCard(label: string, kind: BattleCard["kind"], energy: number): BattleCard {
+function uniqueCardId() {
   nextCardId += 1;
+  return globalThis.crypto?.randomUUID
+    ? `battle-card-${globalThis.crypto.randomUUID()}`
+    : `battle-card-${Date.now().toString(36)}-${nextCardId}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+export function ensureUniqueCardIds(cards: BattleCard[]) {
+  const seen = new Set<string>();
+  let changed = false;
+  const normalized = cards.map((card) => {
+    if (!seen.has(card.id)) {
+      seen.add(card.id);
+      return card;
+    }
+    changed = true;
+    const next = { ...card, id: uniqueCardId() };
+    seen.add(next.id);
+    return next;
+  });
+  return { cards: normalized, changed };
+}
+
+export function makeCard(label: string, kind: BattleCard["kind"], energy: number): BattleCard {
   const definition = cardByName.get(label);
   return {
-    id: `battle-card-${nextCardId}`,
+    id: uniqueCardId(),
     label,
     token: label,
     kind,
@@ -138,7 +160,10 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
       const exponent = exponentComboPower(card.label);
       if (exponent !== null) {
         const previous = tokens[tokens.length - 1];
-        if (!previous || previous.kind !== "number") throw new Error(`${card.label} must be played after a digit card.`);
+        const previousCard = cards[index - 1];
+        if (!previous || previous.kind !== "number" || previousCard?.kind !== "number") {
+          throw new Error(`${card.label} must be played after a digit card.`);
+        }
         const value = (previous.value ?? 0) ** exponent;
         tokens[tokens.length - 1] = { ...previous, value, sourceIds: [...previous.sourceIds, card.id] };
         resolvedNumbers[resolvedNumbers.length - 1] = value;
@@ -232,6 +257,7 @@ export function canApplyUpgrade(card: BattleCard, upgradeId: string) {
 }
 
 export function applyCardUpgrade(card: BattleCard, upgradeId: string): BattleCard {
+  if (upgradeId === "card-removal") throw new Error("Card Removal removes a card; it is not an upgrade tag.");
   if (!canApplyUpgrade(card, upgradeId)) throw new Error("That upgrade cannot be applied to this card.");
   return {
     ...card,
