@@ -200,6 +200,14 @@
         "Median Purchase Cost at Shop":  "$225"
     },
     {
+        "Card Name":  "D",
+        "Type":  "Variable",
+        "Rarity":  "Uncommon",
+        "Energy Cost":  "1",
+        "Effect":  "Value equals the number of cards in your discard pile.",
+        "Median Purchase Cost at Shop":  "$155"
+    },
+    {
         "Card Name":  "Armor",
         "Type":  "Upgrade (Digit)",
         "Rarity":  "Common",

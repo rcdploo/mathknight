@@ -34,6 +34,7 @@ const descriptions: Record<string, string> = {
   "p^2": "Equals the square of the number of other prime values played.",
   "2e": "Equals twice the number of other even values played.",
   "U": "Equals the number of upgraded cards in your whole deck.",
+  "D": "Equals the number of cards in your discard pile.",
   "U^2": "Equals the square of the number of upgraded cards played.",
   "R": "Equals the current room number (1-10).",
   "Armor": "Gain Armor equal to this digit when played.",

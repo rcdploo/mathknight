@@ -24,6 +24,7 @@ const dungeonKey = "mathknight.dungeon.level1.v4";
 const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const runBottleKey = "mathknight.dungeon.runBottle.v1";
 const runHealthKey = "mathknight.dungeon.runHealth.v1";
+const battleSessionKey = "mathknight.battle.session.v2";
 
 function startingLoadout(): PermanentLoadout {
   const cards = makeStartingDeck();
@@ -150,4 +151,15 @@ export function increaseRunHealth(amount: number, maxHealth: number) {
   const current = Number(window.localStorage.getItem(runHealthKey));
   const next = Math.min(maxHealth, (current > 0 ? current : maxHealth - amount) + amount);
   window.localStorage.setItem(runHealthKey, String(next));
+  try {
+    const rawSession = window.localStorage.getItem(battleSessionKey);
+    if (!rawSession) return;
+    const session = JSON.parse(rawSession) as { battle?: { playerHealth?: number; playerMaxHealth?: number } };
+    if (!session.battle) return;
+    session.battle.playerHealth = Math.min(maxHealth, (session.battle.playerHealth ?? next - amount) + amount);
+    session.battle.playerMaxHealth = maxHealth;
+    window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
+  } catch {
+    // A damaged resumable battle should not prevent the permanent upgrade.
+  }
 }

@@ -680,11 +680,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const displayedBlock = battle.enemyStunned ? 0 : battle.enemyArmor;
   const rawPreviewResult = useMemo(() => {
     try {
-      return evaluateExpression(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount });
+      return evaluateExpression(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount, discardPileCount: battle.discardPile.length });
     } catch {
       return null;
     }
-  }, [deckUpgradedCount, dungeonLevel, selectedCards, turn]);
+  }, [battle.discardPile.length, deckUpgradedCount, dungeonLevel, selectedCards, turn]);
   const playerWeakenInstances = battle.playerWeakenInstances ?? (battle.playerWeakenTurns > 0 ? [battle.playerWeakenTurns] : []);
   const playerWeakenStackCount = playerWeakenInstances.length;
   const playerIsWeakened = playerWeakenStackCount > 0;
@@ -706,14 +706,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const counterReady = rawPreviewResult !== null && Number.isFinite(rawPreviewResult) && displayedAttackIntents.includes(rawPreviewResult);
   const expressionItems = useMemo(() => {
     try {
-      return resolveExpressionTokens(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount }).map((token) => ({
+      return resolveExpressionTokens(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount, discardPileCount: battle.discardPile.length }).map((token) => ({
         label: token.kind === "number" ? String(token.value) : token.kind === "left" ? "(" : token.kind === "right" ? ")" : token.operator ?? "",
         sourceIds: token.sourceIds,
       }));
     } catch {
       return selectedCards.map((card) => ({ label: card.lockedValue === undefined ? card.label : `^${card.lockedValue}`, sourceIds: [card.id] }));
     }
-  }, [deckUpgradedCount, dungeonLevel, selectedCards, turn]);
+  }, [battle.discardPile.length, deckUpgradedCount, dungeonLevel, selectedCards, turn]);
   const viewedPile = pileView === "deck"
     ? [battle.bottledCard, ...battle.drawPile].sort((left, right) => cardSequence(left) - cardSequence(right))
     : [...battle.discardPile].reverse();
@@ -929,7 +929,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }
     let value: number;
     try {
-      value = evaluateExpression(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount });
+      value = evaluateExpression(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount, discardPileCount: battle.discardPile.length });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Try a different expression.");
       return;
