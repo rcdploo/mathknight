@@ -126,6 +126,14 @@ function shouldGenerateMonster(type: RoomType) {
   return type === "battle" || type === "elite" || type === "boss";
 }
 
+function scaleEliteMonster(monster: GeneratedMonster) {
+  return {
+    ...monster,
+    maxHealth: Math.round(monster.maxHealth * 1.15),
+    baseAttack: Math.round(monster.baseAttack * 1.15),
+  };
+}
+
 function generateDungeon(level: DungeonLevel, bossNames: string[] = [], difficulty: RunDifficulty = loadProgress().run.difficulty): DungeonState {
   const laneRooms = generateLaneRooms(level);
   const usedTypeNames: string[] = [];
@@ -403,7 +411,8 @@ export default function DungeonGame({
     const activeNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (!activeNode?.monster) return null;
     const effectiveType = activeNode.resolvedType ?? activeNode.type;
-    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={activeNode.monster} roomLabel={`Level ${dungeon.level} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite"} bossReward={effectiveType === "boss"} />;
+    const battleMonster = effectiveType === "elite" ? scaleEliteMonster(activeNode.monster) : activeNode.monster;
+    return <BattleGame onExit={returnToMap} onComplete={completeRoom} monster={battleMonster} roomLabel={`Level ${dungeon.level} / Room ${activeNode.step}`} dungeonLevel={activeNode.step} premiumReward={effectiveType === "elite"} bossReward={effectiveType === "boss"} />;
   }
 
   if (dungeon.view === "event") {
