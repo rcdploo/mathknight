@@ -6,6 +6,7 @@ import { applyCardUpgrade, canApplyUpgrade, ensureUniqueCardIds, makeCatalogEntr
 import { cardById, cardCatalog, cardDescription, type CardRarity } from "../battle/cardCatalog";
 import GameCard from "../battle/GameCard";
 import { upgradeIneligibilityReason } from "../battle/upgradeEligibility";
+import RewardDeckViewer from "../battle/RewardDeckViewer";
 import RunOverview from "./RunOverview";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
@@ -28,7 +29,6 @@ type DungeonState = {
   view: "map" | "battle" | "event";
   notice: string;
   bossNames: string[];
-  removalPurchasesAtLevelStart: number;
 };
 
 type LevelUpSummary = {
@@ -166,12 +166,7 @@ function migrateMonsterData(monster: GeneratedMonster): GeneratedMonster {
   };
 }
 
-function generateDungeon(
-  level: DungeonLevel,
-  bossNames: string[] = [],
-  difficulty: RunDifficulty = loadProgress().run.difficulty,
-  removalPurchasesAtLevelStart = loadPermanentLoadout().removalPurchases,
-): DungeonState {
+function generateDungeon(level: DungeonLevel, bossNames: string[] = [], difficulty: RunDifficulty = loadProgress().run.difficulty): DungeonState {
   const laneRooms = generateLaneRooms(level);
   const usedTypeNames: string[] = [];
   const makeMonster = (type: RoomType, step: number) => {
@@ -207,7 +202,6 @@ function generateDungeon(
     view: "map",
     notice: "Choose a connected room and press deeper into the dungeon.",
     bossNames: bossName ? [...bossNames, bossName] : bossNames,
-    removalPurchasesAtLevelStart,
   };
 }
 
@@ -218,7 +212,6 @@ function loadDungeon() {
     const parsed = JSON.parse(raw) as DungeonState;
     const saved = {
       ...parsed,
-      removalPurchasesAtLevelStart: parsed.removalPurchasesAtLevelStart ?? loadPermanentLoadout().removalPurchases,
       nodes: parsed.nodes.map((node) => node.monster ? { ...node, monster: migrateMonsterData(node.monster) } : node),
       bossNames: parsed.bossNames?.map((name) => name.replace(/\bVexxing\b/g, "Vexing")),
     };
@@ -390,14 +383,7 @@ export default function DungeonGame({
   function completeRoom(won: boolean) {
     if (!won) {
       const previousBosses = dungeon.bossNames.slice(0, -1);
-      const loadout = loadPermanentLoadout();
-      savePermanentLoadout({ ...loadout, removalPurchases: dungeon.removalPurchasesAtLevelStart });
-      const nextDungeon = generateDungeon(
-        dungeon.level,
-        previousBosses,
-        loadProgress().run.difficulty,
-        dungeon.removalPurchasesAtLevelStart,
-      );
+      const nextDungeon = generateDungeon(dungeon.level, previousBosses);
       nextDungeon.notice = "The dungeon shifted after your defeat. Choose a new path.";
       window.localStorage.setItem(dungeonStorageKey, JSON.stringify(nextDungeon));
       setDungeon(nextDungeon);
@@ -735,6 +721,7 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
   const item = state.itemId ? itemById.get(state.itemId) : undefined;
   return <main className="battle-game reward-screen"><section className="reward-panel">
     <p>Treasure Cache</p><h1>Choose one card</h1>
+    <RewardDeckViewer level={level} />
     <p className="premium-item-earned">You found ${state.gold}{item ? <> and <strong>{item.name}</strong></> : null}.</p>
     {item && (
       <div className="reward-item-row">
@@ -857,6 +844,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
     }
     return <main className="battle-game reward-screen"><section className="reward-panel">
       <p>{itemName}</p><h1>Choose one card</h1>
+      <RewardDeckViewer level={loadPermanentLoadout().dungeonLevel} />
       <p className="room-event-message">{rewardChoice.rewardSets.length} reward{rewardChoice.rewardSets.length === 1 ? "" : "s"} remaining.</p>
       <div className="reward-cards">{rewards.map((card) => <button className={`reward-option ${card.kind} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward(card)}>
         <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{cardDescription(card.catalogId, card.label, card.effect)}</small>
@@ -1069,6 +1057,7 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
   if (randomRewardSlot) {
     return <main className="battle-game reward-screen"><section className="reward-panel">
       <p>Shop Card Reward</p><h1>Choose one card</h1>
+      <RewardDeckViewer level={level} />
       <div className="reward-cards">{randomRewards.map((card) => <button className={`reward-option ${card.kind} rarity-${card.rarity.toLowerCase()} ${chosenRandomReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenRandomReward((current) => current?.id === card.id ? null : card)}>
         <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
         {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}

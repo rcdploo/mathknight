@@ -1,4 +1,4 @@
-import { ArrowLeft, HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
+import { ArrowLeft, Coins, HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
 import { BookOpen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { playBattleSound, startCombatMusic, stopCombatMusic, type CombatMusicIntensity } from "./battleAudio";
@@ -10,6 +10,7 @@ import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsS
 import { generateCombatRewards } from "./rewardGenerator";
 import { recordAttackResult, recordMonsterSlain } from "../dungeon/runStats";
 import { upgradeIneligibilityReason } from "./upgradeEligibility";
+import RewardDeckViewer from "./RewardDeckViewer";
 import GameCard from "./GameCard";
 import {
   applyCardUpgrade, applyDamage, drawHand, ensureUniqueCardIds, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
@@ -737,6 +738,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     ...statusTiles.filter((status): status is StatusTile => status !== null),
   ];
   const monsterStatusBuffs: MonsterBuffTile[] = [
+    ...(monster.bossId === "scriintyme"
+      ? [{ name: "Screen Drain", symbol: "S", effect: "You lose 1 HP each time you add a card to your expression." }]
+      : []),
     ...monsterSpellBuffs(battle, monster.level),
     ...(battle.enemyStunned
       ? [{ name: "Stunned", symbol: "Z", effect: "The monster cannot act this turn.", tone: "debuff" as const }]
@@ -1479,6 +1483,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       <main className="battle-game reward-screen">
         <div className="reward-panel">
           <p>Battle Spoils</p><h1>Choose one card</h1>
+          <RewardDeckViewer level={monster.level} />
           <div className="reward-cards">
             {rewards.map((card) => (
               <button className={`reward-option ${card.kind} rarity-${card.rarity.toLowerCase()} ${chosenReward?.id === card.id ? "chosen" : ""}`} key={card.id} onClick={() => setChosenReward((current) => current?.id === card.id ? null : card)}>
@@ -1515,6 +1520,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <div><p>{roomLabel}</p><strong>{monster.name}</strong></div>
         <div className="battle-topbar-actions">
           <span>Turn {turn}</span>
+          <span className="battle-gold"><Coins size={16} /> ${loadProgress().coins}</span>
           <button className="combat-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open combat history"><BookOpen size={17} /> History</button>
         </div>
       </header>

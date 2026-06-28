@@ -36,8 +36,9 @@ function makeProblem(type: ProblemType, advanced: boolean) {
   if (type.startsWith("rectangle")) {
     const width = randomInt(2, 9);
     const height = Math.random() < 0.25 ? width : randomInt(2, 9);
-    const answer = type.endsWith("area") ? width * height : 2 * (width + height);
-    return { answer: `${type.endsWith("area") ? "Area" : "Perimeter"} ${answer}`, geometry: visual("rectangle", [[String(width), "bottom"], [String(height), "left"]]) };
+    const areaAnswer = `Area ${width * height}`;
+    const perimeterAnswer = `Perimeter ${2 * (width + height)}`;
+    return { answer: type.endsWith("area") ? areaAnswer : perimeterAnswer, validAnswers: [areaAnswer, perimeterAnswer], geometry: visual("rectangle", [[String(width), "bottom"], [String(height), "left"]]) };
   }
   if (type === "triangle-perimeter") {
     const a = randomInt(2, 9); const b = randomInt(2, 9); const c = randomInt(Math.abs(a - b) + 1, Math.min(9, a + b - 1));
@@ -59,7 +60,9 @@ function makeProblem(type: ProblemType, advanced: boolean) {
     const radius = useRadius ? measure : measure / 2;
     const area = type.endsWith("area");
     const coefficient = area ? radius ** 2 : 2 * radius;
-    return { answer: `${area ? "Area" : "Perimeter"} ${coefficient}π`, geometry: visual("circle", [[`${useRadius ? "r" : "d"}=${measure}`, "inside"]]) };
+    const areaAnswer = `Area ${radius ** 2}π`;
+    const perimeterAnswer = `Perimeter ${2 * radius}π`;
+    return { answer: `${area ? "Area" : "Perimeter"} ${coefficient}π`, validAnswers: [areaAnswer, perimeterAnswer], geometry: visual("circle", [[`${useRadius ? "r" : "d"}=${measure}`, "inside"]]) };
   }
   if (type.startsWith("trapezoid")) {
     const template = choice([{ top: 3, bottom: 9, height: 4, side: 5 }, { top: 2, bottom: 8, height: 4, side: 5 }, { top: 5, bottom: 9, height: 3, side: 4 }]);
@@ -72,7 +75,8 @@ function makeProblem(type: ProblemType, advanced: boolean) {
   }
   const width = randomInt(4, 9); const height = randomInt(4, 9); const cutWidth = randomInt(singleDigitMin(advanced), width - 2); const cutHeight = randomInt(singleDigitMin(advanced), height - 2);
   const area = type === "l-area";
-  return { answer: `${area ? "Area" : "Perimeter"} ${area ? width * height - cutWidth * cutHeight : 2 * (width + height)}`, geometry: visual("l-shape", area ? [[String(width), "bottom"], [String(height), "left"], [String(cutWidth), "cutout-horizontal"], [String(cutHeight), "cutout-vertical"]] : [[String(width), "bottom"], [String(height), "left"]]) };
+  const answer = `${area ? "Area" : "Perimeter"} ${area ? width * height - cutWidth * cutHeight : 2 * (width + height)}`;
+  return { answer, validAnswers: area ? [answer, `Perimeter ${2 * (width + height)}`] : [answer], geometry: visual("l-shape", area ? [[String(width), "bottom"], [String(height), "left"], [String(cutWidth), "cutout-horizontal"], [String(cutHeight), "cutout-vertical"]] : [[String(width), "bottom"], [String(height), "left"]]) };
 }
 
 export function generateGeometryPuzzle(level: LevelConfig): PuzzleCard[] {
@@ -81,12 +85,20 @@ export function generateGeometryPuzzle(level: LevelConfig): PuzzleCard[] {
   const planned = types.flatMap((type) => [type, type]);
   while (planned.length < level.pairs) planned.push(choice(types));
   const answers = new Set<string>();
+  const validAnswersByGeometry: Array<Set<string>> = [];
   const cards: PuzzleCard[] = [];
   shuffle(planned).forEach((type, index) => {
     let problem = makeProblem(type, advanced);
     let guard = 0;
-    while (answers.has(problem.answer) && guard < 200) { problem = makeProblem(type, advanced); guard += 1; }
+    const isAmbiguous = () => {
+      const validAnswers = new Set("validAnswers" in problem ? problem.validAnswers : [problem.answer]);
+      return [...validAnswers].some((answer) => answers.has(answer))
+        || validAnswersByGeometry.some((existingValidAnswers) => existingValidAnswers.has(problem.answer));
+    };
+    while (isAmbiguous() && guard < 1000) { problem = makeProblem(type, advanced); guard += 1; }
+    if (isAmbiguous()) throw new Error(`Could not generate unambiguous geometry pair ${index + 1} for ${level.id}.`);
     answers.add(problem.answer);
+    validAnswersByGeometry.push(new Set("validAnswers" in problem ? problem.validAnswers : [problem.answer]));
     const pairId = `${level.id}_pair${index + 1}`;
     cards.push({ id: `${pairId}_expression`, pairId, kind: "expression", label: "", geometry: problem.geometry, matched: false });
     cards.push({ id: `${pairId}_result`, pairId, kind: "result", label: problem.answer, matched: false });
