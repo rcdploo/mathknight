@@ -2,11 +2,12 @@ import { cardById, cardDescription } from "./cardCatalog";
 import type { BattleCard } from "./battleEngine";
 
 export default function GameCard({
-  card, onClick, disabled = false, bottled = false, preview = false, forced = false, played = false, price, badge, level,
+  card, onClick, disabled = false, disabledReason, bottled = false, preview = false, forced = false, played = false, price, badge, level,
 }: {
   card: BattleCard;
   onClick: () => void;
   disabled?: boolean;
+  disabledReason?: string | null;
   bottled?: boolean;
   preview?: boolean;
   forced?: boolean;
@@ -26,9 +27,10 @@ export default function GameCard({
   const baseFaceValue = <><span>{card.label}</span>{printedValueUpgrade !== null && <span className="card-face-value-upgrade">+ {printedValueUpgrade}</span>}</>;
   const faceValue = doubled ? <><span className="card-face-doubler">2(</span>{baseFaceValue}<span className="card-face-doubler">)</span></> : baseFaceValue;
   return <button
-    className={`battle-card ${card.kind} type-${typeClass} rarity-${card.rarity.toLowerCase()} upgrades-${upgradeCount} ${preview ? "preview" : ""} ${forced ? "forced" : ""} ${played ? "played" : ""}`}
-    onClick={onClick}
+    className={`battle-card ${card.kind} type-${typeClass} rarity-${card.rarity.toLowerCase()} upgrades-${upgradeCount} ${preview ? "preview" : ""} ${forced ? "forced" : ""} ${played ? "played" : ""} ${disabledReason ? "ineligible" : ""}`}
+    onClick={disabledReason ? undefined : onClick}
     disabled={!preview && disabled}
+    aria-disabled={disabled || Boolean(disabledReason)}
   >
     <small>{card.energy}</small>
     <strong className={`${card.immolatedFrom !== undefined ? "immolated-value" : ""} ${printedValueUpgrade !== null || doubled ? "modified-value" : ""}`.trim() || undefined}>
@@ -56,6 +58,7 @@ export default function GameCard({
         return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {level === undefined ? description : levelText(description, level)}</span>;
       })}
       {bottled && <span><b>Bottled:</b> Available every turn.</span>}
+      {disabledReason && <span className="card-ineligibility-reason"><b>Unavailable:</b> {disabledReason}</span>}
       {card.immolatedFrom !== undefined && <span><b>Immolation:</b> {card.immolatedFrom} was reduced to {card.label}.</span>}
     </span>
   </button>;

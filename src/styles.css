@@ -981,6 +981,9 @@ button {
 .item-offer p { margin: 5px 0; color: #ddd4c6; font-size: .78rem; line-height: 1.4; }
 .item-offer b { margin-top: auto; color: #f0ca73; }
 .dungeon-shop-panel { width: min(1080px, calc(100% - 24px)); }
+.dungeon-shop-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.dungeon-shop-heading p { margin: 0; color: #f0ca73; font-weight: 900; text-transform: uppercase; }
+.dungeon-shop-heading h1 { margin-top: 6px; }
 .shop-balance { margin-top: -14px; color: #f0ca73; font-weight: 900; }
 .dungeon-shop-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 142px; gap: 10px; margin: 22px 0; }
 .shop-offer { position: relative; display: grid; place-items: center; align-content: center; gap: 8px; width: 100%; height: 142px; padding: 13px; border: 4px solid #f2f0e8; border-radius: 8px; background: #28677a; color: #f7f1e5; cursor: pointer; text-align: center; box-shadow: 0 7px 0 rgba(0,0,0,.2); }
@@ -1206,6 +1209,8 @@ button {
 .battle-card.forced { border-color: #f0ca73; box-shadow: 0 8px 0 rgba(0,0,0,.22), 0 0 0 4px rgba(240,202,115,.38); }
 .battle-card:disabled { opacity: .34; cursor: not-allowed; transform: translateY(5px); }
 .battle-card.played { opacity: .34; cursor: pointer; transform: translateY(5px); }
+.battle-card.ineligible { opacity: .38; cursor: not-allowed; filter: grayscale(.55); transform: translateY(5px); }
+.battle-card.ineligible:hover, .battle-card.ineligible:focus-visible { opacity: .7; }
 .battle-card.preview { width: 104px; cursor: default; }
 .battle-card small { justify-self: start; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #73c8dc; color: #102b31; font-weight: 900; }
 .battle-card.operator small { background: #f0ca73; color: #33270f; }
@@ -1237,6 +1242,7 @@ button {
 .card-explainer > strong, .card-explainer > span { display: block; }
 .card-explainer > strong { margin-bottom: 5px; color: #fff4d5; font-size: .9rem; }
 .card-explainer > span { margin-top: 7px; color: #bfe5ca; }
+.card-explainer > .card-ineligibility-reason { color: #ffaaa2; }
 .battle-card:hover .card-explainer, .battle-card:focus-visible .card-explainer { display: block; }
 .pile-counts { display: grid; gap: 8px; }
 .pile-counts button { min-width: 84px; min-height: 34px; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; background: #292923; color: #d7d1c5; cursor: pointer; font-size: .72rem; font-weight: 800; }
@@ -1313,6 +1319,8 @@ button {
 .upgrade-target-panel { width: min(900px, calc(100% - 32px)); max-height: 88vh; overflow: auto; }
 
 @media (max-width: 720px) {
+  .dungeon-shop-heading { align-items: stretch; flex-direction: column; }
+  .dungeon-shop-heading .run-overview-trigger { width: 100%; }
   .run-victory-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .level-up-stats { grid-template-columns: 1fr; }
   .hub-destinations { grid-template-columns: 1fr; }

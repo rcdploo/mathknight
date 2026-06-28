@@ -7,7 +7,7 @@ export type ShopSlot =
   | { position: string; type: "card"; card: BattleCard; price: number; sold: boolean }
   | { position: string; type: "upgrade"; card: BattleCard; price: number; sold: boolean }
   | { position: string; type: "item"; item: ItemDefinition; price: number; sold: boolean }
-  | { position: "S1"; type: "sustenance"; price: number; sold: false }
+  | { position: "S1"; type: "sustenance"; price: number; sold: boolean }
   | { position: "S2"; type: "random-reward"; price: number; sold: boolean }
   | { position: "S3"; type: "remove-card"; price: number; sold: boolean };
 

@@ -5,6 +5,7 @@ import { addRunItem, itemById, itemSymbol, loadPendingItemChoice, loadRunItems, 
 import { applyCardUpgrade, canApplyUpgrade, ensureUniqueCardIds, makeCatalogEntry, shuffle as shuffleCards, type BattleCard } from "../battle/battleEngine";
 import { cardById, cardCatalog, cardDescription, type CardRarity } from "../battle/cardCatalog";
 import GameCard from "../battle/GameCard";
+import { upgradeIneligibilityReason } from "../battle/upgradeEligibility";
 import RunOverview from "./RunOverview";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
@@ -12,7 +13,7 @@ import { generateBoss, generateMonster, generateRoomGold, nextDungeonLevel, type
 import { difficultyLabel, loadProgress, markNormalCompleted, releaseDeferredTrainingIncome, saveProgress } from "../game/progressStore";
 import type { RunDifficulty } from "../game/types";
 import { totalStars } from "../game/unlockRules";
-import { bottleCapacityCost, characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, loadRunBottle, loadRunDeck, savePermanentLoadout, saveRunBottle } from "../quartermaster/quartermasterStore";
+import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, loadRunBottle, loadRunDeck, savePermanentLoadout, saveRunBottle } from "../quartermaster/quartermasterStore";
 import { loadRunStats } from "./runStats";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
@@ -679,9 +680,8 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
     const selectedUpgrade = chosen;
     const removable = selectedUpgrade.catalogId === "card-removal";
     const bottle = loadRunBottle();
-    const bottleEligible = !removable && canApplyUpgrade(bottle, selectedUpgrade.catalogId)
-      && bottleCapacityCost(applyCardUpgrade(bottle, selectedUpgrade.catalogId)) <= loadPermanentLoadout().bottleMaxCost;
-    const eligible = removable ? deck : [...deck.filter((card) => canApplyUpgrade(card, selectedUpgrade.catalogId)), ...(bottleEligible ? [bottle] : [])];
+    const targets = removable ? deck : [...deck, bottle];
+    const bottleMaxCost = loadPermanentLoadout().bottleMaxCost;
     function chooseTarget(card: BattleCard) {
       if (card.id === bottle.id && !removable) {
         saveRunBottle(applyCardUpgrade(bottle, selectedUpgrade.catalogId));
@@ -693,7 +693,11 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
     }
     return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
       <p>Treasure Upgrade</p><h1>{removable ? "Choose a card to remove" : `Choose a card for ${selectedUpgrade.label}`}</h1>
-      <div className="shop-target-grid">{eligible.map((card) => <GameCard card={card} bottled={bottle.id === card.id} preview onClick={() => chooseTarget(card)} key={card.id} />)}</div>
+      <div className="shop-target-grid">{targets.map((card) => {
+        const bottled = bottle.id === card.id;
+        const reason = removable ? null : upgradeIneligibilityReason(card, selectedUpgrade.catalogId, { bottled, bottleMaxCost });
+        return <GameCard card={card} bottled={bottled} preview disabledReason={reason} onClick={() => chooseTarget(card)} key={card.id} />;
+      })}</div>
       <div className="battle-actions"><button onClick={() => setTargeting(false)}>Back</button></div>
     </section></main>;
   }
@@ -743,8 +747,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
   const [upgradeTargeting, setUpgradeTargeting] = useState(false);
   const itemName = itemById.get(choice.itemId)?.name ?? choice.itemId;
   const bottle = loadRunBottle();
-  const bottleCanTake = (upgradeId: string) => canApplyUpgrade(bottle, upgradeId)
-    && bottleCapacityCost(applyCardUpgrade(bottle, upgradeId)) <= loadPermanentLoadout().bottleMaxCost;
+  const bottleMaxCost = loadPermanentLoadout().bottleMaxCost;
 
   function persistDeck(nextDeck: BattleCard[]) {
     window.localStorage.setItem(runDeckKey, JSON.stringify(nextDeck));
@@ -754,7 +757,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
   if (choice.kind === "upgrades") {
     const upgradeChoice = choice;
     const upgradeId = upgradeChoice.upgrades[0];
-    const eligible = [...deck.filter((card) => canApplyUpgrade(card, upgradeId)), ...(upgradeId && bottleCanTake(upgradeId) ? [bottle] : [])];
+    const targets = [...deck, bottle];
     if (!upgradeId) {
       onUpdate(null);
       return null;
@@ -778,7 +781,11 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
     return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
       <p>{itemName}</p><h1>Apply {cardById.get(upgradeId)?.name ?? upgradeId}</h1>
       <p className="room-event-message">{upgradeChoice.upgrades.length} upgrade{upgradeChoice.upgrades.length === 1 ? "" : "s"} remaining.</p>
-      <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} bottled={bottle.id === card.id} preview onClick={() => { setUpgradeTargeting(false); apply(card); }} key={card.id} />)}</div>
+      <div className="pile-card-grid">{targets.map((card) => {
+        const bottled = bottle.id === card.id;
+        const reason = upgradeIneligibilityReason(card, upgradeId, { bottled, bottleMaxCost });
+        return <GameCard card={card} bottled={bottled} preview disabledReason={reason} onClick={() => { setUpgradeTargeting(false); apply(card); }} key={card.id} />;
+      })}</div>
       {upgradeChoice.itemId === "smithy" && <div className="battle-actions"><button onClick={() => setUpgradeTargeting(false)}>Back</button></div>}
     </section></main>;
   }
@@ -795,7 +802,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
     if (rewardTargeting && chosenReward) {
       const selectedUpgrade = chosenReward;
       const removable = selectedUpgrade.catalogId === "card-removal";
-      const eligible = removable ? deck : [...deck.filter((card) => canApplyUpgrade(card, selectedUpgrade.catalogId)), ...(bottleCanTake(selectedUpgrade.catalogId) ? [bottle] : [])];
+      const targets = removable ? deck : [...deck, bottle];
       function applyReward(card: BattleCard) {
         if (removable) finishReward(deck.filter((entry) => entry.id !== card.id));
         else if (card.id === bottle.id) {
@@ -805,7 +812,11 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
       }
       return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
         <p>{itemName}</p><h1>{removable ? "Choose a card to remove" : `Apply ${selectedUpgrade.label}`}</h1>
-        <div className="pile-card-grid">{eligible.map((card) => <GameCard card={card} bottled={bottle.id === card.id} preview onClick={() => applyReward(card)} key={card.id} />)}</div>
+        <div className="pile-card-grid">{targets.map((card) => {
+          const bottled = bottle.id === card.id;
+          const reason = removable ? null : upgradeIneligibilityReason(card, selectedUpgrade.catalogId, { bottled, bottleMaxCost });
+          return <GameCard card={card} bottled={bottled} preview disabledReason={reason} onClick={() => applyReward(card)} key={card.id} />;
+        })}</div>
         <div className="battle-actions"><button onClick={() => setRewardTargeting(false)}>Back</button></div>
       </section></main>;
     }
@@ -877,14 +888,23 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
     return replacement;
   }
   function select(card: BattleCard) {
-    persistDeck(deck.map((entry) => entry.id === card.id ? transformCard(entry) : entry));
+    if (card.id === bottle.id && choice.kind === "aluminum") saveRunBottle(transformCard(card));
+    else persistDeck(deck.map((entry) => entry.id === card.id ? transformCard(entry) : entry));
     const remaining = deckChoice.remaining - 1;
     onUpdate(remaining > 0 ? { ...deckChoice, remaining, selectedIds: [...deckChoice.selectedIds, card.id] } : null);
   }
   return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
     <p>{itemName}</p><h1>{deckChoice.kind === "aluminum" ? "Choose a card for Efficiency" : "Choose a card to transform"}</h1>
     <p className="room-event-message">{deckChoice.remaining} selection{deckChoice.remaining === 1 ? "" : "s"} remaining.</p>
-    <div className="pile-card-grid"><GameCard card={bottle} bottled preview disabled onClick={() => undefined} />{eligible.map((card) => <GameCard card={card} preview onClick={() => select(card)} key={card.id} />)}</div>
+    <div className="pile-card-grid">
+      {deckChoice.kind === "aluminum"
+        ? [...deck, bottle].map((card) => {
+            const bottled = card.id === bottle.id;
+            const reason = upgradeIneligibilityReason(card, "efficiency", { bottled, bottleMaxCost });
+            return <GameCard card={card} bottled={bottled} preview disabledReason={reason} onClick={() => select(card)} key={card.id} />;
+          })
+        : <><GameCard card={bottle} bottled preview disabled onClick={() => undefined} />{eligible.map((card) => <GameCard card={card} preview onClick={() => select(card)} key={card.id} />)}</>}
+    </div>
     {deckChoice.kind === "aluminum" && eligible.length === 0 && <div className="battle-actions"><button onClick={() => onUpdate(null)}>No eligible cards</button></div>}
     {deckChoice.kind === "fresh-paint" && <div className="battle-actions"><button onClick={() => onUpdate(null)}>Finish early</button></div>}
   </section></main>;
@@ -997,16 +1017,21 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
   if (targetSlot) {
     const bottle = loadRunBottle();
     const removesCard = targetSlot.type === "remove-card" || (targetSlot.type === "upgrade" && targetSlot.card.catalogId === "card-removal");
-    const bottleEligible = targetSlot.type === "upgrade" && !removesCard && canApplyUpgrade(bottle, targetSlot.card.catalogId)
-      && bottleCapacityCost(applyCardUpgrade(bottle, targetSlot.card.catalogId)) <= loadPermanentLoadout().bottleMaxCost;
-    const eligible = removesCard
+    const targets = removesCard
       ? deck
       : targetSlot.type === "upgrade"
-        ? [...deck.filter((card) => canApplyUpgrade(card, targetSlot.card.catalogId)), ...(bottleEligible ? [bottle] : [])]
+        ? [...deck, bottle]
         : [];
+    const bottleMaxCost = loadPermanentLoadout().bottleMaxCost;
     return <main className="battle-game reward-screen"><section className="reward-panel upgrade-target-panel">
       <p>Shop purchase</p><h1>{removesCard ? "Choose a card to remove" : `Choose a card for ${targetSlot.type === "upgrade" ? targetSlot.card.label : "upgrade"}`}</h1>
-      <div className="shop-target-grid">{removesCard && <GameCard card={bottle} bottled preview disabled onClick={() => undefined} />}{eligible.map((card) => <GameCard card={card} bottled={bottle.id === card.id} preview onClick={() => chooseTarget(card)} key={card.id} />)}</div>
+      <div className="shop-target-grid">{removesCard && <GameCard card={bottle} bottled preview disabled onClick={() => undefined} />}{targets.map((card) => {
+        const bottled = bottle.id === card.id;
+        const reason = targetSlot.type === "upgrade" && !removesCard
+          ? upgradeIneligibilityReason(card, targetSlot.card.catalogId, { bottled, bottleMaxCost })
+          : null;
+        return <GameCard card={card} bottled={bottled} preview disabledReason={reason} onClick={() => chooseTarget(card)} key={card.id} />;
+      })}</div>
       <div className="battle-actions"><button onClick={() => setTargetSlot(null)}>Cancel</button></div>
     </section></main>;
   }
@@ -1027,7 +1052,10 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
   }
 
   return <main className="battle-game reward-screen"><section className="reward-panel dungeon-shop-panel">
-    <p>Level {level} / Dungeon Shop</p><h1>Dungeon Merchant</h1>
+    <div className="dungeon-shop-heading">
+      <div><p>Level {level} / Dungeon Shop</p><h1>Dungeon Merchant</h1></div>
+      <RunOverview position={{ level, room: Math.floor(node.step) }} />
+    </div>
     <div className="shop-balance">${coins} coins</div><p className="room-event-message">{message}</p>
     <div className="dungeon-shop-grid">
       {orderedSlots.map((slot) => <ShopOffer slot={slot} price={priceFor(slot)} onBuy={() => buy(slot)} key={slot.position} />)}

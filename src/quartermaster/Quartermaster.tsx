@@ -142,7 +142,7 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
 
       {selectionMode && (
         <section className="quartermaster-picker">
-          <div><p>Choose any card costing up to {loadout.bottleMaxCost} Energy.</p><button onClick={() => setSelectionMode(null)}>Cancel</button></div>
+          <div><p>Choose any card using up to {loadout.bottleMaxCost} Capacity.</p><button onClick={() => setSelectionMode(null)}>Cancel</button></div>
           <div className="quartermaster-card-grid">
             {bottleCandidates.map(({ card, bottled }) => {
               const cost = bottleCapacityCost(card);
@@ -167,10 +167,10 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
 
       <section className="quartermaster-options">
         <button className="quartermaster-option" onClick={() => setSelectionMode("bottle")}>
-          <FlaskConical size={28} /><span><strong>Change Bottled Card</strong><small>Max {loadout.bottleMaxCost} Energy Cost</small></span><b>$50</b>
+          <FlaskConical size={28} /><span><strong>Change Bottled Card</strong><small>Max {loadout.bottleMaxCost} Capacity</small></span><b>$50</b>
         </button>
         <button className="quartermaster-option" onClick={upgradeBottle}>
-          <FlaskConical size={28} /><span><strong>Upgrade Bottle</strong><small>Max Energy Cost {loadout.bottleMaxCost} → {loadout.bottleMaxCost + 1}</small></span><b>${bottleUpgradeCost}</b>
+          <FlaskConical size={28} /><span><strong>Upgrade Bottle</strong><small>Max Capacity {loadout.bottleMaxCost} → {loadout.bottleMaxCost + 1}</small></span><b>${bottleUpgradeCost}</b>
         </button>
         <button className={`quartermaster-option ${canUpgradeResourcefulness ? "" : "locked"}`} disabled={!canUpgradeResourcefulness} onClick={upgradeResourcefulness}>
           <RefreshCw size={28} /><span><strong>Resourcefulness</strong><small>{loadout.dungeonLevel < 2 ? "Locked: Level 2" : loadout.resourcefulnessUpgradeCount >= 2 ? "Maximum: 3 uses per fight" : `${loadout.resourcefulnessUses} → ${loadout.resourcefulnessUses + 1} uses per fight`}</small></span><b>{loadout.dungeonLevel < 2 || loadout.resourcefulnessUpgradeCount >= 2 ? "—" : `$${resourcefulnessCost}`}</b>

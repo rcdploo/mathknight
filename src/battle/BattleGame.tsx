@@ -9,9 +9,10 @@ import { bottleCapacityCost, characterStatsForLevel, loadPermanentLoadout, loadR
 import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, queueItemRewardChoice, resetRunItems, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import { recordAttackResult, recordMonsterSlain } from "../dungeon/runStats";
+import { upgradeIneligibilityReason } from "./upgradeEligibility";
 import GameCard from "./GameCard";
 import {
-  applyCardUpgrade, applyDamage, canApplyUpgrade, drawHand, ensureUniqueCardIds, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
+  applyCardUpgrade, applyDamage, drawHand, ensureUniqueCardIds, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
   makeCard, makeCatalogEntry, resolveExpressionTokens, rollAny, shuffle, type BattleCard,
 } from "./battleEngine";
 
@@ -1415,14 +1416,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
   if (phase === "upgrade" && chosenReward) {
     const removable = chosenReward.catalogId === "card-removal";
-    const bottleCanTakeUpgrade = !removable && canApplyUpgrade(battle.bottledCard, chosenReward.catalogId)
-      && bottleCapacityCost(applyCardUpgrade(battle.bottledCard, chosenReward.catalogId)) <= loadPermanentLoadout().bottleMaxCost;
-    const eligibleCards = removable
+    const targetCards = removable
       ? runDeck
-      : [
-          ...runDeck.filter((card) => canApplyUpgrade(card, chosenReward.catalogId)),
-          ...(bottleCanTakeUpgrade ? [battle.bottledCard] : []),
-        ];
+      : [...runDeck, battle.bottledCard];
+    const bottleMaxCost = loadPermanentLoadout().bottleMaxCost;
     return (
       <main className="battle-game reward-screen">
         <div className="reward-panel upgrade-target-panel">
@@ -1430,9 +1427,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <h1>{removable ? "Choose a card to remove" : `Choose a card for ${chosenReward.label}`}</h1>
           {error && <p className="battle-error" role="alert">{error}</p>}
           <div className="pile-card-grid">
-            {eligibleCards.map((card) => <GameCard key={card.id} card={card} onClick={() => applyRewardUpgrade(card)} preview bottled={battle.bottledCard.id === card.id} level={monster.level} />)}
+            {targetCards.map((card) => {
+              const bottled = battle.bottledCard.id === card.id;
+              const reason = removable ? null : upgradeIneligibilityReason(card, chosenReward.catalogId, { bottled, bottleMaxCost });
+              return <GameCard key={card.id} card={card} onClick={() => applyRewardUpgrade(card)} preview bottled={bottled} disabledReason={reason} level={monster.level} />;
+            })}
           </div>
-          {eligibleCards.length === 0 && <p>No valid targets are available.</p>}
           <div className="battle-actions"><button onClick={() => setPhase("reward")}>Back</button><button onClick={onExit}>Game Hall</button></div>
         </div>
       </main>
