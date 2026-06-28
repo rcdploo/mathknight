@@ -28,6 +28,7 @@ type DungeonState = {
   view: "map" | "battle" | "event";
   notice: string;
   bossNames: string[];
+  removalPurchasesAtLevelStart: number;
 };
 
 type LevelUpSummary = {
@@ -165,7 +166,12 @@ function migrateMonsterData(monster: GeneratedMonster): GeneratedMonster {
   };
 }
 
-function generateDungeon(level: DungeonLevel, bossNames: string[] = [], difficulty: RunDifficulty = loadProgress().run.difficulty): DungeonState {
+function generateDungeon(
+  level: DungeonLevel,
+  bossNames: string[] = [],
+  difficulty: RunDifficulty = loadProgress().run.difficulty,
+  removalPurchasesAtLevelStart = loadPermanentLoadout().removalPurchases,
+): DungeonState {
   const laneRooms = generateLaneRooms(level);
   const usedTypeNames: string[] = [];
   const makeMonster = (type: RoomType, step: number) => {
@@ -201,6 +207,7 @@ function generateDungeon(level: DungeonLevel, bossNames: string[] = [], difficul
     view: "map",
     notice: "Choose a connected room and press deeper into the dungeon.",
     bossNames: bossName ? [...bossNames, bossName] : bossNames,
+    removalPurchasesAtLevelStart,
   };
 }
 
@@ -211,6 +218,7 @@ function loadDungeon() {
     const parsed = JSON.parse(raw) as DungeonState;
     const saved = {
       ...parsed,
+      removalPurchasesAtLevelStart: parsed.removalPurchasesAtLevelStart ?? loadPermanentLoadout().removalPurchases,
       nodes: parsed.nodes.map((node) => node.monster ? { ...node, monster: migrateMonsterData(node.monster) } : node),
       bossNames: parsed.bossNames?.map((name) => name.replace(/\bVexxing\b/g, "Vexing")),
     };
@@ -382,7 +390,14 @@ export default function DungeonGame({
   function completeRoom(won: boolean) {
     if (!won) {
       const previousBosses = dungeon.bossNames.slice(0, -1);
-      const nextDungeon = generateDungeon(dungeon.level, previousBosses);
+      const loadout = loadPermanentLoadout();
+      savePermanentLoadout({ ...loadout, removalPurchases: dungeon.removalPurchasesAtLevelStart });
+      const nextDungeon = generateDungeon(
+        dungeon.level,
+        previousBosses,
+        loadProgress().run.difficulty,
+        dungeon.removalPurchasesAtLevelStart,
+      );
       nextDungeon.notice = "The dungeon shifted after your defeat. Choose a new path.";
       window.localStorage.setItem(dungeonStorageKey, JSON.stringify(nextDungeon));
       setDungeon(nextDungeon);
