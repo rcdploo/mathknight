@@ -8,6 +8,7 @@ import { loadProgress, saveProgress } from "../game/progressStore";
 import { bottleCapacityCost, characterStatsForLevel, loadPermanentLoadout, loadRunBottle, resetRunBottle, saveRunBottle } from "../quartermaster/quartermasterStore";
 import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, queueItemRewardChoice, resetRunItems, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
+import { recordAttackResult, recordMonsterSlain } from "../dungeon/runStats";
 import GameCard from "./GameCard";
 import {
   applyCardUpgrade, applyDamage, canApplyUpgrade, drawHand, ensureUniqueCardIds, evaluateExpression, expressionEnergy, expressionUpgradeEffects,
@@ -592,6 +593,7 @@ function clearBattleSession() {
 }
 
 export default function BattleGame({ onExit, onComplete, monster = fallbackMonster, roomLabel = "Dungeon", dungeonLevel = 1, premiumReward = false, bossReward = false }: { onExit: () => void; onComplete: (won: boolean) => void; monster?: GeneratedMonster; roomLabel?: string; dungeonLevel?: number; premiumReward?: boolean; bossReward?: boolean }) {
+  const finalBoss = bossReward && monster.level === 5;
   const restoredSession = useMemo(() => loadBattleSession(monster, premiumReward, bossReward), [monster, premiumReward, bossReward]);
   const [battle, setBattle] = useState(restoredSession.battle);
   const [selectedCards, setSelectedCards] = useState<BattleCard[]>(restoredSession.selectedCards);
@@ -1023,6 +1025,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       : 0;
     const reflectedDamage = !monsterEffectsCanceled && upgradeEffects.reflecting ? Math.round(playerHit.damage * 0.5) : 0;
     const reflectedHit = reflectedDamage > 0 ? applyDamage(enemyHit.health, enemyHit.armor, reflectedDamage) : enemyHit;
+    recordAttackResult(enemyHit.damage + (reflectedDamage > 0 ? reflectedHit.damage : 0), countered);
     const stunnedNext = rollAny(upgradeEffects.bashAttempts, 0.1);
     const armoredGain = !monsterEffectsCanceled && hasBuff(monster, "Armored") && displayedIntent > 0 ? Math.round(displayedIntent * 0.2) : 0;
     const expiredDebuffs = {
@@ -1211,7 +1214,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         playBattleSound("victory");
         setImpact("victory");
         setPhase("victory");
-        setMessage(brokeMath
+        setMessage(finalBoss
+          ? `${monster.name} falls. The dungeon is conquered.`
+          : brokeMath
           ? `You dealt ∞ damage and broke math. The / card has been destroyed. You gain $${goldReward}.${healingReceived > 0 ? ` Healing restores ${healingReceived} HP.` : ""}`
           : healingReceived > 0
             ? `${monster.name} falls. You gain $${goldReward}. Healing restores ${healingReceived} HP.`
@@ -1355,6 +1360,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       resetRunItems();
       saveRunHealth(loadPermanentLoadout().maxHealth);
     }
+    if (won) recordMonsterSlain();
     if (won && bonusItemId) addRunItem(bonusItemId, monster.level);
     clearBattleSession();
     onComplete(won);
@@ -1618,7 +1624,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           <p>{phase === "victory" ? "Victory" : "Defeated"}</p><h1>{message}</h1>
           <div className="battle-actions">
             {phase === "victory" ? (
-              <button onClick={() => setPhase("reward")}>Continue</button>
+              <button onClick={() => finalBoss ? finishRoom(true) : setPhase("reward")}>Continue</button>
             ) : (
               <button onClick={() => finishRoom(false)}>Continue</button>
             )}

@@ -3,7 +3,7 @@ import sourceRows from "./cardCatalog.json";
 export type CardRarity = "Starter" | "Common" | "Uncommon" | "Rare";
 export type CardType =
   | "Digit" | "Combo" | "Operator" | "Variable" | "Upgrade"
-  | "Upgrade (Digit)" | "Upgrade (Variable)" | "Upgrade (any)";
+  | "Upgrade (Digit)" | "Upgrade (Variable)" | "Upgrade (Digit or Variable)" | "Upgrade (any)";
 
 export type CardDefinition = {
   id: string;
@@ -31,15 +31,16 @@ const descriptions: Record<string, string> = {
   "T": "Equals the current turn number.",
   "2o": "Equals twice the number of operators played.",
   "o^2": "Equals the square of the number of operators played.",
-  "3p": "Equals three times the number of other prime values played.",
+  "p^2": "Equals the square of the number of other prime values played.",
   "2e": "Equals twice the number of other even values played.",
-  "2U": "Equals twice the number of upgraded cards in your whole deck.",
+  "U": "Equals the number of upgraded cards in your whole deck.",
   "U^2": "Equals the square of the number of upgraded cards played.",
   "R": "Equals the current room number (1-10).",
   "Armor": "Gain Armor equal to this digit when played.",
   "+1": "Permanently increase a digit by 1.",
   "Card Removal": "Permanently remove one card from your deck.",
   "+3": "Permanently add 3 to a variable's value.",
+  "Doubler": "Double this card's value and base Energy cost.",
   "Cycling": "Discard this card to draw a replacement.",
   "Consumable": "Discard this card for 1 Energy this turn.",
   "Efficiency": "Permanently reduce this card's Energy cost by 1.",

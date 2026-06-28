@@ -18,17 +18,18 @@ _^2,Combo,Uncommon,2,Exponeniates the combined digit to the power of 2,$200
 _^3,Combo,Rare,4,Exponeniates the combined digit to the power of 3,$300
 (),Operator,Rare,1,"You play an open right parenthesis ""("", then a closing left parentesis "")"" is generated in your hand <no additional energy cost, its not a separate card just an indicator>. You must play the closing parenthesis to make a valid expression, or if you remove the open parenthesis the closed one disappears from your hand",$175
 T,Variable,Uncommon,0,Value is equal to the turn number of the current fight,$135
-2o,Variable,Uncommon,1,Value is equal to twice the number of operators in your expression,$145
-o^2,Variable,Rare,2,Value is equal to the square of the number of operators in your expression,$195
-3p,Variable,Rare,2,"Value is equal to three times the number of prime other numbers in your expression. [For 2 digit combos, count the resulting two digit number not the individual digit card]",$185
+2o,Variable,Uncommon,0,Value is equal to twice the number of operators in your expression,$145
+o^2,Variable,Rare,1,Value is equal to the square of the number of operators in your expression,$195
+p^2,Variable,Rare,1,"Value is equal to the square of the number of prime other numbers in your expression. [For 2 digit combos, count the resulting two digit number not the individual digit card]",$185
 2e,Variable,Uncommon,1,Value is equal to twice the number of even numbers in your expression,$140
-2U,Variable,Uncommon,1,Value is equal to twice the number of upgraded cards in your whole deck (including discarded cards),$165
+U,Variable,Uncommon,1,Value is equal to the number of upgraded cards in your whole deck (including discarded cards),$165
 U^2,Variable,Rare,2,Value is equal to the square of the number of upgraded cards in your expression,$225
 Armor,Upgrade (Digit),Common,n/a,"When used in an expression, increase your armor by this amount. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$95
 +1,Upgrade (Digit),Common,n/a,"Change the value of a 1-8 digit card by 1. [When purchased, permanently enhance a digit card in the deck that doesn't have this upgrade]",$65
 Card Removal,Upgrade,Rare,n/a,"When acquired, immediately remove a card from your deck forever","$100, increasing in cost by $100 for each card you've removed"
 R,Variable,Rare,0,Value is equal to the current room number (1-10 and resets each Level).,$240
 +3,Upgrade (Variable),Uncommon,n/a,"Change the resulting value of any variable card by +3. [When purchased, permanently enhance a variable card in the deck that doesn't have this upgrade]",$155
+Doubler,Upgrade (Digit or Variable),Rare,n/a,Double the value and the base energy cost of the upgraded card,$185
 Cycling,Upgrade (any),Uncommon,n/a,"When this card is in hand, you may discard it to draw a replacement card at no cost (cannot be undone). [When purchased, permanently enhance a card in the deck that doesn't have this upgrade]",$180
 Consumable,Upgrade (any),Rare,n/a,"When this card is in hand, you may discard it to gain 1 energy this turn (can be undone). [When purchased, permanently enhance a card in the deck that doesn't have this upgrade]",$210
 Efficiency,Upgrade (any),Rare,n/a,"When acquired, immediately and permanently reduce the cost of a card in your deck by 1 (can go negative, ie you get energy when you play it)",$220

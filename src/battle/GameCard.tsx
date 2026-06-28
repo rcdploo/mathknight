@@ -17,16 +17,24 @@ export default function GameCard({
 }) {
   const typeClass = card.type.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
   const upgradeCount = Math.min(card.upgrades.length, 5);
+  const printedValueUpgrade = card.upgrades.includes("plus-1") || card.upgrades.includes("1")
+    ? 1
+    : card.upgrades.includes("plus-3") || card.upgrades.includes("3")
+      ? 3
+      : null;
+  const doubled = card.upgrades.includes("doubler");
+  const baseFaceValue = <><span>{card.label}</span>{printedValueUpgrade !== null && <span className="card-face-value-upgrade">+ {printedValueUpgrade}</span>}</>;
+  const faceValue = doubled ? <><span className="card-face-doubler">2(</span>{baseFaceValue}<span className="card-face-doubler">)</span></> : baseFaceValue;
   return <button
     className={`battle-card ${card.kind} type-${typeClass} rarity-${card.rarity.toLowerCase()} upgrades-${upgradeCount} ${preview ? "preview" : ""} ${forced ? "forced" : ""} ${played ? "played" : ""}`}
     onClick={onClick}
     disabled={!preview && disabled}
   >
     <small>{card.energy}</small>
-    <strong className={card.immolatedFrom !== undefined ? "immolated-value" : undefined}>
+    <strong className={`${card.immolatedFrom !== undefined ? "immolated-value" : ""} ${printedValueUpgrade !== null || doubled ? "modified-value" : ""}`.trim() || undefined}>
       {card.immolatedFrom !== undefined
-        ? <><span className="immolated-old-value">{card.immolatedFrom}</span><span className="immolated-new-value">{card.label}</span></>
-        : card.label}
+        ? <><span className="immolated-old-value">{card.immolatedFrom}</span><span className="immolated-new-value">{faceValue}</span></>
+        : faceValue}
     </strong>
     {card.immolatedFrom !== undefined && <span className="card-immolation-marker" aria-label="Immolation reduced this card" title="Immolation">I</span>}
     {card.kind === "upgrade" && <span className="upgrade-card-label">Upgrade</span>}
@@ -62,7 +70,9 @@ function levelText(text: string, level: number) {
 const upgradeVisuals: Record<string, { label: string; category: "defense" | "offense" | "stats" | "energy" | "special" | "healing" }> = {
   armor: { label: "A", category: "defense" }, weaken: { label: "W", category: "defense" },
   crit: { label: "C", category: "offense" }, bash: { label: "B", category: "offense" },
-  "1": { label: "1", category: "stats" }, "3": { label: "3", category: "stats" },
+  "1": { label: "+1", category: "stats" }, "plus-1": { label: "+1", category: "stats" },
+  "3": { label: "+3", category: "stats" }, "plus-3": { label: "+3", category: "stats" },
+  doubler: { label: "2x", category: "stats" },
   efficiency: { label: "E", category: "energy" }, consumable: { label: "C", category: "energy" },
   cycling: { label: "C", category: "special" }, reflecting: { label: "R", category: "special" },
   healing: { label: "H", category: "healing" },

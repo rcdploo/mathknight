@@ -12,12 +12,12 @@ export function resetAllGameProgress(difficulty: RunDifficulty) {
   saveProgress({
     ...structuredClone(defaultProgress),
     settings: previous.settings,
-    puzzles: difficulty === "normal" ? {} : previous.puzzles,
+    puzzles: {},
     run: {
       difficulty,
       normalCompleted: previous.run.normalCompleted,
-      trainingIncomeByLevel: difficulty === "normal" ? {} : previous.run.trainingIncomeByLevel,
-      deferredTrainingIncome: difficulty === "normal" ? 0 : previous.run.deferredTrainingIncome,
+      trainingIncomeByLevel: {},
+      deferredTrainingIncome: 0,
     },
   });
 }

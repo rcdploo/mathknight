@@ -16,6 +16,7 @@ export default function App() {
   const [destination, setDestination] = useState<GameDestination>("hub");
   const [inBattle, setInBattle] = useState(false);
   const [newGameOpen, setNewGameOpen] = useState(false);
+  const [newGameRequired, setNewGameRequired] = useState(false);
   const ambientAllowed = destination !== "battle" || !inBattle;
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export default function App() {
   }, [ambientAllowed]);
 
   function startNewGame() {
+    setNewGameRequired(false);
     if (loadProgress().run.normalCompleted) {
       setNewGameOpen(true);
       return;
@@ -44,9 +46,15 @@ export default function App() {
     beginNewGame("normal");
   }
 
+  function showPostVictoryNewGame() {
+    setDestination("hub");
+    setNewGameRequired(true);
+    setNewGameOpen(true);
+  }
+
   function beginNewGame(difficulty: RunDifficulty) {
     const confirmed = window.confirm(
-      `Start a new ${difficultyLabel(difficulty)} game? This resets the dungeon, deck, and coins.${difficulty === "normal" ? " Training Grounds progress will also reset." : " Training Grounds progress will be preserved."}`,
+      `Start a new ${difficultyLabel(difficulty)} game? This resets the dungeon, deck, coins, and Training Grounds progress.`,
     );
     if (!confirmed) return;
     resetAllGameProgress(difficulty);
@@ -63,6 +71,7 @@ export default function App() {
         onTraining={() => setDestination("memory")}
         onQuartermaster={() => setDestination("quartermaster")}
         onBattleStateChange={setInBattle}
+        onRunWon={showPostVictoryNewGame}
       />
     );
   }
@@ -89,10 +98,10 @@ export default function App() {
           <p>New Expedition</p><h2 id="difficulty-title">Choose Difficulty</h2>
           <div className="difficulty-options">
             <button onClick={() => beginNewGame("normal")}><strong>Normal</strong><small>Standard monster scaling. Training Grounds can be reset and replayed.</small></button>
-            <button onClick={() => beginNewGame("elite")}><strong>Elite</strong><small>Stronger monsters. Training Grounds progress cannot be reset.</small></button>
-            <button onClick={() => beginNewGame("impossible")}><strong>Impossible</strong><small>Extreme scaling. Training Grounds cannot be reset or replayed, and income is capped by dungeon level.</small></button>
+            <button onClick={() => beginNewGame("elite")}><strong>Elite</strong><small>Stronger monsters. Training Grounds starts empty and cannot be reset at the Quartermaster.</small></button>
+            <button onClick={() => beginNewGame("impossible")}><strong>Impossible</strong><small>Extreme scaling. Training Grounds starts empty, cannot be reset or replayed, and income is capped by dungeon level.</small></button>
           </div>
-          <button className="difficulty-cancel" onClick={() => setNewGameOpen(false)}>Cancel</button>
+          {!newGameRequired && <button className="difficulty-cancel" onClick={() => setNewGameOpen(false)}>Cancel</button>}
         </section>
       </div>}
       <div className="hub-run-overview"><RunOverview /></div>

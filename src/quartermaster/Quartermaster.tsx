@@ -2,7 +2,7 @@ import { ArrowLeft, FlaskConical, HeartPulse, RefreshCw, RotateCcw, ShieldCheck,
 import { useEffect, useMemo, useState } from "react";
 import GameCard from "../battle/GameCard";
 import { allLevels, stageLabels, stages, unitLabels, units } from "../game/levels";
-import { loadProgress, saveProgress } from "../game/progressStore";
+import { difficultyLabel, loadProgress, saveProgress } from "../game/progressStore";
 import { isLevelUnlocked } from "../game/unlockRules";
 import type { PlayerProgress, Stage, Unit } from "../game/types";
 import { bottleCapacityCost, increaseRunHealth, loadPermanentLoadout, loadRunBottle, loadRunDeck, markQuartermasterVisited, savePermanentLoadout, saveRunBottle, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
@@ -113,6 +113,7 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
   }
 
   function resetTraining(unit: Unit, stage: Stage) {
+    if (progress.run.difficulty !== "normal") return;
     const cost = resetPrices[unit][stage];
     if (!afford(cost)) return;
     const puzzleIds = levels.filter((level) => level.unit === unit && level.stage === stage).map((level) => level.id);
@@ -185,9 +186,12 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
         </button>
       </section>
 
-      <section className="training-reset-section">
+      <section className={`training-reset-section ${progress.run.difficulty === "normal" ? "" : "locked"}`}>
         <div className="section-heading"><RotateCcw size={22} /><div><p>Prize Restoration</p><h2>Reset Training Grounds</h2></div></div>
-        {units.map((unit) => (
+        {progress.run.difficulty !== "normal" && (
+          <p className="training-reset-unavailable">Not available at {difficultyLabel(progress.run.difficulty)} Difficulty</p>
+        )}
+        {progress.run.difficulty === "normal" && units.map((unit) => (
           <div className="training-reset-row" key={unit}>
             <strong>{unitLabels[unit]}</strong>
             <div>{stages.map((stage) => {

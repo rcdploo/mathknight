@@ -40,11 +40,20 @@ export function ensureUniqueCardIds(cards: BattleCard[]) {
   const seen = new Set<string>();
   let changed = false;
   const normalized = cards.map((card) => {
-    const definition = cardByName.get(card.label);
+    const migratedLabel = card.label === "3p" ? "p^2" : card.label === "2U" ? "U" : card.label;
+    const definition = cardByName.get(migratedLabel);
     const catalogEnergy = definition && typeof definition.energyCost === "number"
-      ? definition.energyCost - (card.upgrades.includes("efficiency") ? 1 : 0)
+      ? definition.energyCost * (card.upgrades.includes("doubler") ? 2 : 1) - (card.upgrades.includes("efficiency") ? 1 : 0)
       : card.energy;
-    const refreshed = catalogEnergy === card.energy ? card : { ...card, energy: catalogEnergy };
+    const refreshed = catalogEnergy === card.energy && migratedLabel === card.label
+      ? card
+      : {
+          ...card,
+          label: migratedLabel,
+          token: migratedLabel,
+          energy: catalogEnergy,
+          ...(definition ? { catalogId: definition.id, type: definition.type, rarity: definition.rarity, effect: definition.effect, shopCostRaw: definition.shopCostRaw } : {}),
+        };
     if (refreshed !== card) changed = true;
     if (!seen.has(refreshed.id)) {
       seen.add(refreshed.id);
@@ -139,7 +148,8 @@ export type ExpressionContext = { turn: number; level: number; deckUpgradedCount
 type ResolvedToken = { kind: "number" | "operator" | "left" | "right"; value?: number; operator?: string; sourceIds: string[] };
 
 function upgradedValue(card: BattleCard, value: number) {
-  return card.upgrades.includes("1") || card.upgrades.includes("plus-1") ? value + 1 : value;
+  const upgraded = card.upgrades.includes("1") || card.upgrades.includes("plus-1") ? value + 1 : value;
+  return card.upgrades.includes("doubler") ? upgraded * 2 : upgraded;
 }
 
 function isPrime(value: number) {
@@ -198,11 +208,12 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
       else if (card.label === "R" || card.label === "L") value = context.level;
       else if (card.label === "2o") value = 2 * operatorCount;
       else if (card.label === "o^2") value = operatorCount ** 2;
-      else if (card.label === "3p") value = 3 * resolvedNumbers.filter(isPrime).length;
+      else if (card.label === "p^2" || card.label === "3p") value = resolvedNumbers.filter(isPrime).length ** 2;
       else if (card.label === "2e") value = 2 * resolvedNumbers.filter((number) => number % 2 === 0).length;
-      else if (card.label === "2U") value = 2 * (context.deckUpgradedCount ?? upgradedCount);
+      else if (card.label === "U" || card.label === "2U") value = context.deckUpgradedCount ?? upgradedCount;
       else if (card.label === "U^2") value = upgradedCount ** 2;
       if (card.upgrades.includes("3") || card.upgrades.includes("plus-3")) value += 3;
+      if (card.upgrades.includes("doubler")) value *= 2;
       tokens.push({ kind: "number", value, sourceIds: [card.id] });
       resolvedNumbers.push(value);
       continue;
@@ -257,6 +268,7 @@ export function rollAny(attempts: number, chance: number) {
 
 export function canApplyUpgrade(card: BattleCard, upgradeId: string) {
   if (card.upgrades.includes(upgradeId)) return false;
+  if (upgradeId === "doubler") return card.kind === "number" || card.kind === "variable";
   if ((upgradeId === "armor" || upgradeId === "1" || upgradeId === "plus-1") && card.kind === "number") return true;
   if ((upgradeId === "3" || upgradeId === "plus-3") && card.kind === "variable") return true;
   if (upgradeId === "armor" || upgradeId === "1" || upgradeId === "plus-1" || upgradeId === "3" || upgradeId === "plus-3") return false;
@@ -266,10 +278,13 @@ export function canApplyUpgrade(card: BattleCard, upgradeId: string) {
 export function applyCardUpgrade(card: BattleCard, upgradeId: string): BattleCard {
   if (upgradeId === "card-removal") throw new Error("Card Removal removes a card; it is not an upgrade tag.");
   if (!canApplyUpgrade(card, upgradeId)) throw new Error("That upgrade cannot be applied to this card.");
+  const upgrades = [...card.upgrades, upgradeId];
+  const definition = cardByName.get(card.label);
+  const baseEnergy = definition && typeof definition.energyCost === "number" ? definition.energyCost : card.energy;
   return {
     ...card,
-    energy: upgradeId === "efficiency" ? card.energy - 1 : card.energy,
-    upgrades: [...card.upgrades, upgradeId],
+    energy: baseEnergy * (upgrades.includes("doubler") ? 2 : 1) - (upgrades.includes("efficiency") ? 1 : 0),
+    upgrades,
   };
 }
 

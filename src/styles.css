@@ -710,6 +710,8 @@ button {
 .bottle-candidate .battle-card { width: min(112px,100%); }
 .bottle-candidate.current .battle-card { border-color: #73c8dc; }
 .training-reset-section { padding: 20px; border: 1px solid rgba(255,255,255,.13); border-radius: 8px; background: rgba(31,29,25,.9); }
+.training-reset-section.locked { opacity: .72; }
+.training-reset-unavailable { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.09); color: #aaa69d; font-weight: 800; }
 .section-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
 .training-reset-row { display: grid; grid-template-columns: 130px 1fr; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.09); }
 .training-reset-row > div { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 7px; }
@@ -1208,6 +1210,10 @@ button {
 .battle-card small { justify-self: start; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #73c8dc; color: #102b31; font-weight: 900; }
 .battle-card.operator small { background: #f0ca73; color: #33270f; }
 .battle-card > strong { align-self: center; font-size: clamp(1.7rem, 3vw, 2.35rem); line-height: 1; }
+.battle-card > strong.modified-value { display: flex; align-items: center; justify-content: center; gap: 5px; font-size: clamp(1.05rem, 2vw, 1.45rem); white-space: nowrap; }
+.card-face-value-upgrade { color: #8ff0ae; font-size: .82em; }
+.card-face-doubler { color: #f2f0e8; }
+.immolated-new-value { display: flex; align-items: center; gap: 5px; }
 .battle-card > strong.immolated-value { display: flex; align-items: center; justify-content: center; gap: 6px; }
 .immolated-old-value { color: #c7b9ae; font-size: .72em; text-decoration: line-through 3px #6f171d; text-decoration-thickness: 3px; }
 .immolated-new-value { color: #fff0e8; }
@@ -1223,7 +1229,7 @@ button {
 .card-upgrade-icons span { display: grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #55b879; color: #102d1b; font-size: .55rem; font-weight: 900; }
 .card-upgrade-icons .upgrade-defense { background: #5aa8df; color: #102936; }
 .card-upgrade-icons .upgrade-offense { background: #d96459; color: #35110e; }
-.card-upgrade-icons .upgrade-stats { background: #171816; color: #f2f0e8; }
+.card-upgrade-icons .upgrade-stats { width: auto; min-width: 14px; padding: 0 3px; background: #171816; color: #f2f0e8; }
 .card-upgrade-icons .upgrade-energy { background: #e1bd4e; color: #362b09; }
 .card-upgrade-icons .upgrade-special { background: #d77bb5; color: #371127; }
 .card-upgrade-icons .upgrade-healing { background: #55b879; color: #102d1b; }
@@ -1274,6 +1280,16 @@ button {
 .boss-item-reward small { color: #ddb487; text-transform: uppercase; }
 .boss-item-reward p { margin: 0; color: #eaded0; font-size: .78rem; line-height: 1.4; }
 .level-up-panel { border-color: rgba(240,202,115,.65); box-shadow: 0 0 42px rgba(240,202,115,.15); animation: result-arrive 480ms ease-out; }
+.run-victory-screen { background: radial-gradient(circle at 50% 25%,rgba(240,202,115,.2),transparent 34%),linear-gradient(145deg,#172d29,#211f1b 55%,#513b22); }
+.run-victory-panel { width: min(820px,calc(100% - 32px)); border-color: #f0ca73; box-shadow: 0 0 60px rgba(240,202,115,.2); animation: result-arrive 600ms ease-out; }
+.run-victory-panel h1 { margin-bottom: 8px; color: #fff0b8; font-size: clamp(2.8rem,8vw,5rem); text-align: center; }
+.run-victory-panel > p, .run-victory-difficulty { text-align: center; }
+.run-victory-difficulty { margin-bottom: 26px; color: #c9b985; font-size: .78rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.run-victory-stats { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; margin-bottom: 26px; }
+.run-victory-stats > div { display: grid; align-content: center; gap: 8px; min-height: 110px; padding: 14px 8px; border: 1px solid rgba(240,202,115,.3); border-radius: 8px; background: #302b20; text-align: center; }
+.run-victory-stats span { color: #bdb49e; font-size: .65rem; font-weight: 900; text-transform: uppercase; }
+.run-victory-stats strong { color: #f8df9d; font: 700 1.8rem Georgia,serif; }
+.run-victory-panel .battle-actions { justify-content: center; }
 .level-up-panel h1 span { color: #f0ca73; padding: 0 8px; }
 .level-up-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 22px; }
 .level-up-stats > div { display: grid; gap: 7px; padding: 18px 12px; border: 1px solid rgba(240,202,115,.28); border-radius: 8px; background: #29271f; text-align: center; }
@@ -1297,6 +1313,7 @@ button {
 .upgrade-target-panel { width: min(900px, calc(100% - 32px)); max-height: 88vh; overflow: auto; }
 
 @media (max-width: 720px) {
+  .run-victory-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .level-up-stats { grid-template-columns: 1fr; }
   .hub-destinations { grid-template-columns: 1fr; }
   .battlefield { grid-template-columns: 1fr 1fr; min-height: 280px; }

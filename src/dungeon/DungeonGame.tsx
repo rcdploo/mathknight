@@ -9,10 +9,11 @@ import RunOverview from "./RunOverview";
 import { generateCombatRewards } from "../battle/rewardGenerator";
 import { loadShop, saveShop, type ShopSlot } from "../battle/shopGenerator";
 import { generateBoss, generateMonster, generateRoomGold, nextDungeonLevel, type DungeonRoom, type DungeonLevel, type GeneratedMonster } from "../battle/monsterGenerator";
-import { loadProgress, markNormalCompleted, releaseDeferredTrainingIncome, saveProgress } from "../game/progressStore";
+import { difficultyLabel, loadProgress, markNormalCompleted, releaseDeferredTrainingIncome, saveProgress } from "../game/progressStore";
 import type { RunDifficulty } from "../game/types";
 import { totalStars } from "../game/unlockRules";
 import { bottleCapacityCost, characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, loadRunBottle, loadRunDeck, savePermanentLoadout, saveRunBottle } from "../quartermaster/quartermasterStore";
+import { loadRunStats } from "./runStats";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
 type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "elite" | "shop" | "treasure" };
@@ -41,8 +42,19 @@ type LevelUpSummary = {
   trainingIncomeReleased: number;
 };
 
+type RunVictorySummary = {
+  difficulty: RunDifficulty;
+  monstersSlain: number;
+  damageDealt: number;
+  attacksCountered: number;
+  mathBroken: boolean;
+  itemsAcquired: number;
+  upgradesApplied: number;
+};
+
 const dungeonStorageKey = "mathknight.dungeon.level1.v6";
 const levelUpSummaryStorageKey = "mathknight.dungeon.levelUpSummary.v1";
+const runVictorySummaryStorageKey = "mathknight.dungeon.victorySummary.v1";
 const mapWidth = 1280;
 const mapHeight = 480;
 const dungeonStarRequirements: Partial<Record<DungeonLevel, Partial<Record<number, number>>>> = {
@@ -56,6 +68,14 @@ const dungeonStarRequirements: Partial<Record<DungeonLevel, Partial<Record<numbe
 function loadLevelUpSummary() {
   try {
     return JSON.parse(window.localStorage.getItem(levelUpSummaryStorageKey) ?? "null") as LevelUpSummary | null;
+  } catch {
+    return null;
+  }
+}
+
+function loadRunVictorySummary() {
+  try {
+    return JSON.parse(window.localStorage.getItem(runVictorySummaryStorageKey) ?? "null") as RunVictorySummary | null;
   } catch {
     return null;
   }
@@ -221,16 +241,19 @@ export default function DungeonGame({
   onTraining,
   onQuartermaster,
   onBattleStateChange,
+  onRunWon,
 }: {
   onExit: () => void;
   onTraining: () => void;
   onQuartermaster: () => void;
   onBattleStateChange: (inBattle: boolean) => void;
+  onRunWon: () => void;
 }) {
   const [dungeon, setDungeon] = useState<DungeonState>(loadDungeon);
   const [starLockMessage, setStarLockMessage] = useState<{ required: number; missing: number } | null>(null);
   const [quartermasterLockOpen, setQuartermasterLockOpen] = useState(false);
   const [levelUpSummary, setLevelUpSummary] = useState<LevelUpSummary | null>(loadLevelUpSummary);
+  const [runVictorySummary, setRunVictorySummary] = useState<RunVictorySummary | null>(loadRunVictorySummary);
   const stars = totalStars(loadProgress());
   const quartermasterVisited = hasVisitedQuartermaster();
   const [, setItemChoiceVersion] = useState(0);
@@ -251,6 +274,23 @@ export default function DungeonGame({
     window.addEventListener("mathknight-item-choice", refresh);
     return () => window.removeEventListener("mathknight-item-choice", refresh);
   }, []);
+
+  if (runVictorySummary) {
+    const damage = runVictorySummary.mathBroken ? "∞" : Math.round(runVictorySummary.damageDealt).toLocaleString();
+    return <main className="battle-game reward-screen run-victory-screen"><section className="reward-panel run-victory-panel">
+      <p>Dungeon Conquered</p>
+      <h1>You Win</h1>
+      <div className="run-victory-difficulty">{difficultyLabel(runVictorySummary.difficulty)} Run Complete</div>
+      <div className="run-victory-stats">
+        <div><span>Monsters Slain</span><strong>{runVictorySummary.monstersSlain}</strong></div>
+        <div><span>Damage Dealt</span><strong>{damage}</strong></div>
+        <div><span>Attacks Countered</span><strong>{runVictorySummary.attacksCountered}</strong></div>
+        <div><span>Items Acquired</span><strong>{runVictorySummary.itemsAcquired}</strong></div>
+        <div><span>Upgrades Applied</span><strong>{runVictorySummary.upgradesApplied}</strong></div>
+      </div>
+      <div className="battle-actions"><button onClick={onRunWon}>Next</button></div>
+    </section></main>;
+  }
 
   if (pendingItemChoice) {
     return <ItemChoiceSelector choice={pendingItemChoice} onUpdate={(choice) => { updatePendingItemChoice(choice); setItemChoiceVersion((version) => version + 1); }} />;
@@ -335,9 +375,25 @@ export default function DungeonGame({
 
     const completedNode = dungeon.activeNodeId ? nodeById.get(dungeon.activeNodeId) : undefined;
     if (completedNode?.type === "boss") {
+      if (dungeon.level === 5) {
+        let progress = loadProgress();
+        if (progress.run.difficulty === "normal") progress = markNormalCompleted(progress);
+        const stats = loadRunStats();
+        const finalCards = [loadRunBottle(), ...loadRunDeck()];
+        const summary: RunVictorySummary = {
+          difficulty: progress.run.difficulty,
+          ...stats,
+          itemsAcquired: loadRunItems().length,
+          upgradesApplied: finalCards.reduce((total, card) => total + card.upgrades.length, 0),
+        };
+        window.localStorage.removeItem(levelUpSummaryStorageKey);
+        window.localStorage.setItem(runVictorySummaryStorageKey, JSON.stringify(summary));
+        setLevelUpSummary(null);
+        setRunVictorySummary(summary);
+        return;
+      }
       const nextLevel = nextDungeonLevel(dungeon.level);
-      let currentProgress = loadProgress();
-      if (dungeon.level === 5 && currentProgress.run.difficulty === "normal") currentProgress = markNormalCompleted(currentProgress);
+      const currentProgress = loadProgress();
       const releasedTraining = nextLevel > dungeon.level && currentProgress.run.difficulty === "impossible"
         ? releaseDeferredTrainingIncome(currentProgress)
         : { progress: currentProgress, amount: 0 };
@@ -813,7 +869,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
     const definition = shuffleCards(higherRarity.length > 0 ? higherRarity : rareFallback)[0];
     if (!definition) return card;
     let replacement = { ...makeCatalogEntry(definition.name), id: card.id };
-    const upgradePool = shuffleCards(["armor", "plus-1", "plus-3", "cycling", "consumable", "efficiency", "bash", "weaken", "crit", "reflecting", "healing"]);
+    const upgradePool = shuffleCards(["armor", "plus-1", "plus-3", "doubler", "cycling", "consumable", "efficiency", "bash", "weaken", "crit", "reflecting", "healing"]);
     for (const upgradeId of upgradePool) {
       if (rarityValue[replacement.rarity] + replacement.upgrades.length >= targetValue) break;
       if (canApplyUpgrade(replacement, upgradeId)) replacement = applyCardUpgrade(replacement, upgradeId);
