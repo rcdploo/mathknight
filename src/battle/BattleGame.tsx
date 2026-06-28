@@ -525,12 +525,17 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
     ) return createBattleSession(monster, bonusItem, bossReward);
     const migrated = {
       ...parsed,
+      selectedCards: ensureUniqueCardIds(parsed.selectedCards ?? []).cards,
       bonusItemId: parsed.bonusItemId ?? (bonusItem ? surfaceItems(1)[0]?.id ?? null : null),
       bossItemIds: parsed.bossItemIds ?? (bossReward ? surfaceBossItems(2).map((item) => item.id) : []),
       combatLog: parsed.combatLog ?? [],
       turnBriefing: parsed.turnBriefing ?? [],
       battle: {
         ...parsed.battle,
+        hand: ensureUniqueCardIds(parsed.battle.hand).cards,
+        drawPile: ensureUniqueCardIds(parsed.battle.drawPile).cards,
+        discardPile: ensureUniqueCardIds(parsed.battle.discardPile).cards,
+        bottledCard: ensureUniqueCardIds([parsed.battle.bottledCard ?? loadRunBottle()]).cards[0],
         itemIds: parsed.battle.itemIds ?? loadRunItems(),
         nextTurnEnergy: parsed.battle.nextTurnEnergy ?? 0,
         queuedNextTurnEnergy: parsed.battle.queuedNextTurnEnergy ?? 0,
@@ -603,6 +608,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [turnBriefing, setTurnBriefing] = useState<string[]>(restoredSession.turnBriefing);
   const [latestRecap, setLatestRecap] = useState<CombatLogEntry | null>(restoredSession.combatLog.at(-1) ?? null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [divisionWarningOpen, setDivisionWarningOpen] = useState(false);
   const [chosenBossItemId, setChosenBossItemId] = useState<string | null>(null);
   const [impact, setImpact] = useState<"enemy" | "hero" | "counter" | "victory" | "defeat" | null>(null);
   const [combatCallout, setCombatCallout] = useState<string | null>(null);
@@ -687,12 +693,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }
     return weakened;
   };
+  const divisionPreviewUnknown = rawPreviewResult !== null && !Number.isFinite(rawPreviewResult);
   const previewResult = rawPreviewResult === null
     ? null
+    : divisionPreviewUnknown
+      ? rawPreviewResult
     : playerIsWeakened && rawPreviewResult !== displayedIntent
       ? applyPlayerWeakness(rawPreviewResult)
       : rawPreviewResult;
-  const counterReady = rawPreviewResult !== null && displayedAttackIntents.includes(rawPreviewResult);
+  const counterReady = rawPreviewResult !== null && Number.isFinite(rawPreviewResult) && displayedAttackIntents.includes(rawPreviewResult);
   const expressionItems = useMemo(() => {
     try {
       return resolveExpressionTokens(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount }).map((token) => ({
@@ -904,7 +913,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     playBattleSound("card");
   }
 
-  function submitExpression() {
+  function submitExpression(divisionConfirmed = false) {
     if (phase !== "playing") return;
     if (battle.forcedCardId && !selectedCards.some((card) => card.id === battle.forcedCardId)) {
       const forcedCard = battle.hand.find((card) => card.id === battle.forcedCardId);
@@ -924,9 +933,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       return;
     }
 
-    if (!Number.isFinite(value)) {
+    const brokeMath = !Number.isFinite(value);
+    if (brokeMath) {
       const divisionCard = selectedCards.find((card) => card.label === "/");
-      if (!divisionCard || !window.confirm("Dividing by zero will win this battle, but the division card will be lost forever. Continue?")) return;
+      if (!divisionCard) return;
+      if (!divisionConfirmed) {
+        setDivisionWarningOpen(true);
+        return;
+      }
+      setDivisionWarningOpen(false);
       const nextDeck = runDeck.filter((card) => card.id !== divisionCard.id);
       saveRunDeck(nextDeck);
       setRunDeck(nextDeck);
@@ -942,7 +957,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     );
     const countered = matchedCounterIntent !== undefined;
     if (hasItem(itemIds, "oboe") && value !== displayedIntent && Math.abs(value - displayedIntent) === 1) flashItems("oboe");
-    const criticalHit = rollAny(upgradeEffects.critAttempts, 0.2);
+    const criticalHit = !brokeMath && rollAny(upgradeEffects.critAttempts, 0.2);
     if (criticalHit) {
       setCombatCallout("Critical Hit! +50% damage");
       window.setTimeout(() => setCombatCallout(null), 800);
@@ -952,8 +967,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const healthBonus = hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .25 ? 1.2 : hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? 1.1 : 1;
     const fertilizerBonus = 1 + battle.discardDamageStacks * .1;
     const initiativeBonus = 1.1 ** battle.initiativeInstances.length;
-    const boostedDamage = Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * fertilizerBonus * initiativeBonus);
-    const outgoingDamage = playerWeakenStackCount > 0 && !countered
+    const boostedDamage = brokeMath ? Infinity : Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * fertilizerBonus * initiativeBonus);
+    const outgoingDamage = brokeMath ? Infinity : playerWeakenStackCount > 0 && !countered
       ? applyPlayerWeakness(boostedDamage)
       : boostedDamage;
     if (value % 2 !== 0) flashItems("oddjob");
@@ -962,7 +977,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     if (battle.discardDamageStacks > 0) flashItems("fertilizer");
     const enemyArmorForHit = countered ? 0 : battle.enemyArmor;
     const enemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, outgoingDamage);
-    const damageSources = [
+    const damageSources = brokeMath ? [] : [
       ...(criticalHit ? ["critical hit"] : []),
       ...(parityBonus > 1 ? ["oddjob"] : []),
       ...(healthBonus > 1 ? ["adrenaline"] : []),
@@ -971,7 +986,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       ...(playerWeakenStackCount > 0 && !countered ? ["weaken"] : []),
     ];
     const damageModifier = outgoingDamage - value;
-    const damageText = damageSources.length > 0
+    const damageText = brokeMath
+      ? "∞"
+      : damageSources.length > 0
       ? `${value} ${damageModifier >= 0 ? "+" : "-"} ${Math.abs(damageModifier)} (${damageSources.join(", ")})`
       : `${value}`;
     const monsterDefeated = enemyHit.health === 0;
@@ -1085,10 +1102,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       ...(upgradeEffects.initiative > 0 && enemyHit.health > 0 ? [`Initiative (+${upgradeEffects.initiative})`] : []),
     ];
     const expressionLabel = expressionItems.map((item) => item.label).join(" ");
-    const enemyArmorAbsorbed = Math.max(0, outgoingDamage - enemyHit.damage);
+    const enemyArmorAbsorbed = brokeMath ? 0 : Math.max(0, outgoingDamage - enemyHit.damage);
     const attackArmorAbsorbed = Math.max(0, incomingDamage - attackHit.damage);
     const recapEvents = [
-      `Dealt ${damageText} damage${enemyArmorAbsorbed > 0 ? ` (${enemyArmorAbsorbed} blocked by enemy armor)` : ""}.`,
+      brokeMath
+        ? "You dealt ∞ damage and broke math. The / card has been destroyed."
+        : `Dealt ${damageText} damage${enemyArmorAbsorbed > 0 ? ` (${enemyArmorAbsorbed} blocked by enemy armor)` : ""}.`,
       ...(upgradeEffectSummary.length > 0 ? [`Upgrade effects: ${upgradeEffectSummary.join(", ")}.`] : []),
       ...(expressionArmorGain > 0 ? [`You gained ${expressionArmorGain} armor.`] : []),
       ...(healingReceived > 0 ? [`You restored ${healingReceived} HP.`] : []),
@@ -1111,7 +1130,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     setTurnBriefing([]);
 
     void (async () => {
-      if (damageSources.length > 0 || playerWeakenStackCount > 0) {
+      if (!brokeMath && (damageSources.length > 0 || playerWeakenStackCount > 0)) {
         if (criticalHit) {
           setCombatCallout("Critical Hit! +50% damage");
           window.setTimeout(() => setCombatCallout(null), 850);
@@ -1131,7 +1150,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setImpact(countered ? "counter" : "enemy");
       playBattleSound(countered ? "counter" : "enemy-hit");
       setBattle((current) => ({ ...current, enemyHealth: enemyHit.health, enemyArmor: enemyHit.armor }));
-      setMessage(countered
+      setMessage(brokeMath
+        ? "You dealt ∞ damage and broke math. The / card has been destroyed."
+        : countered
         ? `Perfect counter! You deal ${damageText} damage. ${monster.name}'s turn is canceled${enemyHit.health === 0 ? ` and ${monster.name} falls` : ""}.`
         : `You hit ${monster.name} for ${damageText} damage${enemyHit.health === 0 ? ` and defeat it` : ""}.`);
       window.setTimeout(() => setImpact(null), 360);
@@ -1190,8 +1211,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         playBattleSound("victory");
         setImpact("victory");
         setPhase("victory");
-        setMessage(
-          healingReceived > 0
+        setMessage(brokeMath
+          ? `You dealt ∞ damage and broke math. The / card has been destroyed. You gain $${goldReward}.${healingReceived > 0 ? ` Healing restores ${healingReceived} HP.` : ""}`
+          : healingReceived > 0
             ? `${monster.name} falls. You gain $${goldReward}. Healing restores ${healingReceived} HP.`
             : `${monster.name} falls. You gain $${goldReward}. Your health is already full.`,
         );
@@ -1497,6 +1519,20 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         </div>
       )}
 
+      {divisionWarningOpen && (
+        <div className="modal-backdrop">
+          <section className="division-warning-panel" role="dialog" aria-modal="true" aria-labelledby="division-warning-title">
+            <p>Unstable Expression</p>
+            <h2 id="division-warning-title">Are you sure?</h2>
+            <span>Dividing by zero may have unintended and irreversible consequences.</span>
+            <div className="battle-actions">
+              <button onClick={() => submitExpression(true)}>Yes, submit</button>
+              <button onClick={() => setDivisionWarningOpen(false)}>No, go back</button>
+            </div>
+          </section>
+        </div>
+      )}
+
       <div className="item-bar" aria-label="Equipped items">
         <div className="item-icon" tabIndex={0} aria-label={`Mending Charm: Restores up to ${battle.mendingHealing} missing HP after each victorious fight`}>
           <HeartPulse size={21} />
@@ -1601,9 +1637,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             </div>
             <div className="expression-summary">
               <div className={`expression-result ${counterReady ? "counter-ready" : ""} ${playerIsWeakened && rawPreviewResult !== null && !counterReady ? "weakened-preview weaken-flash" : ""}`} aria-live="polite">
-                <span>=</span><strong>{previewResult ?? "?"}</strong>
+                <span>=</span><strong className={divisionPreviewUnknown ? "division-unknown-preview" : undefined}>{divisionPreviewUnknown ? "??" : previewResult ?? "?"}</strong>
               </div>
-              <button className="submit-attack" onClick={submitExpression} disabled={phase !== "playing"}>Submit Attack</button>
+              <button className="submit-attack" onClick={() => submitExpression()} disabled={phase !== "playing"}>Submit Attack</button>
               {battle.resourcefulnessRemaining > 0 && <button className="resourcefulness-button" onClick={useResourcefulness} disabled={phase !== "playing" || selectedCards.length > 0}>Resourcefulness ({Number(battle.resourcefulnessRemaining)} left)</button>}
             </div>
             {error && <p className="battle-error" role="alert">{error}</p>}

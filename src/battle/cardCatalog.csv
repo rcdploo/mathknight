@@ -15,7 +15,7 @@ Card Name,Type,Rarity,Energy Cost,Effect,Median Purchase Cost at Shop
 x,Operator,Uncommon,2,<multiplication operator>,$125
 /,Operator,Uncommon,-1,"<division operator> [if you divide by 0 you deal infinite damage and auto win, but this card is removed from your deck and lost forever. warn the player first]",$115
 _^2,Combo,Uncommon,2,Exponeniates the combined digit to the power of 2,$200
-_^3,Combo,Rare,3,Exponeniates the combined digit to the power of 3,$300
+_^3,Combo,Rare,4,Exponeniates the combined digit to the power of 3,$300
 (),Operator,Rare,1,"You play an open right parenthesis ""("", then a closing left parentesis "")"" is generated in your hand <no additional energy cost, its not a separate card just an indicator>. You must play the closing parenthesis to make a valid expression, or if you remove the open parenthesis the closed one disappears from your hand",$175
 T,Variable,Uncommon,0,Value is equal to the turn number of the current fight,$135
 2o,Variable,Uncommon,1,Value is equal to twice the number of operators in your expression,$145

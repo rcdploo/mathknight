@@ -24,7 +24,7 @@ const descriptions: Record<string, string> = {
   "1_": "Combine with a digit to make a number from 10 to 19.",
   "2_": "Combine with a digit to make a number from 20 to 29.",
   "+": "Add two values.", "-": "Subtract the next value.", "x": "Multiply two values.",
-  "/": "Divide two values. Dividing by zero wins, but destroys this card.",
+  "/": "Divide two values.",
   "_^2": "Combine with a digit, then square the combined value.",
   "_^3": "Combine with a digit, then cube the combined value.",
   "()": "Group part of an expression with parentheses.",

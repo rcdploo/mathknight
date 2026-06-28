@@ -1174,6 +1174,12 @@ button {
 .resourcefulness-button { min-height: 38px; padding: 0 12px; border: 1px solid #6cb5a1; border-radius: 7px; background: #214c43; color: #e8fff7; cursor: pointer; font-weight: 900; }
 .resourcefulness-button:disabled { opacity: .4; cursor: not-allowed; }
 .submit-attack:disabled { opacity: .55; cursor: wait; }
+.division-unknown-preview { color: #ffb0a4; animation: division-unknown-blink .7s steps(2,end) infinite; }
+@keyframes division-unknown-blink { 50% { opacity: .2; } }
+.division-warning-panel { width: min(520px,100%); padding: 26px; border: 1px solid #9f4449; border-radius: 10px; background: #2b1719; box-shadow: 0 22px 70px rgba(0,0,0,.58); }
+.division-warning-panel > p { margin: 0; color: #e27a72; font-size: .72rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+.division-warning-panel h2 { margin: 5px 0 12px; font: 700 2rem Georgia,serif; }
+.division-warning-panel > span { display: block; margin-bottom: 22px; color: #d9c4bf; line-height: 1.5; }
 .battle-error { grid-column: 1 / -1; margin: 0; color: #ff9d89; font-weight: 800; }
 .hand-area { display: grid; grid-template-columns: 112px 1fr auto; align-items: end; gap: 16px; margin-top: 14px; }
 .bottle-slot { display: grid; gap: 5px; padding: 6px; border: 1px solid #65a6aa; background: rgba(28, 71, 76, .48); text-align: center; }
