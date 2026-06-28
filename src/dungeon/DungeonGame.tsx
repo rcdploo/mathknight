@@ -351,9 +351,11 @@ export default function DungeonGame({
       const roll = Math.random();
       const resolvedType = roll < .3 ? "battle" : roll < .6 ? "shop" : roll < .8 ? "elite" : "treasure";
       setDungeon((current) => {
-        const usedTypeNames = current.nodes.flatMap((candidate) => candidate.monster ? [candidate.monster.type.name] : []);
+        const encounteredMonsters = current.nodes.filter((candidate) => current.completedIds.includes(candidate.id) && candidate.monster).map((candidate) => candidate.monster!);
+        const usedTypeNames = encounteredMonsters.map((monster) => monster.type.name);
+        const usedPatternNames = encounteredMonsters.map((monster) => monster.attackPattern.name);
         const monster = shouldGenerateMonster(resolvedType)
-          ? generateMonster(current.level, roomNumberForMonster(node.step), usedTypeNames, resolvedType === "elite" ? 2 : 0, loadProgress().run.difficulty)
+          ? generateMonster(current.level, roomNumberForMonster(node.step), usedTypeNames, resolvedType === "elite" ? 2 : 0, loadProgress().run.difficulty, usedPatternNames)
           : undefined;
         const shopResolved = resolvedType === "shop";
         return {
@@ -370,14 +372,28 @@ export default function DungeonGame({
     }
     const effectiveType = node.resolvedType ?? node.type;
     const view = shouldGenerateMonster(effectiveType) ? "battle" : "event";
-    setDungeon((current) => ({
-      ...current,
-      completedIds: effectiveType === "shop" ? [...new Set([...current.completedIds, node.id])] : current.completedIds,
-      availableIds: effectiveType === "shop" ? [node.id, ...node.next] : [node.id],
-      activeNodeId: node.id,
-      view,
-      notice: `Entered ${roomDetails[effectiveType].label}.`,
-    }));
+    setDungeon((current) => {
+      const encounteredMonsters = current.nodes.filter((candidate) => current.completedIds.includes(candidate.id) && candidate.monster).map((candidate) => candidate.monster!);
+      const refreshedMonster = effectiveType === "battle" || effectiveType === "elite"
+        ? generateMonster(
+            current.level,
+            roomNumberForMonster(node.step),
+            encounteredMonsters.map((monster) => monster.type.name),
+            effectiveType === "elite" ? 2 : 0,
+            loadProgress().run.difficulty,
+            encounteredMonsters.map((monster) => monster.attackPattern.name),
+          )
+        : node.monster;
+      return {
+        ...current,
+        nodes: refreshedMonster ? current.nodes.map((candidate) => candidate.id === node.id ? { ...candidate, monster: refreshedMonster } : candidate) : current.nodes,
+        completedIds: effectiveType === "shop" ? [...new Set([...current.completedIds, node.id])] : current.completedIds,
+        availableIds: effectiveType === "shop" ? [node.id, ...node.next] : [node.id],
+        activeNodeId: node.id,
+        view,
+        notice: `Entered ${roomDetails[effectiveType].label}.`,
+      };
+    });
   }
 
   function completeRoom(won: boolean) {

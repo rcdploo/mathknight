@@ -266,15 +266,20 @@ function selectBuffs(totalDifficulty: number, usage: MonsterUsage, type: Monster
   return selected;
 }
 
-export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedTypeNames: string[], buffBonus = 0, difficulty: RunDifficulty = "normal"): GeneratedMonster {
+export function generateMonster(level: DungeonLevel, room: DungeonRoom, usedTypeNames: string[], buffBonus = 0, difficulty: RunDifficulty = "normal", usedPatternNames: string[] = []): GeneratedMonster {
   const usage = loadUsage();
   const compatibleTypes = monsterTypes.filter((type) =>
     allowedComplexities(room).includes(type.complexity)
     && weightedPatternPool(type, room).length > 0
   );
-  const unusedCompatibleTypes = compatibleTypes.filter((type) => !usedTypeNames.includes(type.name));
-  const type = choice(leastUsed(unusedCompatibleTypes.length > 0 ? unusedCompatibleTypes : compatibleTypes, usage.types));
-  const pattern = choice(leastUsed(weightedPatternPool(type, room), usage.patterns));
+  const patternCompatibleTypes = compatibleTypes.filter((type) =>
+    weightedPatternPool(type, room).some((pattern) => !usedPatternNames.includes(pattern.name))
+  );
+  const availableTypes = patternCompatibleTypes.length > 0 ? patternCompatibleTypes : compatibleTypes;
+  const unusedCompatibleTypes = availableTypes.filter((type) => !usedTypeNames.includes(type.name));
+  const type = choice(leastUsed(unusedCompatibleTypes.length > 0 ? unusedCompatibleTypes : availableTypes, usage.types));
+  const unusedPatterns = weightedPatternPool(type, room).filter((pattern) => !usedPatternNames.includes(pattern.name));
+  const pattern = choice(leastUsed(unusedPatterns.length > 0 ? unusedPatterns : weightedPatternPool(type, room), usage.patterns));
   const buffs = selectBuffs((buffBudget[level][room] ?? 0) + buffBonus, usage, type);
   const sortedBuffs = [...buffs].sort((left, right) => right.difficulty - left.difficulty || left.name.localeCompare(right.name));
   const highestDifficulty = sortedBuffs[0]?.difficulty;
