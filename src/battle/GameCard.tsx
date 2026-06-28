@@ -22,7 +22,13 @@ export default function GameCard({
     onClick={onClick}
     disabled={!preview && disabled}
   >
-    <small>{card.energy}</small><strong>{card.label}</strong>
+    <small>{card.energy}</small>
+    <strong className={card.immolatedFrom !== undefined ? "immolated-value" : undefined}>
+      {card.immolatedFrom !== undefined
+        ? <><span className="immolated-old-value">{card.immolatedFrom}</span><span className="immolated-new-value">{card.label}</span></>
+        : card.label}
+    </strong>
+    {card.immolatedFrom !== undefined && <span className="card-immolation-marker" aria-label="Immolation reduced this card" title="Immolation">I</span>}
     {card.kind === "upgrade" && <span className="upgrade-card-label">Upgrade</span>}
     <div className="card-upgrade-icons">
       {card.upgrades.map((upgradeId, index) => {
@@ -42,6 +48,7 @@ export default function GameCard({
         return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {level === undefined ? description : levelText(description, level)}</span>;
       })}
       {bottled && <span><b>Bottled:</b> Available every turn.</span>}
+      {card.immolatedFrom !== undefined && <span><b>Immolation:</b> {card.immolatedFrom} was reduced to {card.label}.</span>}
     </span>
   </button>;
 }

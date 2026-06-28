@@ -15,6 +15,7 @@ export type BattleCard = {
   lockedValue?: number;
   generatedById?: string;
   consumedThisTurn?: boolean;
+  immolatedFrom?: string;
   rewardSlot?: 1 | 2 | 3;
   rewardKind?: "Card" | "Upgrade" | "Upgraded Card";
   rewardBudget?: number | null;

@@ -316,7 +316,7 @@ function reduceDigits(cards: BattleCard[], amount: number) {
   return cards.map((card) => {
     if (card.kind !== "number" || !Number.isFinite(Number(card.token))) return card;
     const next = Math.max(0, Number(card.token) - amount);
-    return { ...card, label: String(next), token: String(next), effect: `${card.effect} Reduced by Immolation.` };
+    return { ...card, label: String(next), token: String(next), immolatedFrom: card.label, effect: `${card.effect} Reduced by Immolation.` };
   });
 }
 
@@ -463,6 +463,7 @@ function createBattle(monster: GeneratedMonster) {
     forcedCardId: null as string | null,
     immolationTurns: 0,
     nextTurnEnergy: 0,
+    queuedNextTurnEnergy: 0,
     crystalDiscountCardId: hasItem(itemIds, "crystal") ? choice(opening.hand)?.id ?? null : null,
     nextTurnDraw: 0,
     discardDamageStacks: 0,
@@ -532,6 +533,7 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
         ...parsed.battle,
         itemIds: parsed.battle.itemIds ?? loadRunItems(),
         nextTurnEnergy: parsed.battle.nextTurnEnergy ?? 0,
+        queuedNextTurnEnergy: parsed.battle.queuedNextTurnEnergy ?? 0,
         crystalDiscountCardId: parsed.battle.crystalDiscountCardId ?? null,
         nextTurnDraw: parsed.battle.nextTurnDraw ?? 0,
         discardDamageStacks: parsed.battle.discardDamageStacks ?? 0,
@@ -843,11 +845,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       discardPile: [...replacement.discardPile, card],
       playerHealth: hasItem(itemIds, "compost-juicer") ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1)) : current.playerHealth,
       discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? 1 : 0),
-      nextTurnEnergy: current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
+      queuedNextTurnEnergy: current.queuedNextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
     }));
     flashItems("compost-juicer", "fertilizer", "dung-pellets");
     if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
-    if (hasItem(itemIds, "fertilizer")) setMessage(`Fertilizer activates: +${(battle.discardDamageStacks + 1) * 10}% damage this turn.`);
+    if (hasItem(itemIds, "fertilizer") || hasItem(itemIds, "dung-pellets")) setMessage([
+      ...(hasItem(itemIds, "fertilizer") ? [`Fertilizer activates: +${(battle.discardDamageStacks + 1) * 10}% damage this turn.`] : []),
+      ...(hasItem(itemIds, "dung-pellets") ? ["Dung Pellets stores +1 energy for next turn."] : []),
+    ].join(" "));
     playBattleSound("card");
   }
 
@@ -868,12 +873,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1))
         : current.playerHealth,
       discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? 1 : 0),
-      nextTurnEnergy: current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
+      queuedNextTurnEnergy: current.queuedNextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
     }));
     flashItems("compost-juicer", "fertilizer", "dung-pellets");
     if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
     setBottleUsed(false);
-    setMessage(`Resourcefulness redraws ${replacement.hand.length} cards.`);
+    setMessage(`Resourcefulness redraws ${replacement.hand.length} cards.${hasItem(itemIds, "dung-pellets") ? " Dung Pellets stores +1 energy for next turn." : ""}`);
     playBattleSound("card");
   }
 
@@ -886,12 +891,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         hand: current.hand.map((item) => item.id === card.id ? { ...item, consumedThisTurn: consuming } : item),
         playerHealth: consuming && hasItem(itemIds, "compost-juicer") ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1)) : current.playerHealth,
         discardDamageStacks: Math.max(0, current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? consuming ? 1 : -1 : 0)),
-        nextTurnEnergy: Math.max(0, current.nextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? consuming ? 1 : -1 : 0)),
+        queuedNextTurnEnergy: Math.max(0, current.queuedNextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? consuming ? 1 : -1 : 0)),
       };
     });
     if (!card.consumedThisTurn) {
       flashItems("compost-juicer", "fertilizer", "dung-pellets");
       if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
+      if (hasItem(itemIds, "dung-pellets")) setMessage("Dung Pellets stores +1 energy for next turn.");
+    } else if (hasItem(itemIds, "dung-pellets")) {
+      setMessage("Dung Pellets' queued energy was removed.");
     }
     playBattleSound("card");
   }
@@ -1285,7 +1293,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         usurpDraws: forcedCard ? Math.max(0, nextBattleBase.usurpDraws - 1) : nextBattleBase.usurpDraws,
         forcedCardId: forcedCard?.id ?? null,
         nextTurnDraw: 0,
-        nextTurnEnergy: batteryCarry,
+        nextTurnEnergy: batteryCarry + nextBattleBase.queuedNextTurnEnergy,
+        queuedNextTurnEnergy: 0,
         crystalDiscountCardId: hasItem(itemIds, "crystal") ? choice(immolatedDraw.hand)?.id ?? null : null,
         discardDamageStacks: 0,
       }));

@@ -42,6 +42,7 @@ type LevelUpSummary = {
 };
 
 const dungeonStorageKey = "mathknight.dungeon.level1.v6";
+const levelUpSummaryStorageKey = "mathknight.dungeon.levelUpSummary.v1";
 const mapWidth = 1280;
 const mapHeight = 480;
 const dungeonStarRequirements: Partial<Record<DungeonLevel, Partial<Record<number, number>>>> = {
@@ -51,6 +52,14 @@ const dungeonStarRequirements: Partial<Record<DungeonLevel, Partial<Record<numbe
   4: { 5: 35, 10: 40 },
   5: { 5: 45, 10: 50 },
 };
+
+function loadLevelUpSummary() {
+  try {
+    return JSON.parse(window.localStorage.getItem(levelUpSummaryStorageKey) ?? "null") as LevelUpSummary | null;
+  } catch {
+    return null;
+  }
+}
 
 function starRequirement(level: DungeonLevel, step: number) {
   return dungeonStarRequirements[level]?.[step];
@@ -213,7 +222,7 @@ export default function DungeonGame({
   const [dungeon, setDungeon] = useState<DungeonState>(loadDungeon);
   const [starLockMessage, setStarLockMessage] = useState<{ required: number; missing: number } | null>(null);
   const [quartermasterLockOpen, setQuartermasterLockOpen] = useState(false);
-  const [levelUpSummary, setLevelUpSummary] = useState<LevelUpSummary | null>(null);
+  const [levelUpSummary, setLevelUpSummary] = useState<LevelUpSummary | null>(loadLevelUpSummary);
   const stars = totalStars(loadProgress());
   const quartermasterVisited = hasVisitedQuartermaster();
   const [, setItemChoiceVersion] = useState(0);
@@ -255,7 +264,10 @@ export default function DungeonGame({
       </div>}
       {levelUpSummary.trainingIncomeReleased > 0 && <p className="level-up-reset">${levelUpSummary.trainingIncomeReleased} in banked Training Grounds earnings is now available.</p>}
       <p className="level-up-reset">The Dungeon has been reset with harder monsters.</p>
-      <div className="battle-actions"><button onClick={() => setLevelUpSummary(null)}>Enter Level {levelUpSummary.currentLevel}</button></div>
+      <div className="battle-actions"><button onClick={() => {
+        window.localStorage.removeItem(levelUpSummaryStorageKey);
+        setLevelUpSummary(null);
+      }}>Enter Level {levelUpSummary.currentLevel}</button></div>
     </section></main>;
   }
 
@@ -347,7 +359,7 @@ export default function DungeonGame({
               ? ["Heroic Will"]
               : []
         : [];
-      setLevelUpSummary({
+      const summary: LevelUpSummary = {
         priorLevel: dungeon.level,
         currentLevel: nextLevel,
         priorHealth: priorStats.maxHealth,
@@ -358,7 +370,9 @@ export default function DungeonGame({
         currentHandSize: nextStats.handSize,
         unlocks,
         trainingIncomeReleased: releasedTraining.amount,
-      });
+      };
+      window.localStorage.setItem(levelUpSummaryStorageKey, JSON.stringify(summary));
+      setLevelUpSummary(summary);
       const nextDungeon = generateDungeon(nextLevel, dungeon.bossNames, releasedTraining.progress.run.difficulty);
       nextDungeon.notice = nextLevel === dungeon.level
         ? "The final boss is defeated. Level 5 is mastered."
