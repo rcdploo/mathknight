@@ -44,7 +44,7 @@ export type GeneratedMonster = {
 export type BossId = "dr-tiqtoq" | "sir-passive-aggressive" | "scriintyme" | "slothmage" | "karebear" | "nightmayor" | "vortex";
 
 const bossDefinitions: Array<{ id: BossId; name: string; spells: string[]; bonusBuff?: string }> = [
-  { id: "dr-tiqtoq", name: "Dr. TiqToq", spells: ["Weaken 999", "Enrage", "Heal 35"] },
+  { id: "dr-tiqtoq", name: "Dr. TiqToq", spells: ["Weaken 9", "Enrage", "Heal 35"] },
   { id: "sir-passive-aggressive", name: "Sir Passive-Aggressive", spells: ["Brainrot 1", "Thorns"] },
   { id: "scriintyme", name: "ScriinTyme", spells: ["Addle 2", "Perplex 2", "Mana Drain 2"] },
   { id: "slothmage", name: "SlothMage", spells: ["Brainrot 1", "Weaken 3", "Cripple 1"], bonusBuff: "Fat" },

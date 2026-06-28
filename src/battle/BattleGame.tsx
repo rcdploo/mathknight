@@ -540,6 +540,7 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
         bottledCard: ensureUniqueCardIds([parsed.battle.bottledCard ?? loadRunBottle()]).cards[0],
         itemIds: parsed.battle.itemIds ?? loadRunItems(),
         nextTurnEnergy: parsed.battle.nextTurnEnergy ?? 0,
+        pendingMonsterSpells: (parsed.battle.pendingMonsterSpells ?? []).map((spell) => spell === "Weaken 999" ? "Weaken 9" : spell),
         queuedNextTurnEnergy: parsed.battle.queuedNextTurnEnergy ?? 0,
         crystalDiscountCardId: parsed.battle.crystalDiscountCardId ?? null,
         nextTurnDraw: parsed.battle.nextTurnDraw ?? 0,
@@ -1601,6 +1602,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <div className="combat-center">
           <div className="enemy-intent">
             <strong>
+              {battle.enemyStunned && <span className="attack-intent-box stunned-intent-box" title="Stunned: cannot act this turn">@_@</span>}
               {displayedAttackIntents.map((intent, index) => (
                 <span
                   className={`attack-intent-box ${weakenStacks > 0 ? "weakened-intent" : ""}`}

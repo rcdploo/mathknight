@@ -1081,6 +1081,7 @@ button {
   font-size: 1.55rem;
 }
 .enemy-intent .weakened-intent { color: #ffaaa3; }
+.enemy-intent .stunned-intent-box { border-color: #9f91cf; background: #352f52; color: #d8cdfd; font-family: monospace; }
 .spell-intent {
   display: grid;
   place-items: center;
