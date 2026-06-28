@@ -155,6 +155,15 @@ function scaleEliteMonster(monster: GeneratedMonster) {
   };
 }
 
+function correctVexingSpelling(monster: GeneratedMonster): GeneratedMonster {
+  return {
+    ...monster,
+    name: monster.name.replace(/\bVexxing\b/g, "Vexing"),
+    subtitle: monster.subtitle.replace(/\bVexxing\b/g, "Vexing"),
+    buffs: monster.buffs.map((buff) => buff.name === "Vexxing" ? { ...buff, name: "Vexing" } : buff),
+  };
+}
+
 function generateDungeon(level: DungeonLevel, bossNames: string[] = [], difficulty: RunDifficulty = loadProgress().run.difficulty): DungeonState {
   const laneRooms = generateLaneRooms(level);
   const usedTypeNames: string[] = [];
@@ -198,7 +207,12 @@ function loadDungeon() {
   try {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
-    const saved = JSON.parse(raw) as DungeonState;
+    const parsed = JSON.parse(raw) as DungeonState;
+    const saved = {
+      ...parsed,
+      nodes: parsed.nodes.map((node) => node.monster ? { ...node, monster: correctVexingSpelling(node.monster) } : node),
+      bossNames: parsed.bossNames?.map((name) => name.replace(/\bVexxing\b/g, "Vexing")),
+    };
     if (!saved.nodes.some((node) => node.id === "pre-boss-shop")) return generateDungeon(saved.level);
     const savedBossNames = saved.bossNames ?? [];
     const bossNode = saved.nodes.find((node) => node.id === "boss");

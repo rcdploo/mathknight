@@ -88,7 +88,7 @@ function saveRunHealth(health: number) {
 }
 
 function hasBuff(monster: GeneratedMonster, name: string) {
-  return monster.buffs.some((buff) => buff.name === name);
+  return monster.buffs.some((buff) => buff.name === name || (name === "Vexing" && buff.name === "Vexxing"));
 }
 
 function monsterChessPiece(monster: GeneratedMonster) {
@@ -734,6 +734,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   ];
   const monsterStatusBuffs: MonsterBuffTile[] = [
     ...monsterSpellBuffs(battle, monster.level),
+    ...(battle.enemyStunned
+      ? [{ name: "Stunned", symbol: "Z", effect: "The monster cannot act this turn.", tone: "debuff" as const }]
+      : []),
     ...(battle.weakenTurns > 0 && battle.weakenNext > 0
       ? [{ name: "Weaken", symbol: "W", value: battle.weakenTurns, effect: `The monster's attack deals ${battle.weakenNext * 10}% less damage.`, tone: "debuff" as const }]
       : []),
@@ -1001,13 +1004,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const healthAfterExpressionHealing = Math.min(battle.playerMaxHealth, battle.playerHealth + expressionHealing);
     const healingReceived = healthAfterExpressionHealing - battle.playerHealth;
     const monsterEffectsCanceled = countered || monsterDefeated;
-    const vexxingDamage = hasBuff(monster, "Vexxing") && !monsterEffectsCanceled ? monster.level * operatorCount : 0;
-    const noxiousDamage = hasBuff(monster, "Noxious") && !monsterEffectsCanceled ? monster.level * 2 : 0;
+    const vexingDamage = hasBuff(monster, "Vexing") ? monster.level * operatorCount : 0;
+    const noxiousDamage = hasBuff(monster, "Noxious") && !monsterDefeated ? monster.level * 2 : 0;
     const thornsDamage = !countered ? battle.thornsStacks * monster.level * 2 : 0;
     const effectiveArmor = hasBuff(monster, "Corrosive") ? Math.floor(armorAfterExpression * 0.75) : armorAfterExpression;
     const incomingDamage = monsterEffectsCanceled ? 0 : displayedIntent + displayedSecondaryIntent;
     const thornHit = applyDamage(healthAfterExpressionHealing, effectiveArmor, thornsDamage);
-    const passiveDamage = Math.min(thornHit.health, vexxingDamage + noxiousDamage);
+    const passiveDamage = Math.min(thornHit.health, vexingDamage + noxiousDamage);
     const attackHit = applyDamage(Math.max(0, thornHit.health - passiveDamage), thornHit.armor, incomingDamage);
     const playerHit = {
       health: attackHit.health,
@@ -1174,11 +1177,17 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         await wait(500);
       }
 
-      if (!monsterEffectsCanceled && playerHit.damage > 0) {
+      if (playerHit.damage > 0) {
         setImpact("hero");
         playBattleSound("hero-hit");
         setBattle((current) => ({ ...current, playerHealth: playerHit.health, playerArmor: playerHit.armor, enemyHealth: reflectedHit.health, enemyArmor: reflectedHit.armor }));
-        setMessage(`${monster.name} hits you for ${playerHit.damage}${reflectedDamage ? `; Reflecting returns ${reflectedDamage}` : ""}${stolenCoins ? ` and steals $${stolenCoins}` : ""}${lobotomy?.removed ? ` and removes ${lobotomy.removed.label} for this fight` : ""}.`);
+        const persistentDamageSources = [
+          ...(vexingDamage > 0 ? ["Vexing"] : []),
+          ...(noxiousDamage > 0 ? ["Noxious"] : []),
+        ];
+        setMessage(monsterEffectsCanceled && persistentDamageSources.length > 0
+          ? `${persistentDamageSources.join(" and ")} ${persistentDamageSources.length === 1 ? "deals" : "deal"} ${playerHit.damage} damage${vexingDamage > 0 && noxiousDamage === 0 ? " for the operators you submitted" : ""}.`
+          : `${monster.name} hits you for ${playerHit.damage}${reflectedDamage ? `; Reflecting returns ${reflectedDamage}` : ""}${stolenCoins ? ` and steals $${stolenCoins}` : ""}${lobotomy?.removed ? ` and removes ${lobotomy.removed.label} for this fight` : ""}.`);
         window.setTimeout(() => setImpact(null), 360);
         await wait(500);
       }
@@ -1309,7 +1318,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         playerArmor: openingArmor,
         monsterActionDeck: nextAction.actionDeck,
         monsterLastAction: nextAction.action,
-        monsterMessage: nextAction.text,
+        monsterMessage: stunnedNext ? `${monster.name} is stunned and cannot act.` : nextAction.text,
         pendingMonsterSpells: nextAction.spells ?? [],
         crippleTurns: nextBattleBase.crippleTurns,
         playerWeakenTurns: nextBattleBase.playerWeakenTurns,
@@ -1331,7 +1340,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       setTurn(nextTurn);
       setTurnBriefing(briefing);
       setPhase("playing");
-      setMessage(nextAction.text);
+      setMessage(stunnedNext ? `${monster.name} is stunned and cannot act.` : nextAction.text);
       };
 
       if (pendingSpellResult.messages.length > 0) {
@@ -1616,7 +1625,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           </div>}
           {combatCallout && <div className="combat-callout" role="status">{combatCallout}</div>}
         </div>
-        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} flashingStatuses={flashingStatuses} sprite={monsterChessPiece(monster)} health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} armorFlashing={flashArmor === "enemy"} enemy hit={impact === "enemy" || impact === "counter"} />
+        <Combatant name={monster.name} buffs={monster.buffs} statusBuffs={monsterStatusBuffs} flashingStatuses={flashingStatuses} sprite={monsterChessPiece(monster)} health={battle.enemyHealth} maxHealth={battle.enemyMaxHealth} armor={battle.enemyArmor} armorFlashing={flashArmor === "enemy"} enemy hit={impact === "enemy" || impact === "counter"} level={monster.level} />
       </section>
 
       {phase === "victory" || phase === "defeat" ? (
@@ -1680,9 +1689,15 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   );
 }
 
-function Combatant({ name, buffs = [], statusBuffs = [], flashingStatuses = [], sprite, health, maxHealth, armor, armorFlashing = false, enemy = false, hit = false }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: Array<MonsterBuffTile | StatusTile>; flashingStatuses?: string[]; sprite: string; health: number; maxHealth: number; armor: number; armorFlashing?: boolean; enemy?: boolean; hit?: boolean }) {
+function Combatant({ name, buffs = [], statusBuffs = [], flashingStatuses = [], sprite, health, maxHealth, armor, armorFlashing = false, enemy = false, hit = false, level = 1 }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: Array<MonsterBuffTile | StatusTile>; flashingStatuses?: string[]; sprite: string; health: number; maxHealth: number; armor: number; armorFlashing?: boolean; enemy?: boolean; hit?: boolean; level?: number }) {
   const allBuffs: Array<MonsterBuffTile | StatusTile> = [
-    ...buffs.map((buff) => ({ name: buff.name, symbol: buff.name[0], effect: buff.effect, value: undefined, tone: "buff" as const })),
+    ...buffs.map((buff) => ({
+      name: buff.name === "Vexxing" ? "Vexing" : buff.name,
+      symbol: buff.symbol,
+      effect: buff.effect.replace(/(\d+)\s*\*\s*Level/gi, (_, amount: string) => String(Number(amount) * level)),
+      value: undefined,
+      tone: "buff" as const,
+    })),
     ...statusBuffs,
   ];
   return <div className={`combatant ${enemy ? "enemy-combatant" : "hero-combatant"} ${hit ? "taking-hit" : ""}`}>

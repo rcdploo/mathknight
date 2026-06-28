@@ -150,7 +150,7 @@ export const monsterBuffs: MonsterBuffDefinition[] = [
   { name: "Fat", symbol: "F", difficulty: 2, effect: "Start with 30% more health" },
   { name: "Armored", symbol: "A", difficulty: 2, effect: "Each attack adds 20% of that amount in Armor" },
   { name: "Noxious", symbol: "N", difficulty: 1, effect: "You lose 2*Level HP at the end of each combat turn" },
-  { name: "Vexxing", symbol: "V", difficulty: 2, effect: "You lose 1*Level HP for each operator in the expression you submit" },
+  { name: "Vexing", symbol: "V", difficulty: 2, effect: "You lose 1*Level HP for each operator in the expression you submit" },
   { name: "Weakening", symbol: "W", difficulty: 1, effect: "If it damages you, your next submission does 10% less damage" },
   { name: "Lobotomizing", symbol: "L", difficulty: 3, effect: "If it damages you, removes your best card for the rest of the fight" },
   { name: "Dazing", symbol: "D", difficulty: 3, effect: "Each turn, shuffles a temporary 0 into your draw pile" },
