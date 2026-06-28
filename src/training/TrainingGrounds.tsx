@@ -158,7 +158,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
     if (hasEndedRef.current) return;
     hasEndedRef.current = true;
 
-    const stars = completed ? calculateStars(selectedLevel.pairs, finalTurnsUsed) : 0;
+    const stars = completed ? calculateStars(selectedLevel.pairs, finalTurnsUsed, selectedLevel.kind) : 0;
     const nextWinCount = currentProgress.wins + (completed ? 1 : 0);
     const coinsEarned = completed ? calculateCoins(selectedLevel, stars, nextWinCount) : 0;
     const rawResult = { completed, stars, turnsUsed: finalTurnsUsed, coinsEarned };

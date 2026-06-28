@@ -29,7 +29,15 @@ const levelValues: Record<LevelKind, number> = {
   boss: 4,
 };
 
-export function calculateStars(pairs: number, turnsUsed: number) {
+export function calculateStars(pairs: number, turnsUsed: number, levelKind?: LevelKind) {
+  if (levelKind === "boss") {
+    if (turnsUsed <= 8) return 5;
+    if (turnsUsed <= 9) return 4;
+    if (turnsUsed <= 11) return 3;
+    if (turnsUsed <= 14) return 2;
+    return 1;
+  }
+
   const thresholds = [
     { stars: 5, limit: Math.floor(1.5 * pairs) },
     { stars: 4, limit: Math.floor(1.75 * pairs) },

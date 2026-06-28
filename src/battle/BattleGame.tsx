@@ -417,14 +417,17 @@ function createBattle(monster: GeneratedMonster) {
   const loadout = loadPermanentLoadout();
   const character = characterStatsForLevel(monster.level, loadout);
   const itemIds = loadRunItems();
-  const opening = drawHand(shuffle(loadRunDeck()), [], character.handSize + (hasItem(itemIds, "satchel") ? 2 : 0));
+  const normalizedCards = ensureUniqueCardIds([loadRunBottle(), ...loadRunDeck()]);
+  const [bottledCard, ...battleDeck] = normalizedCards.cards;
+  if (normalizedCards.changed) saveRunDeck(battleDeck);
+  const opening = drawHand(shuffle(battleDeck), [], character.handSize + (hasItem(itemIds, "satchel") ? 2 : 0));
   const maxHealth = Math.max(1, Math.round((character.maxHealth + (hasItem(itemIds, "garlic") ? 50 : 0)) * (hasItem(itemIds, "glass-cannon") ? .85 : 1)));
   const enemyMaxHealth = Math.max(1, Math.round(monster.maxHealth * (hasItem(itemIds, "garlic") ? .8 : 1)));
   const openingAction = monsterAction(monster, 1, [], null);
   return {
     ...opening,
     itemIds,
-    bottledCard: loadRunBottle(),
+    bottledCard,
     playerHealth: loadRunHealth(maxHealth),
     playerMaxHealth: maxHealth,
     maxEnergy: character.energy + (hasItem(itemIds, "glass-cannon") ? 1 : 0) + (hasItem(itemIds, "heady-brew") ? 1 : 0),
@@ -551,9 +554,27 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
         heroicWillRemaining: parsed.battle.heroicWillRemaining ?? (monster.level >= 4 ? loadPermanentLoadout().heroicWillUses : 0),
       },
     };
-    return parsed.phase === "resolving"
-      ? { ...migrated, selectedCards: [], bottleUsed: false, phase: "playing" as const }
+    const physicalCards = [migrated.battle.bottledCard, ...migrated.battle.hand, ...migrated.battle.drawPile, ...migrated.battle.discardPile];
+    const normalizedCards = ensureUniqueCardIds(physicalCards);
+    const handEnd = 1 + migrated.battle.hand.length;
+    const drawEnd = handEnd + migrated.battle.drawPile.length;
+    const normalizedSession = normalizedCards.changed
+      ? {
+          ...migrated,
+          selectedCards: [],
+          bottleUsed: false,
+          battle: {
+            ...migrated.battle,
+            bottledCard: normalizedCards.cards[0],
+            hand: normalizedCards.cards.slice(1, handEnd),
+            drawPile: normalizedCards.cards.slice(handEnd, drawEnd),
+            discardPile: normalizedCards.cards.slice(drawEnd),
+          },
+        }
       : migrated;
+    return parsed.phase === "resolving"
+      ? { ...normalizedSession, selectedCards: [], bottleUsed: false, phase: "playing" as const }
+      : normalizedSession;
   } catch {
     return createBattleSession(monster, bonusItem, bossReward);
   }
