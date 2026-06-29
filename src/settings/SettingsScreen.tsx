@@ -1,14 +1,13 @@
-import { BookOpen, KeyRound, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
+import { BookOpen, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
 import { useState } from "react";
 import { playBattleSound, updateAudioLevels } from "../battle/battleAudio";
-import { difficultyLabel, exportProgressCode, importProgressCode, loadProgress, setAudioSettings } from "../game/progressStore";
+import { difficultyLabel, loadProgress, setAudioSettings } from "../game/progressStore";
 import type { PlayerProgress } from "../game/types";
 import { InstructionsLibrary } from "../instructions/Instructions";
+import KnightCodePanel from "../components/KnightCodePanel";
 
 export default function SettingsScreen({ onExit: _onExit }: { onExit: () => void }) {
   const [progress, setProgress] = useState<PlayerProgress>(loadProgress);
-  const [saveCode, setSaveCode] = useState("");
-  const [saveMessage, setSaveMessage] = useState("");
 
   function update(kind: "musicVolume" | "effectsVolume", value: number) {
     const next = setAudioSettings(progress, { [kind]: value });
@@ -18,27 +17,6 @@ export default function SettingsScreen({ onExit: _onExit }: { onExit: () => void
 
   const musicVolume = progress.settings.musicVolume;
   const effectsVolume = progress.settings.effectsVolume;
-
-  async function createSaveCode() {
-    const code = exportProgressCode(progress);
-    setSaveCode(code);
-    try {
-      await navigator.clipboard.writeText(code);
-      setSaveMessage("Full-game Knight Code copied.");
-    } catch {
-      setSaveMessage("Full-game Knight Code created. Copy it from the box below.");
-    }
-  }
-
-  function loadSaveCode() {
-    if (!window.confirm("Load this Knight Code? Your current local game will be replaced.")) return;
-    try {
-      importProgressCode(saveCode);
-      window.location.reload();
-    } catch {
-      setSaveMessage("That Knight Code is not valid.");
-    }
-  }
 
   return <main className="settings-screen">
     <header className="settings-header">
@@ -81,25 +59,7 @@ export default function SettingsScreen({ onExit: _onExit }: { onExit: () => void
           : "Elite and Impossible difficulties unlock together after defeating the game on Normal."}
       </p>
     </section>
-    <section className="settings-panel save-settings" aria-labelledby="save-settings-title">
-      <div className="settings-section-heading">
-        <KeyRound size={22} />
-        <div><p>Backup & Restore</p><h2 id="save-settings-title">Knight Code</h2></div>
-      </div>
-      <p className="save-settings-copy"><strong>Your game autosaves continuously.</strong> Create a Knight Code as a manual checkpoint when you want to return to a specific point later. It contains your complete game: Training Grounds, difficulty unlocks, coins, deck, items, dungeon position, health, shops, and any active battle.</p>
-      <textarea
-        aria-label="Knight Code"
-        value={saveCode}
-        onChange={(event) => { setSaveCode(event.target.value); setSaveMessage(""); }}
-        placeholder="Create a code or paste one here"
-        spellCheck={false}
-      />
-      {saveMessage && <div className="save-message" role="status">{saveMessage}</div>}
-      <div className="save-actions">
-        <button onClick={createSaveCode}>Create & Copy Code</button>
-        <button onClick={loadSaveCode} disabled={!saveCode.trim()}>Load Code</button>
-      </div>
-    </section>
+    <KnightCodePanel variant="settings" />
     <section className="settings-panel instructions-settings" aria-labelledby="instructions-settings-title">
       <div className="settings-section-heading">
         <BookOpen size={22} />

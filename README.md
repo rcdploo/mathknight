@@ -1,98 +1,78 @@
 # Mathknight
 
-Mathknight is a fantasy math game built with Vite, React, and TypeScript. The current build combines arithmetic training, dungeon-path progression, expression-based card battles, and permanent upgrades.
+Mathknight is a fantasy math game built with Vite, React, and TypeScript. It combines memory-match training, a branching dungeon run, expression-based card combat, permanent upgrades, difficulty modes, items, shops, and procedural monsters and bosses.
 
-## Game Modes
+## Game Areas
 
 ### Game Hall
 
-The app opens on a hub where players choose between:
+The hub links to:
 
-- **Dungeon Battle**: follow a branching dungeon map and clear rooms through card-based combat.
-- **Training Grounds**: complete memory-match math trials to earn coins.
-- **Quartermaster**: spend coins on permanent upgrades and deck changes.
-- **New Game**: reset all Mathknight local progress.
+- **Dungeon Battle**: navigate a generated dungeon and build expressions to fight monsters.
+- **Training Grounds**: complete math memory trials to earn stars and gold.
+- **Quartermaster**: spend gold on permanent character, bottle, and deck upgrades.
+- **Settings**: control music and effects, review instructions, and create or load Knight Codes.
+- **New Game**: begin a fresh Normal, Elite, or Impossible expedition when available.
 
 ### Training Grounds
 
-Training Grounds is a memory-match puzzle mode with:
+Training covers addition, subtraction, multiplication, division, fractions/decimals/percents, geometry, perfect squares, and algebra. Each unit contains five trials with three lessons and a timed challenge. Results award stars and gold, subject to difficulty and replay rules.
 
-- Addition, subtraction, multiplication, division, fractions/decimals/percents, geometry, and algebra units.
-- Five staged trials per unit: Trial 1, Trial 2, Trial 3A, Trial 3B, and Trial 4.
-- Three lessons and one boss per stage.
-- Turn-limited regular levels.
-- Boss levels with timed study and match phases.
-- Star scoring, coin rewards, and diminishing repeat-win rewards.
-- Knight Code export/import for backup and transfer.
+### Dungeon
 
-### Dungeon Battle
+Each dungeon level contains a branching map with standard battles, elite battles, treasures, shops, mystery rooms, a pre-boss shop, and a boss. A run persists its health, deck, bottled card, items, shops, room position, difficulty, and active encounter.
 
-Dungeon Battle is a run-based dungeon mode with:
+### Combat
 
-- A generated branching map with battle, elite, treasure, shop, mystery, and boss rooms.
-- Expression-building card combat.
-- A starting deck of numbers and operators.
-- Draw pile, discard pile, hand, bottled card, and energy management.
-- Enemy intent that can be countered by matching the expression result.
-- Armor, weaken, bash, critical hit, reflecting, cycling, consumable, and stat upgrade effects.
-- Card rewards and upgrade rewards after battle victories.
-- Run health and run deck persistence between rooms.
+Combat uses number, operator, combo, variable, parenthesis, and upgraded cards to build expressions. Matching an enemy attack counters it; other results deal damage. Monsters can use attack patterns, buffs, spells, armor, and boss-specific behavior. Victories can award cards, upgrades, items, and gold.
 
 ### Quartermaster
 
-The Quartermaster handles permanent progression:
+Permanent progression includes bottle capacity and selection, card removal, Mending Charm upgrades, maximum health, Resourcefulness, Heroic Will, and eligible Training Grounds resets.
 
-- Change or upgrade the bottled card.
-- Permanently remove cards from the base deck.
-- Upgrade the Mending Charm.
-- Increase maximum health with Grow.
-- Reset Training Grounds reward decay for specific unlocked stages.
+## Saving
 
-## Progress Storage
+The game autosaves to browser `localStorage` under keys beginning with `mathknight.`. Important current areas include:
 
-Progress is saved in browser `localStorage` under keys beginning with `mathknight.`.
+- `mathknight.memoryMatch.progress.v1`: gold, settings, difficulty, and Training Grounds progress.
+- `mathknight.permanentLoadout.v1`: permanent deck and character upgrades.
+- `mathknight.dungeon.level1.v6`: current dungeon map and room progress.
+- `mathknight.dungeon.runDeck.v1`: current run deck.
+- `mathknight.dungeon.runBottle.v1`: current bottled card.
+- `mathknight.dungeon.runHealth.v1`: current run health.
+- `mathknight.dungeon.runItems.v1`: current run items.
+- `mathknight.battle.session.v3`: resumable active battle.
+- `mathknight.dungeon.shop.*.v2`: generated shop inventories.
+- `mathknight.navigation.destination.v1`: current major screen.
 
-Current storage areas include:
+An `MK2` Knight Code captures all `mathknight.` storage entries, allowing a complete checkpoint to be copied and restored. Starting a New Game clears run progress while retaining instruction-seen state.
 
-- `mathknight.memoryMatch.progress.v1`: coins, settings, Training Grounds progress, and Knight Code data.
-- `mathknight.permanentLoadout.v1`: permanent deck, bottled card, health, and Quartermaster upgrades.
-- `mathknight.dungeon.level1.v3`: generated dungeon map and room progress.
-- `mathknight.dungeon.runDeck.v1`: current dungeon run deck.
-- `mathknight.dungeon.runHealth.v1`: current dungeon run health.
-- `mathknight.battle.session.v1`: in-progress battle session.
+## Data Sources
 
-Using **New Game** removes all `mathknight.` localStorage keys.
+- `src/battle/cardCatalog.json` is the runtime source of truth for cards; `cardCatalog.csv` is its human-readable companion.
+- `Items.csv` and `Rewards and Shops.csv` are loaded directly at runtime.
+- `Monsters.csv`, `Bosses.csv`, and `Scaling.csv` are human-readable design specifications for the corresponding generated systems.
 
 ## Local Development
 
-Install dependencies:
-
 ```sh
 pnpm install
-```
-
-Start the dev server:
-
-```sh
 pnpm dev
 ```
 
-Build for production:
+Production build:
 
 ```sh
 pnpm build
 ```
 
-Preview the production build:
-
-```sh
-pnpm preview
-```
-
 ## Project Structure
 
-- `src/App.tsx`: hub, Training Grounds game flow, and top-level routing.
-- `src/game/`: Training Grounds level definitions, puzzle generation, scoring, unlocks, progress, and reset logic.
-- `src/dungeon/`: dungeon map generation and room navigation.
-- `src/battle/`: battle UI, card catalog, expression evaluation, deck flow, combat rules, and audio.
+- `src/App.tsx`: top-level navigation, new-game flow, instructions, and ambient audio lifecycle.
+- `src/training/`: Training Grounds UI and game flow.
+- `src/game/`: puzzle generation, scoring, unlocks, progress, and reset logic.
+- `src/dungeon/`: dungeon map, event rooms, shops, run overview, and run statistics.
+- `src/battle/`: combat, cards, monsters, rewards, items, shops, and audio.
 - `src/quartermaster/`: permanent upgrade UI and loadout persistence.
+- `src/settings/`: audio, difficulty, instructions, and checkpoint settings.
+- `src/components/`: shared application controls and panels.

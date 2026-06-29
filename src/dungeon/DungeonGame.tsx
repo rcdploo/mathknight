@@ -156,16 +156,6 @@ function scaleEliteMonster(monster: GeneratedMonster) {
   };
 }
 
-function migrateMonsterData(monster: GeneratedMonster): GeneratedMonster {
-  return {
-    ...monster,
-    name: monster.name.replace(/\bVexxing\b/g, "Vexing"),
-    subtitle: monster.subtitle.replace(/\bVexxing\b/g, "Vexing"),
-    buffs: monster.buffs.map((buff) => buff.name === "Vexxing" ? { ...buff, name: "Vexing" } : buff),
-    spells: monster.spells.map((spell) => spell === "Weaken 999" ? "Weaken 9" : spell),
-  };
-}
-
 function generateDungeon(level: DungeonLevel, bossNames: string[] = [], difficulty: RunDifficulty = loadProgress().run.difficulty): DungeonState {
   const laneRooms = generateLaneRooms(level);
   const usedTypeNames: string[] = [];
@@ -209,29 +199,7 @@ function loadDungeon() {
   try {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
-    const parsed = JSON.parse(raw) as DungeonState;
-    const saved = {
-      ...parsed,
-      nodes: parsed.nodes.map((node) => node.monster ? { ...node, monster: migrateMonsterData(node.monster) } : node),
-      bossNames: parsed.bossNames?.map((name) => name.replace(/\bVexxing\b/g, "Vexing")),
-    };
-    if (!saved.nodes.some((node) => node.id === "pre-boss-shop")) return generateDungeon(saved.level);
-    const savedBossNames = saved.bossNames ?? [];
-    const bossNode = saved.nodes.find((node) => node.id === "boss");
-    if (!bossNode?.monster?.bossId) {
-      const replacementBoss = generateBoss(saved.level, savedBossNames.slice(0, -1), loadProgress().run.difficulty);
-      return {
-        ...saved,
-        runId: saved.runId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        nodes: saved.nodes.map((node) => node.id === "boss" ? { ...node, monster: replacementBoss } : node),
-        bossNames: [...savedBossNames.slice(0, -1), replacementBoss.name],
-      };
-    }
-    return {
-      ...saved,
-      runId: saved.runId ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      bossNames: savedBossNames.length > 0 ? savedBossNames : [bossNode.monster.name],
-    };
+    return JSON.parse(raw) as DungeonState;
   } catch {
     return generateDungeon(1);
   }

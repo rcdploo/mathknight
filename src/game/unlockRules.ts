@@ -7,9 +7,11 @@ export type UnlockState = {
 };
 
 const unitStarRequirements: Partial<Record<Unit, number>> = {
+  multiplication: 25,
   division: 30,
   fractions: 50,
   geometry: 50,
+  perfectSquares: 75,
   algebra: 75,
 };
 
@@ -42,7 +44,7 @@ function starsForStages(progress: PlayerProgress, unit: Unit, includedStages: St
 }
 
 const earlyTrialDungeonGateExemptUnits: Unit[] = ["addition", "subtraction", "multiplication"];
-const fullyDungeonGatedTrial4Units: Unit[] = ["multiplication", "division", "fractions", "algebra"];
+const fullyDungeonGatedTrial4Units: Unit[] = ["multiplication", "division", "fractions", "perfectSquares", "algebra"];
 
 function requiresDungeonLevel3(level: LevelConfig) {
   if (level.stage === "4" && fullyDungeonGatedTrial4Units.includes(level.unit)) return true;
@@ -69,7 +71,6 @@ export function getUnitUnlockState(progress: PlayerProgress, unit: Unit): Unlock
 }
 
 export function getStageUnlockState(progress: PlayerProgress, unit: Unit, stage: Stage): UnlockState {
-  if (unit === "perfectSquares") return { unlocked: true };
   if (stage === "1" || stage === "2") return { unlocked: true };
 
   const requirement = stage === "4" ? 15 : 7;
@@ -111,8 +112,6 @@ function lessonUnlockState(progress: PlayerProgress, level: LevelConfig, dungeon
 }
 
 export function getLevelUnlockState(progress: PlayerProgress, level: LevelConfig, dungeonLevel: number): UnlockState {
-  if (level.unit === "perfectSquares") return { unlocked: true };
-
   const unitState = getUnitUnlockState(progress, level.unit);
   if (!unitState.unlocked) return unitState;
 

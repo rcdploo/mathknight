@@ -526,66 +526,24 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
       || typeof parsed.turn !== "number"
       || sessionIds.size !== sessionCards.length
     ) return createBattleSession(monster, bonusItem, bossReward);
-    const migrated = {
-      ...parsed,
-      selectedCards: ensureUniqueCardIds(parsed.selectedCards ?? []).cards,
-      bonusItemId: parsed.bonusItemId ?? (bonusItem ? surfaceItems(1)[0]?.id ?? null : null),
-      bossItemIds: parsed.bossItemIds ?? (bossReward ? surfaceBossItems(2).map((item) => item.id) : []),
-      combatLog: parsed.combatLog ?? [],
-      turnBriefing: parsed.turnBriefing ?? [],
-      battle: {
-        ...parsed.battle,
-        hand: ensureUniqueCardIds(parsed.battle.hand).cards,
-        drawPile: ensureUniqueCardIds(parsed.battle.drawPile).cards,
-        discardPile: ensureUniqueCardIds(parsed.battle.discardPile).cards,
-        bottledCard: ensureUniqueCardIds([parsed.battle.bottledCard ?? loadRunBottle()]).cards[0],
-        itemIds: parsed.battle.itemIds ?? loadRunItems(),
-        nextTurnEnergy: parsed.battle.nextTurnEnergy ?? 0,
-        pendingMonsterSpells: parsed.battle.enemyStunned
-          ? []
-          : (parsed.battle.pendingMonsterSpells ?? []).map((spell) => spell === "Weaken 999" ? "Weaken 9" : spell),
-        enemyArmor: parsed.battle.enemyStunned ? 0 : parsed.battle.enemyArmor,
-        queuedNextTurnEnergy: parsed.battle.queuedNextTurnEnergy ?? 0,
-        crystalDiscountCardId: parsed.battle.crystalDiscountCardId ?? null,
-        nextTurnDraw: parsed.battle.nextTurnDraw ?? 0,
-        discardDamageStacks: parsed.battle.discardDamageStacks ?? 0,
-        initiativeInstances: parsed.battle.initiativeInstances
-          ?? (((parsed.battle as typeof parsed.battle & { initiativeTurns?: number }).initiativeTurns ?? 0) > 0
-            ? [(parsed.battle as typeof parsed.battle & { initiativeTurns?: number }).initiativeTurns!]
-            : []),
-        phoenixUsed: parsed.battle.phoenixUsed ?? false,
-        playerWeakenInstances: parsed.battle.playerWeakenInstances ?? (parsed.battle.playerWeakenTurns > 0 ? [parsed.battle.playerWeakenTurns] : []),
-        weakenNext: parsed.battle.weakenNext === 3 && parsed.battle.weakenTurns === 1 && hasItem(parsed.battle.itemIds ?? loadRunItems(), "caltrops")
-          ? 1
-          : parsed.battle.weakenNext,
-        weakenTurns: parsed.battle.weakenNext === 3 && parsed.battle.weakenTurns === 1 && hasItem(parsed.battle.itemIds ?? loadRunItems(), "caltrops")
-          ? 3
-          : parsed.battle.weakenTurns ?? (parsed.battle.weakenNext > 0 ? 1 : 0),
-        enemyFakeIntentFirst: parsed.battle.enemyFakeIntentFirst ?? false,
-        maxEnergy: parsed.battle.maxEnergy ?? characterStatsForLevel(monster.level).energy,
-        handSize: parsed.battle.handSize ?? characterStatsForLevel(monster.level).handSize,
-        resourcefulnessRemaining: parsed.battle.resourcefulnessRemaining ?? (monster.level >= 2 ? loadPermanentLoadout().resourcefulnessUses : 0),
-        heroicWillRemaining: parsed.battle.heroicWillRemaining ?? (monster.level >= 4 ? loadPermanentLoadout().heroicWillUses : 0),
-      },
-    };
-    const physicalCards = [migrated.battle.bottledCard, ...migrated.battle.hand, ...migrated.battle.drawPile, ...migrated.battle.discardPile];
+    const physicalCards = [parsed.battle.bottledCard, ...parsed.battle.hand, ...parsed.battle.drawPile, ...parsed.battle.discardPile];
     const normalizedCards = ensureUniqueCardIds(physicalCards);
-    const handEnd = 1 + migrated.battle.hand.length;
-    const drawEnd = handEnd + migrated.battle.drawPile.length;
+    const handEnd = 1 + parsed.battle.hand.length;
+    const drawEnd = handEnd + parsed.battle.drawPile.length;
     const normalizedSession = normalizedCards.changed
       ? {
-          ...migrated,
+          ...parsed,
           selectedCards: [],
           bottleUsed: false,
           battle: {
-            ...migrated.battle,
+            ...parsed.battle,
             bottledCard: normalizedCards.cards[0],
             hand: normalizedCards.cards.slice(1, handEnd),
             drawPile: normalizedCards.cards.slice(handEnd, drawEnd),
             discardPile: normalizedCards.cards.slice(drawEnd),
           },
         }
-      : migrated;
+      : parsed;
     return parsed.phase === "resolving"
       ? { ...normalizedSession, selectedCards: [], bottleUsed: false, phase: "playing" as const }
       : normalizedSession;

@@ -260,7 +260,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
 
       {screen === "map" && (
         <section className="map-screen">
-          <p className="training-map-instruction">Choose an arithmetic lesson to begin a memory trial.</p>
+          <p className="training-map-instruction">Complete lessons to earn Gold. Solving in fewer moves earns a bigger reward</p>
           <div className="unit-grid">
             {units.map((unit) => {
               const unitUnlockState = getUnitUnlockState(progress, unit);
