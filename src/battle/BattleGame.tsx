@@ -540,7 +540,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [flashingStatuses, setFlashingStatuses] = useState<string[]>([]);
   const [pileView, setPileView] = useState<"deck" | "discard" | null>(null);
   const [runDeck, setRunDeck] = useState<BattleCard[]>(loadRunDeck);
-  const deckUpgradedCount = useMemo(() => runDeck.filter((card) => card.upgrades.length > 0).length, [runDeck]);
+  const deckUpgradedCount = useMemo(
+    () => runDeck.filter((card) => card.upgrades.length > 0).length + (battle.bottledCard.upgrades.length > 0 ? 1 : 0),
+    [battle.bottledCard.upgrades.length, runDeck],
+  );
   const itemIds = battle.itemIds;
   const activeItemIds = new Set([
     ...(hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? ["adrenaline"] : []),

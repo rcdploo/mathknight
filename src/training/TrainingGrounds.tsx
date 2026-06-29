@@ -185,7 +185,9 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
     const isMatch = first.pairId === card.pairId && first.kind !== card.kind;
     const bothGreenTiles = first.kind === "result" && card.kind === "result";
     const nextTurnsUsed = turnsUsed + 1;
+    const nextTurnsRemaining = selectedLevel.isBoss ? turnsRemaining : turnsRemaining - 1;
     setTurnsUsed(nextTurnsUsed);
+    setTurnsRemaining(nextTurnsRemaining);
     setIsResolving(true);
 
     if (isMatch) {
@@ -197,20 +199,19 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
         setIsResolving(false);
         const nextMatchedPairs = new Set(nextCards.filter((item) => item.matched).map((item) => item.pairId)).size;
         if (nextMatchedPairs === selectedLevel.pairs) finishLevel(true, nextTurnsUsed);
+        else if (!selectedLevel.isBoss && nextTurnsRemaining <= 0) finishLevel(false, nextTurnsUsed);
       }, 350);
       return;
     }
 
     playTone(progress.settings.effectsVolume, 180, 0.12);
-    const nextTurnsRemaining = selectedLevel.isBoss ? turnsRemaining : turnsRemaining - 1;
-    setTurnsRemaining(nextTurnsRemaining);
     setTimeout(
       () => {
         setFlippedIds([]);
         setIsResolving(false);
         if (!selectedLevel.isBoss && nextTurnsRemaining <= 0) finishLevel(false, nextTurnsUsed);
       },
-      selectedLevel.isBoss ? 500 : getUnitValue(selectedLevel.unit) * 1000 * (bothGreenTiles ? 0.5 : 1),
+      getUnitValue(selectedLevel.unit) * 1000 * (bothGreenTiles ? 0.5 : 1),
     );
   }
 

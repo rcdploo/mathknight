@@ -2,13 +2,13 @@ import type { LevelConfig, LevelKind, Stage, Unit } from "./types";
 
 const unitValues: Record<Unit, number> = {
   addition: 1,
-  subtraction: 2,
-  multiplication: 3,
-  division: 4,
-  fractions: 5,
-  geometry: 5,
-  perfectSquares: 6,
-  algebra: 6,
+  subtraction: 1,
+  multiplication: 2,
+  division: 2,
+  geometry: 3,
+  fractions: 3,
+  perfectSquares: 4,
+  algebra: 4,
 };
 
 const unitPayoutFactors: Record<Unit, number> = {
