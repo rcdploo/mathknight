@@ -115,6 +115,11 @@ button {
   padding: 16px;
   background: rgba(8, 8, 7, 0.78);
 }
+.quick-controls { position: fixed; top: 68px; right: 12px; z-index: 25; display: grid; gap: 7px; padding: 7px; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; background: rgba(25,24,21,.9); box-shadow: 0 8px 25px rgba(0,0,0,.32); backdrop-filter: blur(6px); }
+.quick-controls .icon-button { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(240,202,115,.28); border-radius: 7px; background: #34312a; color: #f4dfaa; }
+.quick-controls .icon-button:disabled { opacity: .35; cursor: default; }
+.quick-save-backdrop { z-index: 45; }
+.quick-save-backdrop .save-panel-copy strong { color: #f0ca73; }
 
 .save-panel {
   width: min(620px, 100%);
@@ -1325,6 +1330,7 @@ button {
 .upgrade-target-panel { width: min(900px, calc(100% - 32px)); max-height: 88vh; overflow: auto; }
 
 @media (max-width: 720px) {
+  .quick-controls { top: auto; right: 10px; bottom: 10px; grid-auto-flow: column; }
   .reward-deck-content { grid-template-columns: 1fr; }
   .reward-deck-content .run-bottled-card { justify-self: center; }
   .dungeon-shop-heading { align-items: stretch; flex-direction: column; }

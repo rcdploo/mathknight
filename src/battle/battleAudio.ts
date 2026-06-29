@@ -34,6 +34,7 @@ function audioContext() {
 
 function volumeFor(group: AudioGroup) {
   const settings = loadProgress().settings;
+  if (settings.muted) return 0;
   return group === "effects" ? settings.effectsVolume : settings.musicVolume;
 }
 

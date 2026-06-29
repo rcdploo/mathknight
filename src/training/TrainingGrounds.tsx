@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, ChevronDown, ChevronRight, Home, KeyRound, LockKeyhole, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, LockKeyhole } from "lucide-react";
 import { allLevels, levelLabels, makeLevelConfig, stageLabels, stages, unitLabels, units } from "../game/levels";
 import { generatePuzzle } from "../game/puzzleGenerator";
 import {
   blankPuzzleProgress,
-  exportProgressCode,
-  importProgressCode,
   loadProgress,
-  localStorageAvailable,
   recordTrainingResult,
-  setMuted,
 } from "../game/progressStore";
 import { calculateCoins, calculateStars, getUnitValue } from "../game/scoring";
 import { findNextUnlocked, getLevelUnlockState, getStageUnlockState, getUnitUnlockState, totalStars } from "../game/unlockRules";
@@ -24,7 +20,7 @@ const bossMatchSeconds = 15;
 const matchBorderColors = ["#f0ca73", "#6cb5a1", "#73c8dc", "#d77bb5", "#d77a66", "#9ea56c", "#b69be4", "#e39d5c", "#8fd3a9", "#b8c7d9"];
 
 function playTone(effectsVolume: number, frequency: number, duration = 0.08) {
-  if (effectsVolume <= 0) return;
+  if (loadProgress().settings.muted || effectsVolume <= 0) return;
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   const context = new AudioContextClass();
   const oscillator = context.createOscillator();
@@ -97,10 +93,6 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   const [deferredThisResult, setDeferredThisResult] = useState(0);
   const [bossPhase, setBossPhase] = useState<"memorize" | "match">("memorize");
   const [bossSeconds, setBossSeconds] = useState(bossMemorizeSeconds);
-  const [savePanelOpen, setSavePanelOpen] = useState(false);
-  const [saveCodeInput, setSaveCodeInput] = useState("");
-  const [saveMessage, setSaveMessage] = useState("");
-  const [canAutoSave] = useState(() => localStorageAvailable());
   const [dungeonLevel] = useState(() => loadPermanentLoadout().dungeonLevel);
   const [expandedUnits, setExpandedUnits] = useState<Set<(typeof units)[number]>>(
     () => new Set(units.filter((unit) => getUnitUnlockState(loadProgress(), unit).unlocked)),
@@ -148,10 +140,6 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   }
 
   function goBack() {
-    if (savePanelOpen) {
-      setSavePanelOpen(false);
-      return;
-    }
     if (screen === "game") {
       setScreen(gameMode === "reviewing" ? "result" : "map");
       setGameMode("playing");
@@ -226,27 +214,6 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
     );
   }
 
-  async function copySaveCode() {
-    const code = exportProgressCode(progress);
-    setSaveCodeInput(code);
-    try {
-      await navigator.clipboard.writeText(code);
-      setSaveMessage("Knight Code copied.");
-    } catch {
-      setSaveMessage("Knight Code ready to copy.");
-    }
-  }
-
-  function restoreSaveCode() {
-    if (!window.confirm("Load this Knight Code? Your current local game will be replaced.")) return;
-    try {
-      importProgressCode(saveCodeInput);
-      window.location.reload();
-    } catch {
-      setSaveMessage("That Knight Code did not work.");
-    }
-  }
-
   useEffect(() => {
     if (!selectedLevel.isBoss || screen !== "game" || hasEndedRef.current) return;
 
@@ -283,32 +250,8 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
             <strong>★</strong> {earnedStars} stars
           </span>
           <span className="coin-pill">${progress.coins} coins</span>
-          <button
-            className="icon-button"
-            aria-label={progress.settings.muted ? "Unmute sounds" : "Mute sounds"}
-            onClick={() => setProgress(setMuted(progress, !progress.settings.muted))}
-          >
-            {progress.settings.muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-          </button>
-          <button
-            className="icon-button"
-            aria-label="Open Knight Code saves"
-            onClick={() => {
-              setSavePanelOpen(true);
-              setSaveMessage("");
-            }}
-          >
-            <KeyRound size={20} />
-          </button>
-          <button className="icon-button" aria-label="Back to menu" onClick={() => setScreen("map")}>
-            <Home size={20} />
-          </button>
         </div>
       </header>
-
-      {!canAutoSave && (
-        <div className="storage-warning">Local auto-save is blocked here. Use a Knight Code to back up progress.</div>
-      )}
 
       {progress.run.difficulty === "impossible" && <div className="impossible-training-banner">
         <strong>Impossible income limit — Level {dungeonLevel}</strong>
@@ -316,42 +259,6 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
         <small>${Math.max(0, impossibleIncomeCap - impossibleIncomeEarned)} available · ${progress.run.deferredTrainingIncome} banked for the next dungeon level</small>
       </div>}
 
-      {savePanelOpen && (
-        <div className="modal-backdrop">
-          <section className="save-panel" role="dialog" aria-modal="true" aria-labelledby="save-panel-title">
-            <div className="save-panel-heading">
-              <div>
-                <p>Backup & Restore</p>
-                <h2 id="save-panel-title">Knight Code</h2>
-              </div>
-              <button className="icon-button" aria-label="Close Knight Code saves" onClick={() => setSavePanelOpen(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <p className="save-panel-copy">
-              Progress saves automatically on this device. Keep a Knight Code as a backup or use it on another device.
-            </p>
-            <textarea
-              aria-label="Knight Code"
-              value={saveCodeInput}
-              onChange={(event) => {
-                setSaveCodeInput(event.target.value);
-                setSaveMessage("");
-              }}
-              placeholder="Your Knight Code appears here"
-              spellCheck={false}
-            />
-            {saveMessage && <div className="save-message" role="status">{saveMessage}</div>}
-            <div className="save-actions">
-              <button onClick={copySaveCode}>Show & Copy Code</button>
-              <button onClick={restoreSaveCode} disabled={!saveCodeInput.trim()}>
-                Load Code
-              </button>
-              <button onClick={() => setSavePanelOpen(false)}>Done</button>
-            </div>
-          </section>
-        </div>
-      )}
 
       {screen === "map" && (
         <section className="map-screen">

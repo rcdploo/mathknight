@@ -87,7 +87,7 @@ export default function SettingsScreen({ onExit }: { onExit: () => void }) {
         <KeyRound size={22} />
         <div><p>Backup & Restore</p><h2 id="save-settings-title">Knight Code</h2></div>
       </div>
-      <p className="save-settings-copy">Create a code containing your complete game: Training Grounds, difficulty unlocks, coins, deck, items, dungeon position, health, shops, and any active battle.</p>
+      <p className="save-settings-copy"><strong>Your game autosaves continuously.</strong> Create a Knight Code as a manual checkpoint when you want to return to a specific point later. It contains your complete game: Training Grounds, difficulty unlocks, coins, deck, items, dungeon position, health, shops, and any active battle.</p>
       <textarea
         aria-label="Knight Code"
         value={saveCode}

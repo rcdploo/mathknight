@@ -10,11 +10,18 @@ import TrainingGrounds from "./training/TrainingGrounds";
 import SettingsScreen from "./settings/SettingsScreen";
 import { startAmbientMusic, stopAmbientMusic } from "./battle/battleAudio";
 import { hasSeenInstructions, InstructionsModal, markInstructionsSeen, type InstructionId } from "./instructions/Instructions";
+import QuickControls from "./components/QuickControls";
 
 type GameDestination = "hub" | "memory" | "battle" | "quartermaster" | "settings";
+const navigationStorageKey = "mathknight.navigation.destination.v1";
+
+function loadDestination(): GameDestination {
+  const saved = window.localStorage.getItem(navigationStorageKey);
+  return saved === "memory" || saved === "battle" || saved === "quartermaster" || saved === "settings" ? saved : "hub";
+}
 
 export default function App() {
-  const [destination, setDestination] = useState<GameDestination>("hub");
+  const [destination, setDestination] = useState<GameDestination>(loadDestination);
   const [inBattle, setInBattle] = useState(false);
   const [newGameOpen, setNewGameOpen] = useState(false);
   const [newGameRequired, setNewGameRequired] = useState(false);
@@ -47,6 +54,10 @@ export default function App() {
     setActiveInstructions(hasSeenInstructions(guide) ? null : guide);
   }, [destination]);
 
+  useEffect(() => {
+    window.localStorage.setItem(navigationStorageKey, destination);
+  }, [destination]);
+
   function closeInstructions() {
     if (activeInstructions) markInstructionsSeen(activeInstructions);
     setActiveInstructions(null);
@@ -55,6 +66,7 @@ export default function App() {
   const instructionsOverlay = activeInstructions
     ? <InstructionsModal guideId={activeInstructions} onClose={closeInstructions} />
     : null;
+  const quickControls = <QuickControls destination={destination} onHome={() => setDestination("hub")} />;
 
   function startNewGame() {
     setNewGameRequired(false);
@@ -81,7 +93,7 @@ export default function App() {
   }
 
   if (destination === "memory") {
-    return <><TrainingGrounds onExit={() => setDestination("hub")} onDungeon={() => setDestination("battle")} />{instructionsOverlay}</>;
+    return <><TrainingGrounds onExit={() => setDestination("hub")} onDungeon={() => setDestination("battle")} />{quickControls}{instructionsOverlay}</>;
   }
   if (destination === "battle") {
     return <>
@@ -92,14 +104,15 @@ export default function App() {
         onBattleStateChange={setInBattle}
         onRunWon={showPostVictoryNewGame}
       />
+      {quickControls}
       {instructionsOverlay}
     </>;
   }
   if (destination === "quartermaster") {
-    return <><Quartermaster onExit={() => setDestination("hub")} onTraining={() => setDestination("memory")} />{instructionsOverlay}</>;
+    return <><Quartermaster onExit={() => setDestination("hub")} onTraining={() => setDestination("memory")} />{quickControls}{instructionsOverlay}</>;
   }
   if (destination === "settings") {
-    return <><SettingsScreen onExit={() => setDestination("hub")} />{instructionsOverlay}</>;
+    return <><SettingsScreen onExit={() => setDestination("hub")} />{quickControls}{instructionsOverlay}</>;
   }
 
   return <>
@@ -144,6 +157,7 @@ export default function App() {
         </button>
       </section>
     </main>
+    {quickControls}
     {instructionsOverlay}
   </>;
 }
