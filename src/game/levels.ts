@@ -11,8 +11,8 @@ export const unitLabels: Record<Unit, string> = {
   division: "Division",
   fractions: "Fractions, Decimals & Percents",
   geometry: "2D Area & Perimeter",
-  perfectSquares: "Unit 6A: Perfect Squares",
-  algebra: "Unit 6B: Single-Variable Algebra",
+  perfectSquares: "Perfect Squares",
+  algebra: "Single-Variable Algebra",
 };
 
 export const stageLabels: Record<Stage, string> = {

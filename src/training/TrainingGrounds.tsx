@@ -239,9 +239,10 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   return (
     <main className="app">
       <header className="topbar">
-        <button className="brand" onClick={() => setScreen("map")}>
-          Mathknight
-        </button>
+        <div className="training-header-title">
+          <p>Mathknight</p>
+          <h1>Training Grounds</h1>
+        </div>
         <div className="topbar-actions">
           <span className="star-total" aria-label={`${earnedStars} total stars`}>
             <strong>★</strong> {earnedStars} stars
@@ -260,7 +261,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
       {screen === "map" && (
         <section className="map-screen">
           <div className="page-heading">
-            <p>Training Grounds</p>
+            <p>Choose a lesson</p>
             <h1>Arithmetic Memory Trials</h1>
           </div>
           <div className="unit-grid">
