@@ -9,6 +9,7 @@ import Quartermaster from "./quartermaster/Quartermaster";
 import TrainingGrounds from "./training/TrainingGrounds";
 import SettingsScreen from "./settings/SettingsScreen";
 import { startAmbientMusic, stopAmbientMusic } from "./battle/battleAudio";
+import { hasSeenInstructions, InstructionsModal, markInstructionsSeen, type InstructionId } from "./instructions/Instructions";
 
 type GameDestination = "hub" | "memory" | "battle" | "quartermaster" | "settings";
 
@@ -17,6 +18,7 @@ export default function App() {
   const [inBattle, setInBattle] = useState(false);
   const [newGameOpen, setNewGameOpen] = useState(false);
   const [newGameRequired, setNewGameRequired] = useState(false);
+  const [activeInstructions, setActiveInstructions] = useState<InstructionId | null>(null);
   const ambientAllowed = destination !== "battle" || !inBattle;
 
   useEffect(() => {
@@ -36,6 +38,23 @@ export default function App() {
       window.removeEventListener("focus", resumeAmbient);
     };
   }, [ambientAllowed]);
+
+  useEffect(() => {
+    const guideByDestination: Record<GameDestination, InstructionId> = {
+      hub: "game-hall", memory: "training", battle: "dungeon", quartermaster: "quartermaster", settings: "settings",
+    };
+    const guide = guideByDestination[destination];
+    setActiveInstructions(hasSeenInstructions(guide) ? null : guide);
+  }, [destination]);
+
+  function closeInstructions() {
+    if (activeInstructions) markInstructionsSeen(activeInstructions);
+    setActiveInstructions(null);
+  }
+
+  const instructionsOverlay = activeInstructions
+    ? <InstructionsModal guideId={activeInstructions} onClose={closeInstructions} />
+    : null;
 
   function startNewGame() {
     setNewGameRequired(false);
@@ -62,10 +81,10 @@ export default function App() {
   }
 
   if (destination === "memory") {
-    return <TrainingGrounds onExit={() => setDestination("hub")} onDungeon={() => setDestination("battle")} />;
+    return <><TrainingGrounds onExit={() => setDestination("hub")} onDungeon={() => setDestination("battle")} />{instructionsOverlay}</>;
   }
   if (destination === "battle") {
-    return (
+    return <>
       <DungeonGame
         onExit={() => setDestination("hub")}
         onTraining={() => setDestination("memory")}
@@ -73,16 +92,17 @@ export default function App() {
         onBattleStateChange={setInBattle}
         onRunWon={showPostVictoryNewGame}
       />
-    );
+      {instructionsOverlay}
+    </>;
   }
   if (destination === "quartermaster") {
-    return <Quartermaster onExit={() => setDestination("hub")} onTraining={() => setDestination("memory")} />;
+    return <><Quartermaster onExit={() => setDestination("hub")} onTraining={() => setDestination("memory")} />{instructionsOverlay}</>;
   }
   if (destination === "settings") {
-    return <SettingsScreen onExit={() => setDestination("hub")} />;
+    return <><SettingsScreen onExit={() => setDestination("hub")} />{instructionsOverlay}</>;
   }
 
-  return (
+  return <>
     <main className="game-hub">
       <header className="hub-header">
         <div>
@@ -98,8 +118,8 @@ export default function App() {
           <p>New Expedition</p><h2 id="difficulty-title">Choose Difficulty</h2>
           <div className="difficulty-options">
             <button onClick={() => beginNewGame("normal")}><strong>Normal</strong><small>Standard monster scaling. Training Grounds can be reset and replayed.</small></button>
-            <button onClick={() => beginNewGame("elite")}><strong>Elite</strong><small>Stronger monsters. Training Grounds starts empty and cannot be reset at the Quartermaster.</small></button>
-            <button onClick={() => beginNewGame("impossible")}><strong>Impossible</strong><small>Extreme scaling. Training Grounds starts empty, cannot be reset or replayed, and income is capped by dungeon level.</small></button>
+            <button onClick={() => beginNewGame("elite")}><strong>Elite</strong><small>Stronger monsters. Training Grounds cannot be reset at the Quartermaster.</small></button>
+            <button onClick={() => beginNewGame("impossible")}><strong>Impossible</strong><small>Extreme scaling. Training Grounds cannot be reset or replayed, and income is capped by dungeon level.</small></button>
           </div>
           {!newGameRequired && <button className="difficulty-cancel" onClick={() => setNewGameOpen(false)}>Cancel</button>}
         </section>
@@ -124,5 +144,6 @@ export default function App() {
         </button>
       </section>
     </main>
-  );
+    {instructionsOverlay}
+  </>;
 }

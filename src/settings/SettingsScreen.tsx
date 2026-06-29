@@ -1,8 +1,9 @@
-import { ArrowLeft, KeyRound, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, BookOpen, KeyRound, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
 import { useState } from "react";
 import { playBattleSound, updateAudioLevels } from "../battle/battleAudio";
 import { difficultyLabel, exportProgressCode, importProgressCode, loadProgress, setAudioSettings } from "../game/progressStore";
 import type { PlayerProgress } from "../game/types";
+import { InstructionsLibrary } from "../instructions/Instructions";
 
 export default function SettingsScreen({ onExit }: { onExit: () => void }) {
   const [progress, setProgress] = useState<PlayerProgress>(loadProgress);
@@ -100,6 +101,14 @@ export default function SettingsScreen({ onExit }: { onExit: () => void }) {
         <button onClick={loadSaveCode} disabled={!saveCode.trim()}>Load Code</button>
       </div>
       <small className="legacy-save-note">Older MK1 Knight Codes are still supported, but only contain Training Grounds progress and coins.</small>
+    </section>
+    <section className="settings-panel instructions-settings" aria-labelledby="instructions-settings-title">
+      <div className="settings-section-heading">
+        <BookOpen size={22} />
+        <div><p>How to Play</p><h2 id="instructions-settings-title">Instructions</h2></div>
+      </div>
+      <p className="settings-instructions-copy">Open any guide to review its rules and controls.</p>
+      <InstructionsLibrary />
     </section>
   </main>;
 }
