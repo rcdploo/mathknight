@@ -12,10 +12,10 @@ type InstructionGuide = {
 
 export const instructionGuides: InstructionGuide[] = [
   {
-    id: "game-hall", title: "Game Hall", eyebrow: "Welcome to Mathknight",
+    id: "game-hall", title: "Overview", eyebrow: "Welcome to Mathknight",
     introduction: "Train your arithmetic, prepare your knight, and descend through a five-level deckbuilding dungeon.",
     sections: [
-      { title: "Choose your path", points: ["Training Grounds earns gold and stars through memory-matching lessons.", "The Quartermaster spends gold on lasting character and bottle improvements.", "Dungeon Battle begins or resumes your current expedition."] },
+      { title: "Choose your path", points: ["Training Grounds earns gold and stars through memory-matching lessons.", "Dungeon Battle begins or resumes your current expedition.", "The Quartermaster spends gold on lasting character and bottle improvements."] },
       { title: "Track your run", points: ["Run Overview shows difficulty, dungeon position, health, gold, items, and your complete deck.", "Progress saves automatically on this device. A full-game Knight Code backup is available in Settings."] },
       { title: "Starting over", points: ["New Game resets the active expedition. After winning on Normal, you can begin Normal, Elite, or Impossible runs."] },
     ],
@@ -53,7 +53,7 @@ export const instructionGuides: InstructionGuide[] = [
     sections: [
       { title: "Audio", points: ["Background Music controls Game Hall, dungeon, combat, and boss music together.", "Effects controls card, match, attack, counter, and victory sounds. Use Test to preview the level."] },
       { title: "Difficulty", points: ["The current run's difficulty is locked. Elite and Impossible unlock together after completing Normal."] },
-      { title: "Knight Codes", points: ["Create an MK2 Knight Code to back up the complete game, including the active run and battle.", "Loading a code replaces local progress. Older MK1 codes restore only Training Grounds progress and coins."] },
+      { title: "Knight Codes", points: ["Create an MK2 Knight Code to back up the complete game, including the active run and battle.", "Loading a code replaces local progress with that complete checkpoint."] },
     ],
   },
 ];

@@ -64,10 +64,10 @@ function equivalentSumPairs(level: LevelConfig) {
     representations.set(total, [...(representations.get(total) ?? []), values]);
   };
 
-  for (let first = 1; first <= 12; first += 1) {
-    for (let second = first + 1; second <= 12; second += 1) {
+  for (let first = 1; first <= 10; first += 1) {
+    for (let second = first + 1; second <= 10; second += 1) {
       addRepresentation([first, second]);
-      for (let third = second + 1; third <= 12; third += 1) addRepresentation([first, second, third]);
+      for (let third = second + 1; third <= 10; third += 1) addRepresentation([first, second, third]);
     }
   }
 

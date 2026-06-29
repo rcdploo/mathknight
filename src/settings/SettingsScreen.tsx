@@ -100,7 +100,6 @@ export default function SettingsScreen({ onExit }: { onExit: () => void }) {
         <button onClick={createSaveCode}>Create & Copy Code</button>
         <button onClick={loadSaveCode} disabled={!saveCode.trim()}>Load Code</button>
       </div>
-      <small className="legacy-save-note">Older MK1 Knight Codes are still supported, but only contain Training Grounds progress and coins.</small>
     </section>
     <section className="settings-panel instructions-settings" aria-labelledby="instructions-settings-title">
       <div className="settings-section-heading">

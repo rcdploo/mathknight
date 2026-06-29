@@ -1,7 +1,6 @@
 import type { LevelConfig, LevelResult, PlayerProgress, PuzzleProgress, RunDifficulty } from "./types";
 
 const storageKey = "mathknight.memoryMatch.progress.v1";
-const legacySaveCodePrefix = "MK1";
 const saveCodePrefix = "MK2";
 
 type FullGameSave = {
@@ -97,15 +96,7 @@ export function importProgressCode(code: string): PlayerProgress {
     return loadProgress();
   }
 
-  const legacyPayload = trimmed.startsWith(`${legacySaveCodePrefix}-`) ? trimmed.slice(legacySaveCodePrefix.length + 1) : trimmed;
-  const parsed = JSON.parse(decodeSavePayload(legacyPayload)) as PlayerProgress;
-
-  if (parsed.schemaVersion !== 1 || typeof parsed.coins !== "number" || !parsed.puzzles) {
-    throw new Error("This save code is not a valid Mathknight save.");
-  }
-
-  saveProgress(parsed);
-  return loadProgress();
+  throw new Error("This save code is not a valid Mathknight save.");
 }
 
 function encodeSavePayload(value: string) {

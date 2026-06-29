@@ -41,7 +41,7 @@ function formatStageDescription(stage: string, unit?: string) {
       "2": "Perfect squares from 13–25",
       "3a": "Sums of two squares from 2–25",
       "3b": "Differences of two squares from 2–25",
-      "4": "Equivalent sums of 2–3 squares from 1–12",
+      "4": "Equivalent sums of 2–3 squares from 1–10",
     };
     return perfectSquaresDescriptions[stage];
   }
