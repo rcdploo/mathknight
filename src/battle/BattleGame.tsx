@@ -5,8 +5,9 @@ import { playBattleSound, startCombatMusic, stopCombatMusic, type CombatMusicInt
 import { cardById, cardDescription } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
-import { bottleCapacityCost, characterStatsForLevel, loadPermanentLoadout, loadRunBottle, resetRunBottle, saveRunBottle } from "../quartermaster/quartermasterStore";
-import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, queueItemRewardChoice, resetRunItems, surfaceBossItems, surfaceItems } from "./itemCatalog";
+import { bottleCapacityCost, characterStatsForLevel, loadPermanentLoadout } from "../quartermaster/quartermasterStore";
+import { clearStoredBattleSession, loadRunBottle, loadRunDeck, loadRunHealth, readStoredBattleSession, saveRunBottle, saveRunDeck, saveRunHealth, writeStoredBattleSession } from "../dungeon/runStore";
+import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, queueItemRewardChoice, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import { recordAttackResult, recordMonsterSlain } from "../dungeon/runStats";
 import { upgradeIneligibilityReason } from "./upgradeEligibility";
@@ -39,9 +40,6 @@ type BattleSession = {
 type StatusTile = { name: string; symbol: string; value?: number; tone: "buff" | "debuff"; effect: string };
 type MonsterBuffTile = { name: string; symbol: string; value?: number; effect: string; tone?: "buff" | "debuff" };
 
-const battleSessionKey = "mathknight.battle.session.v3";
-const runDeckKey = "mathknight.dungeon.runDeck.v1";
-const runHealthKey = "mathknight.dungeon.runHealth.v1";
 const fallbackMonster: GeneratedMonster = {
   id: "fallback-monster",
   level: 1,
@@ -56,37 +54,6 @@ const fallbackMonster: GeneratedMonster = {
   baseAttack: 6,
   reward: 10,
 };
-
-function loadRunDeck() {
-  try {
-    const raw = window.localStorage.getItem(runDeckKey);
-    if (!raw) return loadPermanentLoadout().deck;
-    const deck = JSON.parse(raw) as BattleCard[];
-    const cleaned = deck.filter((card) => !card.upgrades.includes("card-removal"));
-    const normalized = ensureUniqueCardIds(cleaned);
-    if (cleaned.length !== deck.length || normalized.changed) saveRunDeck(normalized.cards);
-    return normalized.cards;
-  } catch {
-    return loadPermanentLoadout().deck;
-  }
-}
-
-function saveRunDeck(deck: BattleCard[]) {
-  window.localStorage.setItem(runDeckKey, JSON.stringify(deck));
-}
-
-function resetRunDeck() {
-  saveRunDeck(loadPermanentLoadout().deck);
-}
-
-function loadRunHealth(maxHealth: number) {
-  const savedHealth = Number(window.localStorage.getItem(runHealthKey));
-  return savedHealth > 0 ? Math.min(maxHealth, savedHealth) : maxHealth;
-}
-
-function saveRunHealth(health: number) {
-  window.localStorage.setItem(runHealthKey, String(health));
-}
 
 function hasBuff(monster: GeneratedMonster, name: string) {
   return monster.buffs.some((buff) => buff.name === name || (name === "Vexing" && buff.name === "Vexxing"));
@@ -513,9 +480,8 @@ function createBattleSession(monster: GeneratedMonster, bonusItem: boolean, boss
 
 function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossReward: boolean) {
   try {
-    const raw = window.localStorage.getItem(battleSessionKey);
-    if (!raw) return createBattleSession(monster, bonusItem, bossReward);
-    const parsed = JSON.parse(raw) as BattleSession;
+    const parsed = readStoredBattleSession<BattleSession>();
+    if (!parsed) return createBattleSession(monster, bonusItem, bossReward);
     const sessionCards = [...(parsed.battle?.hand ?? []), ...(parsed.battle?.drawPile ?? []), ...(parsed.battle?.discardPile ?? [])];
     const sessionIds = new Set(sessionCards.map((card) => card.id));
     if (
@@ -550,10 +516,6 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
   } catch {
     return createBattleSession(monster, bonusItem, bossReward);
   }
-}
-
-function clearBattleSession() {
-  window.localStorage.removeItem(battleSessionKey);
 }
 
 export default function BattleGame({ onExit, onComplete, monster = fallbackMonster, roomLabel = "Dungeon", dungeonLevel = 1, premiumReward = false, bossReward = false }: { onExit: () => void; onComplete: (won: boolean) => void; monster?: GeneratedMonster; roomLabel?: string; dungeonLevel?: number; premiumReward?: boolean; bossReward?: boolean }) {
@@ -750,7 +712,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
   useEffect(() => {
     const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds, combatLog, turnBriefing };
-    window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
+    writeStoredBattleSession(session);
   }, [battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds, combatLog, turnBriefing, monster.id]);
 
   useEffect(() => {
@@ -1049,7 +1011,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const lobotomy = !monsterEffectsCanceled && (spellLobotomy || (playerHit.damage > 0 && (hasBuff(monster, "Lobotomizing") || turnLobotomy))) ? removeBestFightCard(runDeck) : null;
     if (lobotomy?.removed) {
       setRunDeck(lobotomy.cards);
-      saveRunDeck(lobotomy.cards);
     }
     const expressionArmorGain = upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.ceil(Math.abs(value) * .15) : 0);
     const monsterDebuffNames = [
@@ -1189,6 +1150,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         setBattle((current) => ({ ...current, playerHealth: healedHealth }));
         playBattleSound("victory");
         setImpact("victory");
+        setRunDeck(loadRunDeck());
         setPhase("victory");
         setMessage(finalBoss
           ? `${monster.name} falls. The dungeon is conquered.`
@@ -1206,9 +1168,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       const regeneratedHealth = hasBuff(monster, "Regenerating")
         ? Math.min(battle.enemyMaxHealth, enemyHealthAfterCurrentTurn + Math.max(1, Math.round(battle.enemyMaxHealth * 0.03)))
         : enemyHealthAfterCurrentTurn;
-      const cleanDrawPile = pendingSpellResult.battle.drawPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
-      const cleanDiscardPile = pendingSpellResult.battle.discardPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn);
-      const cleanHand = pendingSpellResult.battle.hand.filter((card) => !isTemporaryCard(card) && !isClosingParenthesisHelper(card) && !card.consumedThisTurn);
+      const removedFightCardId = lobotomy?.removed?.id;
+      const cleanDrawPile = pendingSpellResult.battle.drawPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn && card.id !== removedFightCardId);
+      const cleanDiscardPile = pendingSpellResult.battle.discardPile.filter((card) => !isTemporaryCard(card) && !card.consumedThisTurn && card.id !== removedFightCardId);
+      const cleanHand = pendingSpellResult.battle.hand.filter((card) => !isTemporaryCard(card) && !isClosingParenthesisHelper(card) && !card.consumedThisTurn && card.id !== removedFightCardId);
       const hypnoticActive = hasBuff(monster, "Hypnotic");
       const retainedHand = hypnoticActive
         ? cleanHand.filter((card) => !selectedCards.some((selected) => selected.id === card.id) && !card.generatedById)
@@ -1330,15 +1293,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   }
 
   function finishRoom(won: boolean) {
-    if (!won) {
-      resetRunDeck();
-      resetRunBottle();
-      resetRunItems();
-      saveRunHealth(loadPermanentLoadout().maxHealth);
-    }
     if (won) recordMonsterSlain();
     if (won && bonusItemId) addRunItem(bonusItemId, monster.level);
-    clearBattleSession();
+    clearStoredBattleSession();
     onComplete(won);
   }
 

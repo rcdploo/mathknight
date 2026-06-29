@@ -2,6 +2,7 @@ import source from "./Items.csv?raw";
 import { canApplyUpgrade, makeCard, shuffle, type BattleCard } from "./battleEngine";
 import { generateCombatRewards } from "./rewardGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
+import { loadRunDeck, saveRunDeck } from "../dungeon/runStore";
 
 export type ItemRarity = "Common" | "Uncommon" | "Rare" | "Boss";
 export type ItemDefinition = {
@@ -15,7 +16,6 @@ export type ItemDefinition = {
 
 const itemKey = "mathknight.dungeon.runItems.v1";
 const usageKey = "mathknight.dungeon.itemUsage.v1";
-const runDeckKey = "mathknight.dungeon.runDeck.v1";
 const bossShownKey = "mathknight.dungeon.bossItemsShown.v1";
 const pendingItemChoiceKey = "mathknight.dungeon.pendingItemChoice.v1";
 
@@ -90,11 +90,6 @@ export function addRunItem(id: string, level = 1) {
   applyAcquisitionBonus(id, level);
   window.dispatchEvent(new Event("mathknight-item-choice"));
   return next;
-}
-
-export function resetRunItems() {
-  saveRunItems([]);
-  savePendingItemChoice(null);
 }
 
 type ItemUsage = { items: Record<string, number>; tags: Record<string, number> };
@@ -179,21 +174,13 @@ export function itemSymbol(item: ItemDefinition) {
   return item.name.split(/\s+/).map((word) => word[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function loadDeck() {
-  try {
-    return JSON.parse(window.localStorage.getItem(runDeckKey) ?? "[]") as BattleCard[];
-  } catch {
-    return [];
-  }
-}
-
 function savePendingItemChoice(choice: PendingItemChoice | null) {
   if (!choice) window.localStorage.removeItem(pendingItemChoiceKey);
   else window.localStorage.setItem(pendingItemChoiceKey, JSON.stringify(choice));
 }
 
 function randomLegalUpgrades(count: number) {
-  const deck = loadDeck();
+  const deck = loadRunDeck();
   return shuffle(["armor", "plus-1", "plus-3", "doubler", "cycling", "consumable", "efficiency", "bash", "weaken", "crit", "reflecting", "healing", "initiative"])
     .filter((upgrade) => deck.some((card) => canApplyUpgrade(card, upgrade)))
     .slice(0, count);
@@ -201,17 +188,17 @@ function randomLegalUpgrades(count: number) {
 
 function applyAcquisitionBonus(id: string, level: number) {
   if (id === "heady-brew") {
-    const deck = loadDeck();
-    window.localStorage.setItem(runDeckKey, JSON.stringify([...deck, ...Array.from({ length: 3 }, () => makeCard("0", "number", 0))]));
+    const deck = loadRunDeck();
+    saveRunDeck([...deck, ...Array.from({ length: 3 }, () => makeCard("0", "number", 0))]);
   }
   if (id === "upsizer") {
-    const deck = loadDeck().map((card) => {
+    const deck = loadRunDeck().map((card) => {
       const digit = Number(card.label);
       if (card.kind !== "number" || !Number.isInteger(digit) || digit < 1 || digit > 7) return card;
       const replacement = makeCard(String(digit + 2), "number", digit + 2 <= 4 ? (digit + 2 <= 2 ? 0 : 1) : digit + 2 <= 6 ? 1 : 2);
       return { ...replacement, id: card.id, upgrades: card.upgrades };
     });
-    window.localStorage.setItem(runDeckKey, JSON.stringify(deck));
+    saveRunDeck(deck);
   }
   if (id === "grab-bag") {
     savePendingItemChoice({ kind: "rewards", itemId: id, rewardSets: Array.from({ length: 3 }, () => generateCombatRewards(level).map((reward) => reward.card)) });

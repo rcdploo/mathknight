@@ -1,5 +1,5 @@
 import { cardById } from "../battle/cardCatalog";
-import { ensureUniqueCardIds, makeStartingDeck, type BattleCard } from "../battle/battleEngine";
+import { makeStartingDeck, type BattleCard } from "../battle/battleEngine";
 
 export type PermanentLoadout = {
   deck: BattleCard[];
@@ -20,11 +20,6 @@ export type PermanentLoadout = {
 
 const loadoutKey = "mathknight.permanentLoadout.v1";
 const quartermasterVisitedKey = "mathknight.quartermaster.visited.v1";
-const dungeonKey = "mathknight.dungeon.level1.v4";
-const runDeckKey = "mathknight.dungeon.runDeck.v1";
-const runBottleKey = "mathknight.dungeon.runBottle.v1";
-const runHealthKey = "mathknight.dungeon.runHealth.v1";
-const battleSessionKey = "mathknight.battle.session.v2";
 
 function startingLoadout(): PermanentLoadout {
   const cards = makeStartingDeck();
@@ -46,13 +41,6 @@ export function loadPermanentLoadout(): PermanentLoadout {
       return initial;
     }
     const loadout = JSON.parse(raw) as PermanentLoadout;
-    let savedDungeonLevel = 1;
-    try {
-      const dungeon = JSON.parse(window.localStorage.getItem(dungeonKey) ?? "null") as { level?: number } | null;
-      savedDungeonLevel = dungeon?.level ?? 1;
-    } catch {
-      // A damaged dungeon map should not invalidate permanent upgrades.
-    }
     const normalized = {
       ...loadout,
       resourcefulnessUses: loadout.resourcefulnessUses ?? 1,
@@ -60,12 +48,6 @@ export function loadPermanentLoadout(): PermanentLoadout {
       heroicWillUses: loadout.heroicWillUses ?? 1,
       heroicWillUpgradeCount: loadout.heroicWillUpgradeCount ?? 0,
     };
-    const reachedDungeonLevel = Math.max(normalized.dungeonLevel, savedDungeonLevel);
-    if (reachedDungeonLevel !== normalized.dungeonLevel) {
-      const migrated = { ...normalized, dungeonLevel: reachedDungeonLevel };
-      savePermanentLoadout(migrated);
-      return migrated;
-    }
     return normalized;
   } catch {
     return startingLoadout();
@@ -105,61 +87,4 @@ export function printedEnergyCost(card: BattleCard, maxEnergy = 3) {
 
 export function bottleCapacityCost(card: BattleCard, maxEnergy = 3) {
   return printedEnergyCost(card, maxEnergy) + card.upgrades.length;
-}
-
-export function loadRunDeck() {
-  try {
-    const raw = window.localStorage.getItem(runDeckKey);
-    const deck = raw ? JSON.parse(raw) as BattleCard[] : loadPermanentLoadout().deck;
-    const cleaned = deck.filter((card) => !card.upgrades.includes("card-removal"));
-    const normalized = ensureUniqueCardIds(cleaned);
-    if (cleaned.length !== deck.length || normalized.changed) window.localStorage.setItem(runDeckKey, JSON.stringify(normalized.cards));
-    return normalized.cards;
-  } catch {
-    return loadPermanentLoadout().deck;
-  }
-}
-
-export function loadRunBottle() {
-  try {
-    const raw = window.localStorage.getItem(runBottleKey);
-    return raw ? JSON.parse(raw) as BattleCard : loadPermanentLoadout().bottledCard;
-  } catch {
-    return loadPermanentLoadout().bottledCard;
-  }
-}
-
-export function saveRunBottle(card: BattleCard) {
-  window.localStorage.setItem(runBottleKey, JSON.stringify(card));
-}
-
-export function resetRunBottle() {
-  saveRunBottle(loadPermanentLoadout().bottledCard);
-}
-
-export function syncRunDeck(transform: (deck: BattleCard[]) => BattleCard[]) {
-  try {
-    const raw = window.localStorage.getItem(runDeckKey);
-    const deck = raw ? JSON.parse(raw) as BattleCard[] : loadPermanentLoadout().deck;
-    window.localStorage.setItem(runDeckKey, JSON.stringify(transform(deck)));
-  } catch {
-    window.localStorage.setItem(runDeckKey, JSON.stringify(loadPermanentLoadout().deck));
-  }
-}
-
-export function increaseRunHealth(amount: number, maxHealth: number) {
-  const current = Number(window.localStorage.getItem(runHealthKey));
-  const next = Math.min(maxHealth, (current > 0 ? current : maxHealth - amount) + amount);
-  window.localStorage.setItem(runHealthKey, String(next));
-  try {
-    const rawSession = window.localStorage.getItem(battleSessionKey);
-    if (!rawSession) return;
-    const session = JSON.parse(rawSession) as { battle?: { playerHealth?: number; playerMaxHealth?: number } };
-    if (!session.battle) return;
-    session.battle.playerHealth = Math.min(maxHealth, (session.battle.playerHealth ?? next - amount) + amount);
-    session.battle.playerMaxHealth = maxHealth;
-    window.localStorage.setItem(battleSessionKey, JSON.stringify(session));
-  } catch {
-    // A damaged resumable battle should not prevent the permanent upgrade.
-  }
 }

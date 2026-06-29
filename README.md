@@ -41,6 +41,7 @@ The game autosaves to browser `localStorage` under keys beginning with `mathknig
 - `mathknight.dungeon.runBottle.v1`: current bottled card.
 - `mathknight.dungeon.runHealth.v1`: current run health.
 - `mathknight.dungeon.runItems.v1`: current run items.
+- `mathknight.dungeon.levelStart.v1`: deck, bottle, items, and removal-price checkpoint restored after defeat.
 - `mathknight.battle.session.v3`: resumable active battle.
 - `mathknight.dungeon.shop.*.v2`: generated shop inventories.
 - `mathknight.navigation.destination.v1`: current major screen.

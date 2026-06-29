@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import BattleGame from "../battle/BattleGame";
 import { addRunItem, itemById, itemSymbol, loadPendingItemChoice, loadRunItems, saveRunItems, updatePendingItemChoice, surfaceItems, type ItemDefinition, type PendingItemChoice } from "../battle/itemCatalog";
-import { applyCardUpgrade, canApplyUpgrade, ensureUniqueCardIds, makeCatalogEntry, shuffle as shuffleCards, type BattleCard } from "../battle/battleEngine";
+import { applyCardUpgrade, canApplyUpgrade, makeCatalogEntry, shuffle as shuffleCards, type BattleCard } from "../battle/battleEngine";
 import { cardById, cardCatalog, cardDescription, type CardRarity } from "../battle/cardCatalog";
 import GameCard from "../battle/GameCard";
 import { upgradeIneligibilityReason } from "../battle/upgradeEligibility";
@@ -14,8 +14,9 @@ import { generateBoss, generateMonster, generateRoomGold, nextDungeonLevel, type
 import { difficultyLabel, loadProgress, markNormalCompleted, releaseDeferredTrainingIncome, saveProgress } from "../game/progressStore";
 import type { RunDifficulty } from "../game/types";
 import { totalStars } from "../game/unlockRules";
-import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, loadRunBottle, loadRunDeck, savePermanentLoadout, saveRunBottle } from "../quartermaster/quartermasterStore";
+import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
 import { loadRunStats } from "./runStats";
+import { ensureLevelStartCheckpoint, loadRunBottle, loadRunDeck, loadRunHealth, restoreLevelStartCheckpoint, saveLevelStartCheckpoint, saveRunBottle, saveRunDeck, saveRunHealth } from "./runStore";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
 type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "elite" | "shop" | "treasure" };
@@ -250,6 +251,10 @@ export default function DungeonGame({
   }, [dungeon]);
 
   useEffect(() => {
+    ensureLevelStartCheckpoint(dungeon.level);
+  }, [dungeon.level]);
+
+  useEffect(() => {
     onBattleStateChange(dungeon.view === "battle");
     return () => onBattleStateChange(false);
   }, [dungeon.view, onBattleStateChange]);
@@ -366,6 +371,7 @@ export default function DungeonGame({
 
   function completeRoom(won: boolean) {
     if (!won) {
+      restoreLevelStartCheckpoint(dungeon.level);
       const previousBosses = dungeon.bossNames.slice(0, -1);
       const nextDungeon = generateDungeon(dungeon.level, previousBosses);
       nextDungeon.notice = "The dungeon shifted after your defeat. Choose a new path.";
@@ -414,7 +420,7 @@ export default function DungeonGame({
         dungeonLevel: Math.max(loadout.dungeonLevel, nextLevel),
         maxHealth: nextLevel > loadout.dungeonLevel ? characterStatsForLevel(nextLevel, loadout).maxHealth : loadout.maxHealth,
       });
-      window.localStorage.setItem(runHealthKey, String(nextStats.maxHealth));
+      saveRunHealth(nextStats.maxHealth);
       const unlocks = nextLevel > dungeon.level
         ? nextLevel === 2
           ? ["Resourcefulness"]
@@ -439,6 +445,7 @@ export default function DungeonGame({
       window.localStorage.setItem(levelUpSummaryStorageKey, JSON.stringify(summary));
       setLevelUpSummary(summary);
       const nextDungeon = generateDungeon(nextLevel, dungeon.bossNames, releasedTraining.progress.run.difficulty);
+      saveLevelStartCheckpoint(nextLevel);
       nextDungeon.notice = nextLevel === dungeon.level
         ? "The final boss is defeated. Level 5 is mastered."
         : `Level ${dungeon.level} conquered. Level ${nextLevel} begins.`;
@@ -644,7 +651,7 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
   });
   const [chosen, setChosen] = useState<BattleCard | null>(null);
   const [targeting, setTargeting] = useState(false);
-  const deck = loadRunDeckCards();
+  const deck = loadRunDeck();
 
   useEffect(() => {
     if (state.paid) return;
@@ -657,7 +664,7 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
   }, [state, storageKey]);
 
   function finishWithDeck(nextDeck: BattleCard[]) {
-    window.localStorage.setItem(runDeckKey, JSON.stringify(nextDeck));
+    saveRunDeck(nextDeck);
     window.localStorage.removeItem(storageKey);
     onComplete();
   }
@@ -725,23 +732,8 @@ function TreasureReward({ node, level, onExit, onComplete }: { node: DungeonNode
   </section></main>;
 }
 
-const runDeckKey = "mathknight.dungeon.runDeck.v1";
-const runHealthKey = "mathknight.dungeon.runHealth.v1";
-
-function loadRunDeckCards() {
-  try {
-    const deck = JSON.parse(window.localStorage.getItem(runDeckKey) ?? "[]") as BattleCard[];
-    const cleaned = deck.filter((card) => !card.upgrades.includes("card-removal"));
-    const normalized = ensureUniqueCardIds(cleaned);
-    if (cleaned.length !== deck.length || normalized.changed) window.localStorage.setItem(runDeckKey, JSON.stringify(normalized.cards));
-    return normalized.cards;
-  } catch {
-    return [];
-  }
-}
-
 function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; onUpdate: (choice: PendingItemChoice | null) => void }) {
-  const [deck, setDeck] = useState(loadRunDeckCards);
+  const [deck, setDeck] = useState(loadRunDeck);
   const [chosenReward, setChosenReward] = useState<BattleCard | null>(null);
   const [rewardTargeting, setRewardTargeting] = useState(false);
   const [upgradeTargeting, setUpgradeTargeting] = useState(false);
@@ -750,8 +742,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
   const bottleMaxCost = loadPermanentLoadout().bottleMaxCost;
 
   function persistDeck(nextDeck: BattleCard[]) {
-    window.localStorage.setItem(runDeckKey, JSON.stringify(nextDeck));
-    setDeck(nextDeck);
+    setDeck(saveRunDeck(nextDeck));
   }
 
   if (choice.kind === "upgrades") {
@@ -915,7 +906,7 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
   const initial = useMemo(() => loadShop(`${dungeonRunId}.${node.id}`, level), [dungeonRunId, node.id, level]);
   const [slots, setSlots] = useState<ShopSlot[]>(initial.slots);
   const [coins, setCoins] = useState(() => loadProgress().coins);
-  const [deck, setDeck] = useState(loadRunDeckCards);
+  const [deck, setDeck] = useState(loadRunDeck);
   const [ownedItems, setOwnedItems] = useState(loadRunItems);
   const [targetSlot, setTargetSlot] = useState<ShopSlot | null>(null);
   const [randomRewardSlot, setRandomRewardSlot] = useState<ShopSlot | null>(null);
@@ -935,8 +926,8 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
   function persist(nextSlots: ShopSlot[], nextDeck = deck, nextCoins = coins) {
     setSlots(nextSlots);
     saveShop(initial.key, nextSlots);
-    setDeck(nextDeck);
-    window.localStorage.setItem(runDeckKey, JSON.stringify(nextDeck));
+    const savedDeck = saveRunDeck(nextDeck);
+    setDeck(savedDeck);
     setCoins(nextCoins);
     const progress = loadProgress();
     saveProgress({ ...progress, coins: nextCoins });
@@ -965,8 +956,8 @@ function ShopRoom({ node, level, dungeonRunId, onExit, onTraining }: { node: Dun
         : `${slot.item.name} was added to your item line.`);
     } else if (slot.type === "sustenance") {
       const maxHealth = loadPermanentLoadout().maxHealth;
-      const current = Number(window.localStorage.getItem(runHealthKey)) || maxHealth;
-      window.localStorage.setItem(runHealthKey, String(Math.min(maxHealth, current + 30)));
+      const current = loadRunHealth(maxHealth);
+      saveRunHealth(Math.min(maxHealth, current + 30));
       persist(slots, deck, coins - price);
       setMessage("Sustenance restores up to 30 HP.");
     } else if (slot.type === "random-reward") {

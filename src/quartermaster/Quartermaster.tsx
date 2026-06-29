@@ -5,7 +5,8 @@ import { allLevels, stageLabels, stages, unitLabels, units } from "../game/level
 import { difficultyLabel, loadProgress, saveProgress } from "../game/progressStore";
 import { isLevelUnlocked } from "../game/unlockRules";
 import type { PlayerProgress, Stage, Unit } from "../game/types";
-import { bottleCapacityCost, increaseRunHealth, loadPermanentLoadout, loadRunBottle, loadRunDeck, markQuartermasterVisited, savePermanentLoadout, saveRunBottle, syncRunDeck, type PermanentLoadout } from "./quartermasterStore";
+import { bottleCapacityCost, loadPermanentLoadout, markQuartermasterVisited, savePermanentLoadout, type PermanentLoadout } from "./quartermasterStore";
+import { increaseRunHealth, loadRunBottle, loadRunDeck, saveRunLoadout } from "../dungeon/runStore";
 
 type SelectionMode = "bottle" | null;
 
@@ -99,17 +100,12 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
   function selectBottle(selected: PermanentLoadout["bottledCard"]) {
     if (!afford(50)) return;
     spend(50);
-    let nextActiveDeck = activeDeck;
-    syncRunDeck((deck) => {
-      const next = [...deck];
-      const runIndex = next.findIndex((card) => card.id === selected.id);
-      if (runIndex >= 0) next.splice(runIndex, 1, runBottle);
-      nextActiveDeck = next;
-      return next;
-    });
-    saveRunBottle(selected);
-    setRunBottle(selected);
-    setActiveDeck(nextActiveDeck);
+    const nextDeck = [...activeDeck];
+    const runIndex = nextDeck.findIndex((card) => card.id === selected.id);
+    if (runIndex >= 0) nextDeck.splice(runIndex, 1, runBottle);
+    const saved = saveRunLoadout(nextDeck, selected);
+    setRunBottle(saved.bottledCard);
+    setActiveDeck(saved.deck);
     setSelectionMode(null);
   }
 

@@ -1,6 +1,6 @@
 import { Layers3, X } from "lucide-react";
 import { useState } from "react";
-import { loadRunBottle, loadRunDeck } from "../quartermaster/quartermasterStore";
+import { loadRunBottle, loadRunDeck } from "../dungeon/runStore";
 import GameCard from "./GameCard";
 
 export default function RewardDeckViewer({ level }: { level: number }) {

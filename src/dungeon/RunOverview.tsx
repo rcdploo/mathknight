@@ -3,10 +3,10 @@ import { useState } from "react";
 import { itemById, itemSymbol, loadRunItems } from "../battle/itemCatalog";
 import GameCard from "../battle/GameCard";
 import { difficultyLabel, loadProgress } from "../game/progressStore";
-import { characterStatsForLevel, loadPermanentLoadout, loadRunBottle, loadRunDeck } from "../quartermaster/quartermasterStore";
+import { characterStatsForLevel, loadPermanentLoadout } from "../quartermaster/quartermasterStore";
+import { loadRunBottle, loadRunDeck, loadRunHealth } from "./runStore";
 
 const dungeonStorageKey = "mathknight.dungeon.level1.v6";
-const runHealthKey = "mathknight.dungeon.runHealth.v1";
 
 type SavedDungeon = {
   level?: number;
@@ -44,8 +44,7 @@ export default function RunOverview({ position }: { position?: RunPosition }) {
     maxHealth: Math.max(1, Math.round((baseStats.maxHealth + (runItemIds.includes("garlic") ? 50 : 0)) * (runItemIds.includes("glass-cannon") ? .85 : 1))),
     energy: baseStats.energy + (runItemIds.includes("glass-cannon") ? 1 : 0) + (runItemIds.includes("heady-brew") ? 1 : 0),
   };
-  const savedHealth = Number(window.localStorage.getItem(runHealthKey));
-  const health = savedHealth > 0 ? Math.min(savedHealth, stats.maxHealth) : stats.maxHealth;
+  const health = loadRunHealth(stats.maxHealth);
   const progress = loadProgress();
   const gold = progress.coins;
   const deck = loadRunDeck();
