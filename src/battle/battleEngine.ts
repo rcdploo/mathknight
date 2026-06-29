@@ -40,27 +40,12 @@ export function ensureUniqueCardIds(cards: BattleCard[]) {
   const seen = new Set<string>();
   let changed = false;
   const normalized = cards.map((card) => {
-    const migratedLabel = card.label === "3p" ? "p^2" : card.label === "2U" ? "U" : card.label;
-    const definition = cardByName.get(migratedLabel);
-    const catalogEnergy = definition && typeof definition.energyCost === "number"
-      ? definition.energyCost * (card.upgrades.includes("doubler") ? 2 : 1) - (card.upgrades.includes("efficiency") ? 1 : 0)
-      : card.energy;
-    const refreshed = catalogEnergy === card.energy && migratedLabel === card.label
-      ? card
-      : {
-          ...card,
-          label: migratedLabel,
-          token: migratedLabel,
-          energy: catalogEnergy,
-          ...(definition ? { catalogId: definition.id, type: definition.type, rarity: definition.rarity, effect: definition.effect, shopCostRaw: definition.shopCostRaw } : {}),
-        };
-    if (refreshed !== card) changed = true;
-    if (!seen.has(refreshed.id)) {
-      seen.add(refreshed.id);
-      return refreshed;
+    if (!seen.has(card.id)) {
+      seen.add(card.id);
+      return card;
     }
     changed = true;
-    const next = { ...refreshed, id: uniqueCardId() };
+    const next = { ...card, id: uniqueCardId() };
     seen.add(next.id);
     return next;
   });

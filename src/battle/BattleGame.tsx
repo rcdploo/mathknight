@@ -6,6 +6,7 @@ import { cardById, cardDescription } from "./cardCatalog";
 import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { bottleCapacityCost, characterStatsForLevel, loadPermanentLoadout } from "../quartermaster/quartermasterStore";
+import { formatLevelText } from "./textFormatting";
 import { clearStoredBattleSession, loadRunBottle, loadRunDeck, loadRunHealth, readStoredBattleSession, saveRunBottle, saveRunDeck, saveRunHealth, writeStoredBattleSession } from "../dungeon/runStore";
 import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, queueItemRewardChoice, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
@@ -262,12 +263,6 @@ function monsterSpellBuffs(battle: BattleState, level: number): MonsterBuffTile[
     ...Array.from({ length: battle.enrageStacks }, () => ({ name: "Enrage", symbol: "E", effect: "Attacks deal 10% more damage per stack." })),
     ...Array.from({ length: battle.thornsStacks }, () => ({ name: "Thorns", symbol: "T", effect: `You take ${2 * level} Damage after each time attacking.` })),
   ];
-}
-
-function levelText(text: string, level: number) {
-  return text
-    .replace(/(\d+)\s*\*\s*Level/gi, (_, amount: string) => String(Number(amount) * level))
-    .replace(/1\s+HP\s+per\s+Level/gi, `${level} HP`);
 }
 
 function makeZeroCard(reason: string) {
@@ -1405,7 +1400,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
                 <strong>{card.label}</strong>
                 <span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span>
                 {card.upgrades.length > 0 && <span className="reward-upgrades">{card.upgrades.map((upgrade) => cardById.get(upgrade)?.name ?? upgrade).join(" + ")}</span>}
-                <small>{levelText(cardDescription(card.catalogId, card.label, card.effect), monster.level)}</small>
+                <small>{formatLevelText(cardDescription(card.catalogId, card.label, card.effect), monster.level)}</small>
               </button>
             ))}
           </div>
@@ -1415,7 +1410,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
                 <strong>{itemSymbol(itemById.get(bonusItemId)!)}</strong>
                 <span>Bonus Item</span>
                 <b>{itemById.get(bonusItemId)?.name}</b>
-                <small>{levelText(itemById.get(bonusItemId)?.effect ?? "", monster.level)}</small>
+                <small>{formatLevelText(itemById.get(bonusItemId)?.effect ?? "", monster.level)}</small>
               </div>
             </div>
           )}
@@ -1484,12 +1479,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             <div
               className={`item-icon ${flashingItemIds.includes(id) ? "item-triggering" : ""} ${activeItemIds.has(id) ? "item-active" : ""}`}
               tabIndex={0}
-              aria-label={`${item.name}: ${levelText(item.effect, monster.level)}${id === "fertilizer" && battle.discardDamageStacks > 0 ? ` (${battle.discardDamageStacks} stacks)` : ""}`}
+              aria-label={`${item.name}: ${formatLevelText(item.effect, monster.level)}${id === "fertilizer" && battle.discardDamageStacks > 0 ? ` (${battle.discardDamageStacks} stacks)` : ""}`}
               key={id}
             >
               <b>{itemSymbol(item)}</b>
               {id === "fertilizer" && battle.discardDamageStacks > 0 && <small className="item-stack-count">{battle.discardDamageStacks}</small>}
-              <span className="item-tooltip"><strong>{item.name}</strong>{levelText(item.effect, monster.level)}</span>
+              <span className="item-tooltip"><strong>{item.name}</strong>{formatLevelText(item.effect, monster.level)}</span>
             </div>
           );
         })}

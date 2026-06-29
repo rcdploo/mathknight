@@ -41,17 +41,21 @@ export function loadPermanentLoadout(): PermanentLoadout {
       return initial;
     }
     const loadout = JSON.parse(raw) as PermanentLoadout;
-    const normalized = {
-      ...loadout,
-      resourcefulnessUses: loadout.resourcefulnessUses ?? 1,
-      resourcefulnessUpgradeCount: loadout.resourcefulnessUpgradeCount ?? 0,
-      heroicWillUses: loadout.heroicWillUses ?? 1,
-      heroicWillUpgradeCount: loadout.heroicWillUpgradeCount ?? 0,
-    };
-    return normalized;
+    return isCurrentLoadout(loadout) ? loadout : startingLoadout();
   } catch {
     return startingLoadout();
   }
+}
+
+function isCurrentLoadout(loadout: PermanentLoadout) {
+  const numericFields: Array<keyof PermanentLoadout> = [
+    "bottleMaxCost", "bottleUpgradeCount", "removalPurchases", "dungeonLevel",
+    "mendingHealing", "mendingUpgradeCount", "maxHealth", "growPurchases",
+    "resourcefulnessUses", "resourcefulnessUpgradeCount", "heroicWillUses", "heroicWillUpgradeCount",
+  ];
+  return Array.isArray(loadout?.deck)
+    && typeof loadout.bottledCard === "object"
+    && numericFields.every((field) => typeof loadout[field] === "number");
 }
 
 const characterStats = {

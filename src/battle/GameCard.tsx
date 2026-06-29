@@ -1,5 +1,6 @@
 import { cardById, cardDescription } from "./cardCatalog";
 import type { BattleCard } from "./battleEngine";
+import { formatLevelText } from "./textFormatting";
 
 export default function GameCard({
   card, onClick, disabled = false, disabledReason, bottled = false, preview = false, forced = false, played = false, price, badge, level,
@@ -51,23 +52,17 @@ export default function GameCard({
     {badge && <em>{badge}</em>}
     {price !== undefined && <b className="card-price">${price}</b>}
     <span className="card-explainer">
-      <strong>{card.label}</strong>{level === undefined ? cardDescription(card.catalogId, card.label, card.effect) : levelText(cardDescription(card.catalogId, card.label, card.effect), level)}
+      <strong>{card.label}</strong>{level === undefined ? cardDescription(card.catalogId, card.label, card.effect) : formatLevelText(cardDescription(card.catalogId, card.label, card.effect), level)}
       {card.upgrades.map((upgradeId) => {
         const upgrade = cardById.get(upgradeId);
         const description = upgrade?.displayDescription ?? "Card upgrade";
-        return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {level === undefined ? description : levelText(description, level)}</span>;
+        return <span key={upgradeId}><b>{upgrade?.name ?? upgradeId}:</b> {level === undefined ? description : formatLevelText(description, level)}</span>;
       })}
       {bottled && <span><b>Bottled:</b> Available every turn.</span>}
       {disabledReason && <span className="card-ineligibility-reason"><b>Unavailable:</b> {disabledReason}</span>}
       {card.immolatedFrom !== undefined && <span><b>Immolation:</b> {card.immolatedFrom} was reduced to {card.label}.</span>}
     </span>
   </button>;
-}
-
-function levelText(text: string, level: number) {
-  return text
-    .replace(/(\d+)\s*\*\s*Level/gi, (_, amount: string) => String(Number(amount) * level))
-    .replace(/1\s+HP\s+per\s+Level/gi, `${level} HP`);
 }
 
 const upgradeVisuals: Record<string, { label: string; category: "defense" | "offense" | "stats" | "energy" | "special" | "healing" }> = {

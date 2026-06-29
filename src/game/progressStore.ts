@@ -31,25 +31,23 @@ export function loadProgress(): PlayerProgress {
 
   try {
     const parsed = JSON.parse(raw) as PlayerProgress;
-    if (parsed.schemaVersion !== 1) return structuredClone(defaultProgress);
-    const legacyMuted = parsed.settings?.muted ?? false;
-    return {
-      ...parsed,
-      settings: {
-        muted: legacyMuted,
-        musicVolume: parsed.settings?.musicVolume ?? (legacyMuted ? 0 : .7),
-        effectsVolume: parsed.settings?.effectsVolume ?? (legacyMuted ? 0 : .8),
-      },
-      run: {
-        difficulty: parsed.run?.difficulty ?? "normal",
-        normalCompleted: parsed.run?.normalCompleted ?? false,
-        trainingIncomeByLevel: parsed.run?.trainingIncomeByLevel ?? {},
-        deferredTrainingIncome: parsed.run?.deferredTrainingIncome ?? 0,
-      },
-    };
+    return isCurrentProgress(parsed) ? parsed : structuredClone(defaultProgress);
   } catch {
     return structuredClone(defaultProgress);
   }
+}
+
+function isCurrentProgress(progress: PlayerProgress) {
+  return progress?.schemaVersion === 1
+    && typeof progress.coins === "number"
+    && typeof progress.settings?.muted === "boolean"
+    && typeof progress.settings?.musicVolume === "number"
+    && typeof progress.settings?.effectsVolume === "number"
+    && ["normal", "elite", "impossible"].includes(progress.run?.difficulty)
+    && typeof progress.run?.normalCompleted === "boolean"
+    && typeof progress.run?.trainingIncomeByLevel === "object"
+    && typeof progress.run?.deferredTrainingIncome === "number"
+    && typeof progress.puzzles === "object";
 }
 
 export function saveProgress(progress: PlayerProgress) {
