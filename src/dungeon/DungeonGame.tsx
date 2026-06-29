@@ -16,7 +16,7 @@ import type { RunDifficulty } from "../game/types";
 import { totalStars } from "../game/unlockRules";
 import { characterStatsForLevel, hasVisitedQuartermaster, loadPermanentLoadout, savePermanentLoadout } from "../quartermaster/quartermasterStore";
 import { loadRunStats } from "./runStats";
-import { ensureLevelStartCheckpoint, loadRunBottle, loadRunDeck, loadRunHealth, restoreLevelStartCheckpoint, saveLevelStartCheckpoint, saveRunBottle, saveRunDeck, saveRunHealth } from "./runStore";
+import { ensureLevelStartCheckpoint, loadRunBottle, loadRunDeck, loadRunHealth, readStoredBattleSession, restoreLevelStartCheckpoint, saveLevelStartCheckpoint, saveRunBottle, saveRunDeck, saveRunHealth } from "./runStore";
 
 type RoomType = "start" | "battle" | "elite" | "treasure" | "shop" | "mystery" | "boss";
 type DungeonNode = { id: string; step: number; lane: number; type: RoomType; next: string[]; monster?: GeneratedMonster; resolvedType?: "battle" | "elite" | "shop" | "treasure" };
@@ -196,11 +196,33 @@ function generateDungeon(level: DungeonLevel, bossNames: string[] = [], difficul
   };
 }
 
+type StoredBattlePointer = { monsterId?: string; phase?: string };
+
+function unresolvedBattleSession() {
+  const session = readStoredBattleSession<StoredBattlePointer>();
+  return session && ["victory", "reward", "upgrade"].includes(session.phase ?? "") ? session : null;
+}
+
+function restoreUnresolvedReward(dungeon: DungeonState) {
+  const session = unresolvedBattleSession();
+  if (!session?.monsterId) return dungeon;
+  const rewardNode = dungeon.nodes.find((node) => node.monster?.id === session.monsterId);
+  if (!rewardNode) return dungeon;
+  return {
+    ...dungeon,
+    activeNodeId: rewardNode.id,
+    view: "battle" as const,
+    completedIds: dungeon.completedIds.filter((id) => id !== rewardNode.id),
+    availableIds: [...new Set([...dungeon.availableIds, rewardNode.id])],
+    notice: "Your unfinished battle reward is ready to resume.",
+  };
+}
+
 function loadDungeon() {
   try {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
-    return JSON.parse(raw) as DungeonState;
+    return restoreUnresolvedReward(JSON.parse(raw) as DungeonState);
   } catch {
     return generateDungeon(1);
   }
@@ -468,7 +490,18 @@ export default function DungeonGame({
   }
 
   function returnToMap() {
-    setDungeon((current) => ({ ...current, activeNodeId: null, view: "map", notice: "Choose a connected room and press deeper into the dungeon." }));
+    setDungeon((current) => {
+      const session = unresolvedBattleSession();
+      const rewardNode = session?.monsterId ? current.nodes.find((node) => node.monster?.id === session.monsterId) : undefined;
+      return {
+        ...current,
+        activeNodeId: null,
+        view: "map",
+        completedIds: rewardNode ? current.completedIds.filter((id) => id !== rewardNode.id) : current.completedIds,
+        availableIds: rewardNode ? [...new Set([...current.availableIds, rewardNode.id])] : current.availableIds,
+        notice: rewardNode ? "Reward selection unfinished. Re-enter the cleared room to resume it." : "Choose a connected room and press deeper into the dungeon.",
+      };
+    });
   }
 
   if (dungeon.view === "battle") {
