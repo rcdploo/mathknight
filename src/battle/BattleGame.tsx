@@ -1516,7 +1516,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   return (
     <main className={`battle-game ${phase === "victory" ? "battle-victory" : phase === "defeat" ? "battle-defeat" : ""}`}>
       <header className="battle-topbar">
-        <div><p>{roomLabel}</p><strong>{monster.name}</strong></div>
+        <div><p>Mathknight</p><strong>{monster.name}</strong></div>
         <div className="battle-topbar-actions">
           <span>Turn {turn}</span>
           <span className="battle-gold"><Coins size={16} /> ${loadProgress().coins}</span>

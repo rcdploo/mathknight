@@ -42,7 +42,7 @@ export default function SettingsScreen({ onExit: _onExit }: { onExit: () => void
 
   return <main className="settings-screen">
     <header className="settings-header">
-      <div><p>Preferences</p><h1>Settings</h1></div>
+      <div><p>Mathknight</p><h1>Settings</h1></div>
     </header>
     <section className="settings-panel" aria-labelledby="audio-settings-title">
       <div className="settings-section-heading">

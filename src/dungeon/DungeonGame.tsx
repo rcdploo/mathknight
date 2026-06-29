@@ -547,7 +547,7 @@ export default function DungeonGame({
         </div>
       )}
       <header className="dungeon-map-header">
-        <div><p>Dungeon Level {dungeon.level}</p><h1>The Verdant Descent</h1></div>
+        <div><p>Mathknight</p><h1>Dungeon Level {dungeon.level}</h1></div>
         <RunOverview position={{
           level: dungeon.level,
           room: Math.floor(dungeon.nodes.find((node) => node.id === dungeon.activeNodeId)?.step
