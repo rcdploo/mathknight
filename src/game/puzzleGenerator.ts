@@ -1,6 +1,7 @@
 import type { LevelConfig, PuzzleCard, PuzzlePair, Stage } from "./types";
 import { generateGeometryPuzzle } from "./geometryGenerator";
 import { generateAlgebraPuzzle } from "./algebraGenerator";
+import { generatePerfectSquaresPuzzle } from "./perfectSquaresGenerator";
 
 type Range = { left: [number, number]; right: [number, number] };
 
@@ -190,6 +191,7 @@ function makePair(level: LevelConfig, index: number): PuzzlePair {
 }
 
 export function generatePuzzle(level: LevelConfig): PuzzleCard[] {
+  if (level.unit === "perfectSquares") return generatePerfectSquaresPuzzle(level);
   if (level.unit === "algebra") return generateAlgebraPuzzle(level);
   if (level.unit === "geometry") return generateGeometryPuzzle(level);
   if (level.unit === "fractions") return generateFractionPuzzle(level);

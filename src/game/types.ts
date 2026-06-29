@@ -1,4 +1,4 @@
-export type Unit = "addition" | "subtraction" | "multiplication" | "division" | "fractions" | "geometry" | "algebra";
+export type Unit = "addition" | "subtraction" | "multiplication" | "division" | "fractions" | "geometry" | "perfectSquares" | "algebra";
 export type Stage = "1" | "2" | "3a" | "3b" | "4";
 export type LevelKind = "level1" | "level2" | "level3" | "boss";
 export type CardKind = "expression" | "result";

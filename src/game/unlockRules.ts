@@ -10,6 +10,7 @@ const unitStarRequirements: Partial<Record<Unit, number>> = {
   division: 30,
   fractions: 50,
   geometry: 50,
+  perfectSquares: 75,
   algebra: 75,
 };
 

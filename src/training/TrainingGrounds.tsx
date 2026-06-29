@@ -39,6 +39,16 @@ function playTone(effectsVolume: number, frequency: number, duration = 0.08) {
 }
 
 function formatStageDescription(stage: string, unit?: string) {
+  if (unit === "perfectSquares") {
+    const perfectSquaresDescriptions: Record<string, string> = {
+      "1": "Perfect squares from 0–12",
+      "2": "Perfect squares from 13–25",
+      "3a": "Sums of two squares from 2–25",
+      "3b": "Differences of two squares from 2–25",
+      "4": "Equivalent sums of 2–3 squares from 1–12",
+    };
+    return perfectSquaresDescriptions[stage];
+  }
   if (unit === "geometry") {
     const geometryDescriptions: Record<string, string> = {
       "1": "Rectangles & triangle perimeter",

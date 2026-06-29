@@ -7,6 +7,7 @@ const unitValues: Record<Unit, number> = {
   division: 4,
   fractions: 5,
   geometry: 5,
+  perfectSquares: 6,
   algebra: 6,
 };
 
