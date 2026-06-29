@@ -211,7 +211,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
         setIsResolving(false);
         if (!selectedLevel.isBoss && nextTurnsRemaining <= 0) finishLevel(false, nextTurnsUsed);
       },
-      getUnitValue(selectedLevel.unit) * 1000 * (bothGreenTiles ? 0.5 : 1),
+      selectedLevel.isBoss ? 500 : getUnitValue(selectedLevel.unit) * 1000 * (bothGreenTiles ? 0.5 : 1),
     );
   }
 
