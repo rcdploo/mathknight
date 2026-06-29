@@ -11,6 +11,17 @@ const unitValues: Record<Unit, number> = {
   algebra: 6,
 };
 
+const unitPayoutFactors: Record<Unit, number> = {
+  addition: 5,
+  subtraction: 6,
+  multiplication: 8,
+  division: 9,
+  geometry: 11,
+  fractions: 12,
+  perfectSquares: 14,
+  algebra: 15,
+};
+
 export function getUnitValue(unit: Unit) {
   return unitValues[unit];
 }
@@ -51,7 +62,7 @@ export function calculateStars(pairs: number, turnsUsed: number, levelKind?: Lev
 }
 
 export function calculateCoins(level: LevelConfig, stars: number, winCountIncludingCurrent: number) {
-  const base = (3 + 2 * unitValues[level.unit]) * levelValues[level.kind] * stageValues[level.stage] * stars;
+  const base = unitPayoutFactors[level.unit] * levelValues[level.kind] * stageValues[level.stage] * stars;
   const previousWins = Math.max(0, winCountIncludingCurrent - 1);
   return Math.floor(base / 2 ** previousWins);
 }
