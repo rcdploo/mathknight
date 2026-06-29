@@ -1,6 +1,6 @@
 import type { LevelConfig, LevelKind, Stage, Unit } from "./types";
 
-export const units: Unit[] = ["addition", "subtraction", "multiplication", "division", "fractions", "geometry", "perfectSquares", "algebra"];
+export const units: Unit[] = ["addition", "subtraction", "multiplication", "division", "geometry", "fractions", "perfectSquares", "algebra"];
 export const stages: Stage[] = ["1", "2", "3a", "3b", "4"];
 export const levelKinds: LevelKind[] = ["level1", "level2", "level3", "boss"];
 
