@@ -1,4 +1,4 @@
-import { ArrowLeft, Coins, HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
+import { Coins, HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
 import { BookOpen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { playBattleSound, startCombatMusic, stopCombatMusic, type CombatMusicIntensity } from "./battleAudio";
@@ -1516,7 +1516,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   return (
     <main className={`battle-game ${phase === "victory" ? "battle-victory" : phase === "defeat" ? "battle-defeat" : ""}`}>
       <header className="battle-topbar">
-        <button className="icon-button" aria-label="Return to game hall" onClick={onExit} disabled={phase === "resolving"}><ArrowLeft size={20} /></button>
         <div><p>{roomLabel}</p><strong>{monster.name}</strong></div>
         <div className="battle-topbar-actions">
           <span>Turn {turn}</span>

@@ -1,4 +1,4 @@
-import { ArrowLeft, FlaskConical, HeartPulse, RefreshCw, RotateCcw, ShieldCheck, ShieldPlus } from "lucide-react";
+import { FlaskConical, HeartPulse, RefreshCw, RotateCcw, ShieldCheck, ShieldPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import GameCard from "../battle/GameCard";
 import { allLevels, stageLabels, stages, unitLabels, units } from "../game/levels";
@@ -136,7 +136,6 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
   return (
     <main className="quartermaster-screen">
       <header className="quartermaster-header">
-        <button className="icon-button" aria-label="Return to game hall" onClick={onExit}><ArrowLeft size={20} /></button>
         <div><p>Permanent Upgrades</p><h1>Quartermaster</h1></div>
         <strong>${progress.coins} coins</strong>
       </header>

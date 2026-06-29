@@ -547,7 +547,6 @@ export default function DungeonGame({
         </div>
       )}
       <header className="dungeon-map-header">
-        <button className="map-back-button" onClick={onExit}>Game Hall</button>
         <div><p>Dungeon Level {dungeon.level}</p><h1>The Verdant Descent</h1></div>
         <RunOverview position={{
           level: dungeon.level,

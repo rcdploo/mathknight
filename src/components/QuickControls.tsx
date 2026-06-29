@@ -42,11 +42,11 @@ export default function QuickControls({ destination, onHome }: { destination: st
 
   return <>
     <nav className="quick-controls" aria-label="Game controls">
+      <button className="icon-button" aria-label="Go home" title="Home" onClick={onHome} disabled={destination === "hub"}><Home size={19} /></button>
+      <button className="icon-button" aria-label="Save or load a checkpoint" title="Save" onClick={() => { setSaveOpen(true); setMessage(""); }}><KeyRound size={19} /></button>
       <button className="icon-button" aria-label={muted ? "Unmute all sound" : "Mute all sound"} title={muted ? "Unmute all sound" : "Mute all sound"} onClick={toggleMute}>
         {muted ? <VolumeX size={19} /> : <Volume2 size={19} />}
       </button>
-      <button className="icon-button" aria-label="Save or load a checkpoint" title="Save or load" onClick={() => { setSaveOpen(true); setMessage(""); }}><KeyRound size={19} /></button>
-      <button className="icon-button" aria-label="Go to Game Hall" title="Game Hall" onClick={onHome} disabled={destination === "hub"}><Home size={19} /></button>
     </nav>
 
     {saveOpen && <div className="modal-backdrop quick-save-backdrop">

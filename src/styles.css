@@ -36,7 +36,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px clamp(16px, 3vw, 36px);
+  padding: 14px 170px 14px clamp(16px, 3vw, 36px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(17, 16, 14, 0.86);
   backdrop-filter: blur(12px);
@@ -115,7 +115,7 @@ button {
   padding: 16px;
   background: rgba(8, 8, 7, 0.78);
 }
-.quick-controls { position: fixed; top: 68px; right: 12px; z-index: 25; display: grid; gap: 7px; padding: 7px; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; background: rgba(25,24,21,.9); box-shadow: 0 8px 25px rgba(0,0,0,.32); backdrop-filter: blur(6px); }
+.quick-controls { position: fixed; top: 9px; right: clamp(12px,3vw,36px); z-index: 25; display: flex; gap: 7px; }
 .quick-controls .icon-button { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(240,202,115,.28); border-radius: 7px; background: #34312a; color: #f4dfaa; }
 .quick-controls .icon-button:disabled { opacity: .35; cursor: default; }
 .quick-save-backdrop { z-index: 45; }
@@ -618,7 +618,7 @@ button {
 
 .game-hub {
   min-height: 100vh;
-  padding: clamp(32px, 7vw, 80px) max(20px, calc((100vw - 980px) / 2));
+  padding: 0 max(20px, calc((100vw - 980px) / 2)) clamp(32px, 7vw, 80px);
   background:
     linear-gradient(rgba(15, 17, 15, 0.2), rgba(15, 17, 15, 0.82)),
     linear-gradient(135deg, #23444f 0 38%, #4d302d 38% 64%, #182d28 64%);
@@ -633,9 +633,14 @@ button {
 
 .hub-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
+  min-height: 58px;
+  margin: 0 min(-20px, calc((980px - 100vw) / 2));
+  padding: 9px max(170px, calc((100vw - 980px) / 2)) 9px max(20px, calc((100vw - 980px) / 2));
+  border-bottom: 1px solid rgba(255,255,255,.14);
+  background: rgba(14,15,13,.9);
 }
 
 .new-game-button {
@@ -659,8 +664,8 @@ button {
   max-width: 700px;
   margin: 0;
   font-family: Georgia, serif;
-  font-size: clamp(2.6rem, 7vw, 5.8rem);
-  line-height: 0.95;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1;
 }
 
 .hub-destinations {
@@ -694,7 +699,7 @@ button {
 .hub-grid-icon { display: grid; place-items: center; width: 34px; height: 34px; background: #f0ca73; color: #1a1916; font-weight: 900; }
 
 .quartermaster-screen { min-height: 100vh; padding-bottom: 44px; background: linear-gradient(145deg, #233f3b, #262825 48%, #4a322c); }
-.quartermaster-header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 14px clamp(16px,3vw,36px); border-bottom: 1px solid rgba(255,255,255,.14); background: rgba(14,15,13,.9); }
+.quartermaster-header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 14px; padding: 14px 170px 14px clamp(16px,3vw,36px); border-bottom: 1px solid rgba(255,255,255,.14); background: rgba(14,15,13,.9); }
 .quartermaster-header p, .section-heading p { margin: 0; color: #f0ca73; font-size: .72rem; font-weight: 900; text-transform: uppercase; }
 .quartermaster-header h1, .section-heading h2 { margin: 3px 0 0; font-family: Georgia,serif; }
 .quartermaster-header > strong { color: #f5d98d; }
@@ -736,10 +741,10 @@ button {
 
 .dungeon-map-header {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 18px;
-  padding: 16px clamp(16px, 3vw, 36px);
+  padding: 16px 170px 16px clamp(16px, 3vw, 36px);
   border-bottom: 1px solid rgba(255,255,255,.14);
   background: rgba(14,15,13,.88);
 }
@@ -873,10 +878,10 @@ button {
 
 .battle-topbar {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 14px;
-  padding: 12px clamp(16px, 3vw, 36px);
+  padding: 12px 170px 12px clamp(16px, 3vw, 36px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(14, 15, 13, 0.88);
 }
@@ -1330,7 +1335,7 @@ button {
 .upgrade-target-panel { width: min(900px, calc(100% - 32px)); max-height: 88vh; overflow: auto; }
 
 @media (max-width: 720px) {
-  .quick-controls { top: auto; right: 10px; bottom: 10px; grid-auto-flow: column; }
+  .quick-controls { top: 9px; right: 10px; bottom: auto; }
   .reward-deck-content { grid-template-columns: 1fr; }
   .reward-deck-content .run-bottled-card { justify-self: center; }
   .dungeon-shop-heading { align-items: stretch; flex-direction: column; }
@@ -1347,7 +1352,7 @@ button {
   .hand-cards { justify-content: flex-start; }
   .battle-card { width: 78px; flex: 0 0 78px; }
   .pile-counts { display: none; }
-  .dungeon-map-header { grid-template-columns: auto 1fr; }
+  .dungeon-map-header { grid-template-columns: 1fr; }
   .dungeon-map-header .run-overview-trigger { grid-column: 1 / -1; width: 100%; }
   .run-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .run-item-list { grid-template-columns: 1fr; }
@@ -1361,7 +1366,7 @@ button {
 }
 
 .settings-screen { min-height: 100vh; background: linear-gradient(145deg,#18343d,#262825 52%,#44312d); }
-.settings-header { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 16px; padding: 16px clamp(16px,3vw,36px); border-bottom: 1px solid rgba(255,255,255,.14); background: rgba(14,15,13,.9); }
+.settings-header { display: grid; grid-template-columns: 1fr; align-items: center; gap: 16px; padding: 16px 170px 16px clamp(16px,3vw,36px); border-bottom: 1px solid rgba(255,255,255,.14); background: rgba(14,15,13,.9); }
 .settings-header .map-back-button { display: flex; align-items: center; gap: 7px; }
 .settings-header p, .settings-section-heading p { margin: 0; color: #f0ca73; font-size: .72rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
 .settings-header h1 { margin: 3px 0 0; font-family: Georgia,serif; font-size: 2rem; }

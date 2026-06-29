@@ -1,11 +1,11 @@
-import { ArrowLeft, BookOpen, KeyRound, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
+import { BookOpen, KeyRound, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
 import { useState } from "react";
 import { playBattleSound, updateAudioLevels } from "../battle/battleAudio";
 import { difficultyLabel, exportProgressCode, importProgressCode, loadProgress, setAudioSettings } from "../game/progressStore";
 import type { PlayerProgress } from "../game/types";
 import { InstructionsLibrary } from "../instructions/Instructions";
 
-export default function SettingsScreen({ onExit }: { onExit: () => void }) {
+export default function SettingsScreen({ onExit: _onExit }: { onExit: () => void }) {
   const [progress, setProgress] = useState<PlayerProgress>(loadProgress);
   const [saveCode, setSaveCode] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
@@ -42,7 +42,6 @@ export default function SettingsScreen({ onExit }: { onExit: () => void }) {
 
   return <main className="settings-screen">
     <header className="settings-header">
-      <button className="map-back-button" onClick={onExit}><ArrowLeft size={18} /> Game Hall</button>
       <div><p>Preferences</p><h1>Settings</h1></div>
     </header>
     <section className="settings-panel" aria-labelledby="audio-settings-title">

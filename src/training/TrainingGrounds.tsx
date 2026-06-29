@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowLeft, ChevronDown, ChevronRight, LockKeyhole } from "lucide-react";
+import { ChevronDown, ChevronRight, LockKeyhole } from "lucide-react";
 import { allLevels, levelLabels, makeLevelConfig, stageLabels, stages, unitLabels, units } from "../game/levels";
 import { generatePuzzle } from "../game/puzzleGenerator";
 import {
@@ -239,9 +239,6 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   return (
     <main className="app">
       <header className="topbar">
-        <button className="icon-button" aria-label="Go back" onClick={goBack}>
-          <ArrowLeft size={20} />
-        </button>
         <button className="brand" onClick={() => setScreen("map")}>
           Mathknight
         </button>
