@@ -56,17 +56,6 @@ export function saveProgress(progress: PlayerProgress) {
   writeLocalProgress(progress);
 }
 
-export function localStorageAvailable() {
-  try {
-    const testKey = `${storageKey}.test`;
-    window.localStorage.setItem(testKey, "1");
-    window.localStorage.removeItem(testKey);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function exportProgressCode(_progress: PlayerProgress = loadProgress()) {
   const entries: Record<string, string> = {};
   for (let index = 0; index < window.localStorage.length; index += 1) {

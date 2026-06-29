@@ -93,12 +93,6 @@ function cardKind(definition: CardDefinition): BattleCard["kind"] {
   return "operator";
 }
 
-export function makeCatalogCard(name: string) {
-  const definition = cardByName.get(name);
-  if (!definition || definition.isUpgrade) throw new Error(`Unknown playable card: ${name}`);
-  return makeCard(definition.name, cardKind(definition), typeof definition.energyCost === "number" ? definition.energyCost : 0);
-}
-
 export function makeCatalogEntry(name: string) {
   const definition = cardByName.get(name);
   if (!definition) throw new Error(`Unknown catalog entry: ${name}`);
@@ -287,10 +281,6 @@ export function applyCardUpgrade(card: BattleCard, upgradeId: string): BattleCar
     energy: baseEnergy * (upgrades.includes("doubler") ? 2 : 1) - (upgrades.includes("efficiency") ? 1 : 0),
     upgrades,
   };
-}
-
-export function rollEnemyIntent() {
-  return 4 + Math.floor(Math.random() * 7);
 }
 
 export function evaluateExpression(cards: BattleCard[], context: ExpressionContext = { turn: 1, level: 1 }) {

@@ -105,7 +105,3 @@ export function cardDescription(catalogId: string, label?: string, fallback = ""
   const byLabel = label ? cardByName.get(label) : undefined;
   return byLabel?.displayDescription ?? cardById.get(catalogId)?.displayDescription ?? fallback;
 }
-
-export function cardsEligibleForRewards() {
-  return cardCatalog.filter((card) => card.rarity !== "Starter");
-}
