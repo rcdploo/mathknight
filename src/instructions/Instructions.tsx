@@ -51,7 +51,7 @@ export const instructionGuides: InstructionGuide[] = [
     id: "settings", title: "Settings", eyebrow: "Preferences & Help",
     introduction: "Manage audio, review run difficulty, back up your game, and revisit any instruction guide.",
     sections: [
-      { title: "Audio", points: ["Background Music controls Game Hall, dungeon, combat, and boss music together.", "Effects controls card, match, attack, counter, and victory sounds. Use Test to preview the level."] },
+      { title: "Audio", points: ["Background Music controls Home, dungeon, combat, and boss music together.", "Effects controls card, match, attack, counter, and victory sounds. Use Test to preview the level."] },
       { title: "Difficulty", points: ["The current run's difficulty is locked. Elite and Impossible unlock together after completing Normal."] },
       { title: "Knight Codes", points: ["Create an MK2 Knight Code to back up the complete game, including the active run and battle.", "Loading a code replaces local progress with that complete checkpoint."] },
     ],

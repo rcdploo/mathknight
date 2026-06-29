@@ -1360,7 +1360,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
               return <GameCard key={card.id} card={card} onClick={() => applyRewardUpgrade(card)} preview bottled={bottled} disabledReason={reason} level={monster.level} />;
             })}
           </div>
-          <div className="battle-actions"><button onClick={() => setPhase("reward")}>Back</button><button onClick={onExit}>Game Hall</button></div>
+          <div className="battle-actions"><button onClick={() => setPhase("reward")}>Back</button><button onClick={onExit}>Home</button></div>
         </div>
       </main>
     );
@@ -1383,7 +1383,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             </div>
             <div className="battle-actions">
               <button onClick={claimBossReward} disabled={!chosenBossItemId}>{chosenBossItemId ? `Choose ${itemById.get(chosenBossItemId)?.name}` : "Choose an item"}</button>
-              <button onClick={onExit}>Game Hall</button>
+              <button onClick={onExit}>Home</button>
             </div>
           </div>
         </main>
@@ -1416,7 +1416,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           )}
           <div className="battle-actions">
             <button onClick={claimReward}>{chosenReward ? `Choose ${chosenReward.label}` : "Continue without a card"}</button>
-            <button onClick={onExit}>Game Hall</button>
+            <button onClick={onExit}>Home</button>
           </div>
         </div>
       </main>
@@ -1557,7 +1557,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             ) : (
               <button onClick={() => finishRoom(false)}>Continue</button>
             )}
-            <button onClick={() => phase === "defeat" ? finishRoom(false) : onExit()}>Game Hall</button>
+            <button onClick={() => phase === "defeat" ? finishRoom(false) : onExit()}>Home</button>
           </div>
         </section>
       ) : (

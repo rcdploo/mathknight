@@ -31,7 +31,7 @@ export default function SettingsScreen({ onExit: _onExit }: { onExit: () => void
       <AudioControl
         icon={<Music size={23} />}
         label="Background Music"
-        description="Music in the Game Hall, Dungeon, and battles."
+        description="Music on Home, in the Dungeon, and during battles."
         value={musicVolume}
         onChange={(value) => update("musicVolume", value)}
       />

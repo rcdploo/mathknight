@@ -1058,7 +1058,7 @@ button {
 .counter-flash { animation: counter-flash 420ms ease; }
 .victory-flash { animation: victory-flash 1.15s ease-out; }
 .defeat-flash { animation: defeat-flash 1.15s ease-out; }
-.combatant h2 { margin: 0; font-family: Georgia, serif; font-size: clamp(1rem, 2.5vw, 1.5rem); }
+.combatant h2 { display: flex; align-items: center; justify-content: center; min-height: 2.3em; margin: 0; font-family: Georgia, serif; font-size: clamp(1rem, 2.5vw, 1.5rem); line-height: 1.15; text-align: center; }
 .combatant > strong { font-size: 0.78rem; }
 .pixel-sprite {
   display: grid;
