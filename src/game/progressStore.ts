@@ -1,4 +1,4 @@
-import type { LevelConfig, LevelResult, PlayerProgress, PuzzleProgress, RunDifficulty } from "./types";
+import type { LevelConfig, LevelResult, PlayerProgress, PuzzleProgress, RunDifficulty, TrainingSpeed } from "./types";
 
 const storageKey = "mathknight.memoryMatch.progress.v1";
 const saveCodePrefix = "MK2";
@@ -15,6 +15,7 @@ export const defaultProgress: PlayerProgress = {
     muted: false,
     musicVolume: 0.7,
     effectsVolume: 0.8,
+    trainingSpeed: "varies",
   },
   run: {
     difficulty: "normal",
@@ -31,7 +32,11 @@ export function loadProgress(): PlayerProgress {
 
   try {
     const parsed = JSON.parse(raw) as PlayerProgress;
-    return isCurrentProgress(parsed) ? parsed : structuredClone(defaultProgress);
+    if (!isCurrentProgress(parsed)) return structuredClone(defaultProgress);
+    const trainingSpeed = ["slowest", "slow", "varies", "fast", "fastest"].includes(parsed.settings.trainingSpeed)
+      ? parsed.settings.trainingSpeed
+      : "varies";
+    return { ...parsed, settings: { ...parsed.settings, trainingSpeed } };
   } catch {
     return structuredClone(defaultProgress);
   }
@@ -202,6 +207,12 @@ export function setAudioSettings(progress: PlayerProgress, changes: Partial<Pick
   const settings = { ...progress.settings, ...changes };
   settings.muted = settings.effectsVolume === 0;
   const next = { ...progress, settings };
+  saveProgress(next);
+  return next;
+}
+
+export function setTrainingSpeed(progress: PlayerProgress, trainingSpeed: TrainingSpeed) {
+  const next = { ...progress, settings: { ...progress.settings, trainingSpeed } };
   saveProgress(next);
   return next;
 }

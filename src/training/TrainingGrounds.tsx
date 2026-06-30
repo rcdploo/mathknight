@@ -79,6 +79,12 @@ function formatStars(stars: number) {
   return `${"★".repeat(stars)}${"☆".repeat(5 - stars)}`;
 }
 
+function mismatchRevealMs(speed: PlayerProgress["settings"]["trainingSpeed"], unit: LevelConfig["unit"], halfDuration: boolean) {
+  const fixedSeconds = { slowest: 4, slow: 3, fast: 2, fastest: 1 } as const;
+  const seconds = speed === "varies" ? getUnitValue(unit) : fixedSeconds[speed];
+  return seconds * 1000 * (halfDuration ? 0.5 : 1);
+}
+
 export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => void; onDungeon: () => void }) {
   const [progress, setProgress] = useState<PlayerProgress>(() => loadProgress());
   const [screen, setScreen] = useState<Screen>("map");
@@ -211,7 +217,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
         setIsResolving(false);
         if (!selectedLevel.isBoss && nextTurnsRemaining <= 0) finishLevel(false, nextTurnsUsed);
       },
-      selectedLevel.isBoss ? 500 : getUnitValue(selectedLevel.unit) * 1000 * (bothGreenTiles ? 0.5 : 1),
+      selectedLevel.isBoss ? 500 : mismatchRevealMs(progress.settings.trainingSpeed, selectedLevel.unit, bothGreenTiles),
     );
   }
 

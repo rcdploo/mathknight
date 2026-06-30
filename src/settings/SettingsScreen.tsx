@@ -1,8 +1,8 @@
-import { BookOpen, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
+import { BookOpen, Gauge, LockKeyhole, Music, Shield, Volume2, VolumeX } from "lucide-react";
 import { useState } from "react";
 import { playBattleSound, updateAudioLevels } from "../battle/battleAudio";
-import { difficultyLabel, loadProgress, setAudioSettings } from "../game/progressStore";
-import type { PlayerProgress } from "../game/types";
+import { difficultyLabel, loadProgress, setAudioSettings, setTrainingSpeed } from "../game/progressStore";
+import type { PlayerProgress, TrainingSpeed } from "../game/types";
 import { InstructionsLibrary } from "../instructions/Instructions";
 import KnightCodePanel from "../components/KnightCodePanel";
 
@@ -17,6 +17,9 @@ export default function SettingsScreen({ onExit: _onExit }: { onExit: () => void
 
   const musicVolume = progress.settings.musicVolume;
   const effectsVolume = progress.settings.effectsVolume;
+  const speedOptions: TrainingSpeed[] = ["slowest", "slow", "varies", "fast", "fastest"];
+  const speedLabels = ["Slowest", "Slow", "Varies by Difficulty", "Fast", "Fastest"];
+  const speedIndex = speedOptions.indexOf(progress.settings.trainingSpeed);
 
   return <main className="settings-screen">
     <header className="settings-header">
@@ -43,6 +46,21 @@ export default function SettingsScreen({ onExit: _onExit }: { onExit: () => void
         onChange={(value) => update("effectsVolume", value)}
         onTest={() => playBattleSound("card")}
       />
+    </section>
+    <section className="settings-panel training-speed-settings" aria-labelledby="training-speed-title">
+      <div className="settings-section-heading">
+        <Gauge size={22} />
+        <div><p>Training Grounds</p><h2 id="training-speed-title">Card Reveal Speed</h2></div>
+      </div>
+      <p className="training-speed-copy">Controls how long unmatched cards remain visible.</p>
+      <div className="training-speed-control">
+        <input aria-label="Training Grounds card reveal speed" type="range" min="0" max="4" step="1" value={speedIndex}
+          onChange={(event) => setProgress(setTrainingSpeed(progress, speedOptions[Number(event.target.value)]))} />
+        <output>{speedLabels[speedIndex]}</output>
+        <div className="training-speed-labels" aria-hidden="true">
+          {speedLabels.map((label) => <span key={label}>{label}</span>)}
+        </div>
+      </div>
     </section>
     <section className="settings-panel difficulty-settings" aria-labelledby="difficulty-settings-title">
       <div className="settings-section-heading">

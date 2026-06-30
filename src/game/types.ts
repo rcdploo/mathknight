@@ -53,6 +53,7 @@ export type PlayerProgress = {
     muted: boolean;
     musicVolume: number;
     effectsVolume: number;
+    trainingSpeed: TrainingSpeed;
   };
   run: {
     difficulty: RunDifficulty;
@@ -62,6 +63,8 @@ export type PlayerProgress = {
   };
   puzzles: Record<string, PuzzleProgress>;
 };
+
+export type TrainingSpeed = "slowest" | "slow" | "varies" | "fast" | "fastest";
 
 export type LevelResult = {
   completed: boolean;
