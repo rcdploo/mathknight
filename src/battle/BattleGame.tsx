@@ -800,6 +800,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       hand: [...current.hand.filter((item) => item.id !== card.id), ...replacement.hand],
       drawPile: replacement.drawPile,
       discardPile: [...replacement.discardPile, card],
+      forcedCardId: current.forcedCardId === card.id ? null : current.forcedCardId,
       playerHealth: hasItem(itemIds, "compost-juicer") ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1)) : current.playerHealth,
       discardDamageStacks: current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? 1 : 0),
       queuedNextTurnEnergy: current.queuedNextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? 1 : 0),
@@ -826,6 +827,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       discardPile: replacement.discardPile,
       crystalDiscountCardId: hasItem(itemIds, "crystal") ? choice(replacement.hand)?.id ?? null : current.crystalDiscountCardId,
       resourcefulnessRemaining: current.resourcefulnessRemaining - 1,
+      forcedCardId: discardedHand.some((card) => card.id === current.forcedCardId) ? null : current.forcedCardId,
       playerHealth: hasItem(itemIds, "compost-juicer")
         ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1))
         : current.playerHealth,
@@ -846,6 +848,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       return {
         ...current,
         hand: current.hand.map((item) => item.id === card.id ? { ...item, consumedThisTurn: consuming } : item),
+        forcedCardId: consuming && current.forcedCardId === card.id ? null : current.forcedCardId,
         discardDamageStacks: Math.max(0, current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? consuming ? 1 : -1 : 0)),
         queuedNextTurnEnergy: Math.max(0, current.queuedNextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? consuming ? 1 : -1 : 0)),
       };
@@ -861,9 +864,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
   function submitExpression(divisionConfirmed = false) {
     if (phase !== "playing") return;
-    if (battle.forcedCardId && !selectedCards.some((card) => card.id === battle.forcedCardId)) {
-      const forcedCard = battle.hand.find((card) => card.id === battle.forcedCardId);
-      setError(`${forcedCard?.label ?? "The marked card"} must be used.`);
+    const forcedCard = battle.forcedCardId
+      ? battle.hand.find((card) => card.id === battle.forcedCardId && !card.consumedThisTurn)
+      : undefined;
+    if (forcedCard && !selectedCards.some((card) => card.id === forcedCard.id)) {
+      setError(`${forcedCard.label} must be used.`);
       return;
     }
     const operatorCount = selectedCards.filter((card) => card.type === "Operator" || card.label === "(" || card.label === ")").length;
