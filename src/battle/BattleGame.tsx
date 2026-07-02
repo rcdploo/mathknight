@@ -1632,9 +1632,9 @@ function Combatant({ name, buffs = [], statusBuffs = [], flashingStatuses = [], 
     <div className={`pixel-sprite ${enemy ? "enemy-sprite" : "hero-sprite"}`} aria-label={name}>{sprite}</div>
     <h2>{name}</h2><div className={`health-bar ${enemy ? "enemy" : ""}`}><span style={{ width: `${(health / maxHealth) * 100}%` }} /></div>
     <strong>{health} / {maxHealth} HP</strong>
-    {allBuffs.length > 0 && <div className="monster-buff-badges combatant-status-badges" aria-label={`${name} status effects: ${allBuffs.map((buff) => buff.name).join(", ")}`}>
+    <div className="monster-buff-badges combatant-status-badges" aria-label={allBuffs.length > 0 ? `${name} status effects: ${allBuffs.map((buff) => buff.name).join(", ")}` : `${name} has no status effects`}>
       {allBuffs.map((buff, index) => <span className={`${buff.tone === "debuff" ? "debuff" : ""} ${flashingStatuses.includes(buff.name) ? "status-flashing" : ""}`} title={`${buff.name}: ${buff.effect}`} key={`${buff.name}-${index}`}>{buff.symbol}{buff.value !== undefined && <small>{buff.value}</small>}</span>)}
-    </div>}
+    </div>
     <span className={`armor-readout ${armorFlashing ? "armor-flashing" : ""}`}><Shield size={16} /> {armor} armor</span>
   </div>;
 }
