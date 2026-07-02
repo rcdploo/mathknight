@@ -417,6 +417,7 @@ function createBattle(monster: GeneratedMonster) {
     enemyStunned: false,
     weakenNext: hasItem(itemIds, "caltrops") ? 1 : 0,
     weakenTurns: hasItem(itemIds, "caltrops") ? 3 : 0,
+    enemyWeakenInstances: hasItem(itemIds, "caltrops") ? [3] : [] as number[],
     monsterActionDeck: openingAction.actionDeck,
     monsterLastAction: openingAction.action,
     monsterMessage: openingAction.text,
@@ -510,9 +511,20 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
           },
         }
       : parsed;
+    const migratedSession = {
+      ...normalizedSession,
+      battle: {
+        ...normalizedSession.battle,
+        enemyWeakenInstances: normalizedSession.battle.enemyWeakenInstances
+          ?? Array.from(
+            { length: normalizedSession.battle.weakenNext ?? 0 },
+            () => normalizedSession.battle.weakenTurns ?? 0,
+          ).filter((turns) => turns > 0),
+      },
+    };
     return parsed.phase === "resolving"
-      ? { ...normalizedSession, selectedCards: [], bottleUsed: false, phase: "playing" as const }
-      : normalizedSession;
+      ? { ...migratedSession, selectedCards: [], bottleUsed: false, phase: "playing" as const }
+      : migratedSession;
   } catch {
     return createBattleSession(monster, bonusItem, bossReward);
   }
@@ -587,7 +599,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       : hasItem(itemIds, "orrery") && turn % 5 === 0 ? 3 : 0;
   const availableEnergy = Math.max(1, battle.maxEnergy - energyDrainPenalty) + consumedEnergy + rhythmicEnergy + battle.nextTurnEnergy;
   const upgradeEffects = useMemo(() => expressionUpgradeEffects(selectedCards), [selectedCards]);
-  const weakenStacks = battle.weakenTurns > 0 ? battle.weakenNext : 0;
+  const enemyWeakenInstances = battle.enemyWeakenInstances ?? [];
+  const weakenStacks = enemyWeakenInstances.length;
   const weakenPerStack = Math.max(1, Math.round(battle.enemyIntent * 0.1));
   const displayedIntent = battle.enemyStunned
     ? 0
@@ -668,9 +681,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     ...(battle.enemyStunned
       ? [{ name: "Stunned", symbol: "Z", effect: "The monster cannot act this turn.", tone: "debuff" as const }]
       : []),
-    ...(battle.weakenTurns > 0 && battle.weakenNext > 0
-      ? [{ name: "Weaken", symbol: "W", value: battle.weakenTurns, effect: `The monster's attack deals ${battle.weakenNext * 10}% less damage.`, tone: "debuff" as const }]
-      : []),
+    ...enemyWeakenInstances.map((turns) => ({ name: "Weaken", symbol: "W", value: turns, effect: "The monster's attack deals 10% less damage. Multiple Weakens stack.", tone: "debuff" as const })),
   ];
   const visibleHand = battle.hand.filter((card) =>
     !isClosingParenthesisHelper(card)
@@ -835,14 +846,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       return {
         ...current,
         hand: current.hand.map((item) => item.id === card.id ? { ...item, consumedThisTurn: consuming } : item),
-        playerHealth: consuming && hasItem(itemIds, "compost-juicer") ? Math.min(current.playerMaxHealth, current.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && current.playerHealth <= current.playerMaxHealth / 2 ? 2 : 1)) : current.playerHealth,
         discardDamageStacks: Math.max(0, current.discardDamageStacks + (hasItem(itemIds, "fertilizer") ? consuming ? 1 : -1 : 0)),
         queuedNextTurnEnergy: Math.max(0, current.queuedNextTurnEnergy + (hasItem(itemIds, "dung-pellets") ? consuming ? 1 : -1 : 0)),
       };
     });
     if (!card.consumedThisTurn) {
-      flashItems("compost-juicer", "fertilizer", "dung-pellets");
-      if (hasItem(itemIds, "compost-juicer") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
+      flashItems("fertilizer", "dung-pellets");
       if (hasItem(itemIds, "dung-pellets")) setMessage("Dung Pellets stores +1 energy for next turn.");
     } else if (hasItem(itemIds, "dung-pellets")) {
       setMessage("Dung Pellets' queued energy was removed.");
@@ -932,8 +941,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const armorAfterExpression = battle.playerArmor + upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.ceil(Math.abs(value) * .15) : 0);
     const healingMultiplier = hasItem(itemIds, "second-wind") && battle.playerHealth <= battle.playerMaxHealth / 2 ? 2 : 1;
     const expressionHealing = upgradeEffects.healing * monster.level * healingMultiplier;
-    const healthAfterExpressionHealing = Math.min(battle.playerMaxHealth, battle.playerHealth + expressionHealing);
-    const healingReceived = healthAfterExpressionHealing - battle.playerHealth;
+    const healthAfterUpgradeHealing = Math.min(battle.playerMaxHealth, battle.playerHealth + expressionHealing);
+    const upgradeHealingReceived = healthAfterUpgradeHealing - battle.playerHealth;
+    const consumedCardsCommitted = battle.hand.some((card) => card.consumedThisTurn);
+    const compostHealing = consumedCardsCommitted && hasItem(itemIds, "compost-juicer") ? monster.level * 3 * healingMultiplier : 0;
+    const healthAfterExpressionHealing = Math.min(battle.playerMaxHealth, healthAfterUpgradeHealing + compostHealing);
+    const compostHealingReceived = healthAfterExpressionHealing - healthAfterUpgradeHealing;
+    const healingReceived = upgradeHealingReceived + compostHealingReceived;
     const monsterEffectsCanceled = countered || monsterDefeated;
     const vexingDamage = hasBuff(monster, "Vexing") ? monster.level * operatorCount : 0;
     const noxiousDamage = hasBuff(monster, "Noxious") && !monsterDefeated ? monster.level * 2 : 0;
@@ -975,6 +989,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       initiativeInstances: battle.initiativeInstances
         .map((turns) => Math.max(0, turns - 1))
         .filter((turns) => turns > 0),
+      enemyWeakenInstances: enemyWeakenInstances
+        .map((turns) => Math.max(0, turns - 1))
+        .filter((turns) => turns > 0),
       weakenTurns: Math.max(0, battle.weakenTurns - 1),
       heroicWillRemaining: battle.heroicWillRemaining - (heroicWillTriggered ? 1 : 0),
     };
@@ -994,8 +1011,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     }
     if (heroicWillTriggered) pendingSpellResult.battle = clearPlayerDebuffs(pendingSpellResult.battle);
     if (countered && hasItem(itemIds, "tripwire")) {
-      pendingSpellResult.battle.weakenNext = Math.max(pendingSpellResult.battle.weakenNext, 1);
-      pendingSpellResult.battle.weakenTurns = Math.max(pendingSpellResult.battle.weakenTurns, 2);
+      pendingSpellResult.battle.enemyWeakenInstances = [...pendingSpellResult.battle.enemyWeakenInstances, 2];
     }
     if (countered && hasItem(itemIds, "reverser")) pendingSpellResult.battle.playerHealth = Math.min(pendingSpellResult.battle.playerMaxHealth, pendingSpellResult.battle.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth / 2 ? 2 : 1));
     if (countered && hasItem(itemIds, "snapshot")) pendingSpellResult.battle.nextTurnDraw += 1;
@@ -1032,7 +1048,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const upgradeEffectSummary = [
       ...(criticalHit ? ["Critical Hit (+50% damage)"] : []),
       ...(upgradeEffects.armor > 0 ? [`Armor (+${upgradeEffects.armor})`] : []),
-      ...(upgradeEffects.healing > 0 ? [`Healing (+${healingReceived} HP${healingReceived === 0 ? ", already full" : ""})`] : []),
+      ...(upgradeEffects.healing > 0 ? [`Healing (+${upgradeHealingReceived} HP${upgradeHealingReceived === 0 ? ", already full" : ""})`] : []),
       ...(upgradeEffects.weaken > 0 && enemyHit.health > 0 ? [`Weaken (${upgradeEffects.weaken})`] : []),
       ...(stunnedNext && enemyHit.health > 0 ? ["Bash (Stun)"] : []),
       ...(reflectedDamage > 0 ? [`Reflecting (${reflectedDamage} damage returned)`] : []),
@@ -1048,6 +1064,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       ...(upgradeEffectSummary.length > 0 ? [`Upgrade effects: ${upgradeEffectSummary.join(", ")}.`] : []),
       ...(expressionArmorGain > 0 ? [`You gained ${expressionArmorGain} armor.`] : []),
       ...(healingReceived > 0 ? [`You restored ${healingReceived} HP.`] : []),
+      ...(compostHealing > 0 ? [`Compost Juicer restored ${compostHealingReceived} HP${compostHealingReceived === 0 ? " (already full)" : ""}.`] : []),
       ...(countered
         ? [`Countered: ${monster.name}'s attack and spells were canceled.`]
         : [
@@ -1077,10 +1094,16 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         await wait(500);
       }
 
-      if (expressionArmorGain > 0 || healingReceived > 0) {
+      if (expressionArmorGain > 0 || healingReceived > 0 || compostHealing > 0) {
         setBattle((current) => ({ ...current, playerArmor: armorAfterExpression, playerHealth: healthAfterExpressionHealing }));
+        if (compostHealing > 0) flashItems("compost-juicer");
+        if (compostHealing > 0 && healingMultiplier > 1) flashItems("second-wind");
         flashArmorReadout("hero");
-        setMessage(`${expressionArmorGain > 0 ? `Armor rises to ${armorAfterExpression}` : "No Armor gained"}${healingReceived ? ` and Healing restores ${healingReceived} HP` : ""}.`);
+        const healingSources = [
+          ...(upgradeHealingReceived > 0 ? [`Healing restores ${upgradeHealingReceived} HP`] : []),
+          ...(compostHealing > 0 ? [`Compost Juicer restores ${compostHealingReceived} HP`] : []),
+        ];
+        setMessage(`${expressionArmorGain > 0 ? `Armor rises to ${armorAfterExpression}` : ""}${expressionArmorGain > 0 && healingSources.length > 0 ? "; " : ""}${healingSources.join("; ") || "No healing received"}.`);
         await wait(500);
       }
 
@@ -1098,8 +1121,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       if (enemyHit.health > 0 && monsterDebuffNames.length > 0) {
         setBattle((current) => ({
           ...current,
-          weakenNext: Math.max(current.weakenNext, upgradeEffects.weaken, countered && hasItem(itemIds, "tripwire") ? 1 : 0),
-          weakenTurns: Math.max(current.weakenTurns, upgradeEffects.weaken > 0 || (countered && hasItem(itemIds, "tripwire")) ? 2 : 0),
           enemyStunned: current.enemyStunned || stunnedNext,
         }));
         flashStatus(...monsterDebuffNames);
@@ -1208,8 +1229,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         ...immolatedDraw,
         enemyHealth: regeneratedHealth,
       };
-      const nextWeakenStacks = Math.max(nextBattleBase.weakenTurns > 0 ? nextBattleBase.weakenNext : 0, upgradeEffects.weaken);
-      const nextWeakenTurns = Math.max(nextBattleBase.weakenTurns, upgradeEffects.weaken > 0 ? 2 : 0);
+      const nextEnemyWeakenInstances = [
+        ...nextBattleBase.enemyWeakenInstances,
+        ...Array.from({ length: upgradeEffects.weaken }, () => 2),
+      ];
       const nextInitiativeInstances = [
         ...nextBattleBase.initiativeInstances,
         ...Array.from({ length: upgradeEffects.initiative }, () => 2),
@@ -1244,8 +1267,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         enemySpellCount: stunnedNext ? 0 : nextAction.spells?.length ?? 0,
         enemyArmor: stunnedNext ? 0 : nextAction.armor,
         enemyStunned: stunnedNext,
-        weakenNext: nextWeakenStacks,
-        weakenTurns: nextWeakenStacks > 0 ? nextWeakenTurns : 0,
+        enemyWeakenInstances: nextEnemyWeakenInstances,
         initiativeInstances: nextInitiativeInstances,
         playerArmor: openingArmor,
         monsterActionDeck: nextAction.actionDeck,
