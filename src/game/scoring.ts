@@ -64,5 +64,5 @@ export function calculateStars(pairs: number, turnsUsed: number, levelKind?: Lev
 export function calculateCoins(level: LevelConfig, stars: number, winCountIncludingCurrent: number) {
   const base = unitPayoutFactors[level.unit] * levelValues[level.kind] * stageValues[level.stage] * stars;
   const previousWins = Math.max(0, winCountIncludingCurrent - 1);
-  return Math.floor(base / 2 ** previousWins);
+  return 5 + Math.floor(base / 2 ** previousWins);
 }

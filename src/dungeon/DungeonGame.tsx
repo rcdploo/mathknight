@@ -222,7 +222,20 @@ function loadDungeon() {
   try {
     const raw = window.localStorage.getItem(dungeonStorageKey);
     if (!raw) return generateDungeon(1);
-    return restoreUnresolvedReward(JSON.parse(raw) as DungeonState);
+    const restored = restoreUnresolvedReward(JSON.parse(raw) as DungeonState);
+    return {
+      ...restored,
+      nodes: restored.nodes.map((node) => node.monster ? {
+        ...node,
+        monster: {
+          ...node.monster,
+          name: node.monster.name.replace(/\bTheiving\b/g, "Thieving"),
+          subtitle: node.monster.subtitle.replace(/\bTheiving\b/g, "Thieving"),
+          buffs: node.monster.buffs.map((buff) => buff.name === "Theiving" ? { ...buff, name: "Thieving" } : buff),
+        },
+      } : node),
+      bossNames: restored.bossNames.map((name) => name.replace(/\bTheiving\b/g, "Thieving")),
+    };
   } catch {
     return generateDungeon(1);
   }

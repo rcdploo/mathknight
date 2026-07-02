@@ -33,7 +33,7 @@ Dung Pellets,Rare,"Discard, Energy",355,"Whenever you discard or consume a card,
 Forge,Rare,Bonus,360,Destroy an upgraded card to get 2 random items,
 Ward,Rare,Protection,365,20% chance to ignore enemy spells' effect on you (max once per turn),
 Oboe,Rare,Counter,370,Getting within 1 of the enemy value counts as a successful counter,
-Magnet,Boss,Rewards,n/a,You may select and additional choice from card rewards,
+Magnet,Boss,Rewards,n/a,You may select an additional choice from card rewards,
 Metal Detector,Boss,Rewards,n/a,Card rewards now have an additional option,[Duplicate odds of the right most slot (usually 3) but different unique roll.]
 Rabbit's Foot,Boss,Rewards,n/a,Items can show up in card rewards,"[Can show up in the leftmost slot that would allow upgrades, with the same weight as upgrades.] "
 Glass Cannon,Boss,Energy,n/a,+1 Energy. Max HP reduced by 15%,

@@ -57,7 +57,11 @@ const fallbackMonster: GeneratedMonster = {
 };
 
 function hasBuff(monster: GeneratedMonster, name: string) {
-  return monster.buffs.some((buff) => buff.name === name || (name === "Vexing" && buff.name === "Vexxing"));
+  return monster.buffs.some((buff) =>
+    buff.name === name
+    || (name === "Vexing" && buff.name === "Vexxing")
+    || (name === "Thieving" && buff.name === "Theiving")
+  );
 }
 
 function monsterChessPiece(monster: GeneratedMonster) {
@@ -238,7 +242,8 @@ function bossAction(monster: GeneratedMonster, turn: number, deck: string[]) {
   if (picked === "hybrid") return { ...action(Math.round(attack * .5), Math.round(attack * .25), `${monster.name} bends attack and defense together.`), actionDeck: nextDeck };
   if (picked === "attack") return { ...action(Math.round(attack * .75), 0, `${monster.name} pulls you inward.`), actionDeck: nextDeck };
   if (picked === "block") return { ...action(0, Math.round(attack * .75), `${monster.name} folds space into a shield.`), actionDeck: nextDeck };
-  return { ...action(0, 0, `${monster.name} distorts your deck.`, [picked]), actionDeck: nextDeck };
+  if (picked === "Lobotomize") return { ...action(0, 0, `${monster.name} distorts your deck.`, [picked]), actionDeck: nextDeck };
+  return { ...action(0, 0, `${monster.name} drains your strength.`, [picked]), actionDeck: nextDeck };
 }
 
 function spellNumber(spell: string) {
@@ -1615,7 +1620,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 function Combatant({ name, buffs = [], statusBuffs = [], flashingStatuses = [], sprite, health, maxHealth, armor, armorFlashing = false, enemy = false, hit = false, level = 1 }: { name: string; buffs?: GeneratedMonster["buffs"]; statusBuffs?: Array<MonsterBuffTile | StatusTile>; flashingStatuses?: string[]; sprite: string; health: number; maxHealth: number; armor: number; armorFlashing?: boolean; enemy?: boolean; hit?: boolean; level?: number }) {
   const allBuffs: Array<MonsterBuffTile | StatusTile> = [
     ...buffs.map((buff) => ({
-      name: buff.name === "Vexxing" ? "Vexing" : buff.name,
+      name: buff.name === "Vexxing" ? "Vexing" : buff.name === "Theiving" ? "Thieving" : buff.name,
       symbol: buff.symbol,
       effect: buff.effect.replace(/(\d+)\s*\*\s*Level/gi, (_, amount: string) => String(Number(amount) * level)),
       value: undefined,
