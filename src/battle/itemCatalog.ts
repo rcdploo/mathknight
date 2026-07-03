@@ -2,7 +2,7 @@ import source from "./Items.csv?raw";
 import { canApplyUpgrade, makeCard, shuffle, type BattleCard } from "./battleEngine";
 import { generateCombatRewards } from "./rewardGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
-import { loadRunDeck, saveRunDeck } from "../dungeon/runStore";
+import { loadRhythmicItemStarts, loadRunCombatTurnCount, loadRunDeck, saveRhythmicItemStarts, saveRunDeck } from "../dungeon/runStore";
 
 export type ItemRarity = "Common" | "Uncommon" | "Rare" | "Boss";
 export type ItemDefinition = {
@@ -18,6 +18,7 @@ const itemKey = "mathknight.dungeon.runItems.v1";
 const usageKey = "mathknight.dungeon.itemUsage.v1";
 const bossShownKey = "mathknight.dungeon.bossItemsShown.v1";
 const pendingItemChoiceKey = "mathknight.dungeon.pendingItemChoice.v1";
+const rhythmicItemIds = new Set(["metronome", "pendulum", "orrery", "tabor", "war-drum", "taiko"]);
 
 export type PendingItemChoice =
   | { kind: "upgrades"; itemId: string; upgrades: string[] }
@@ -85,11 +86,24 @@ export function saveRunItems(ids: string[]) {
 }
 
 export function addRunItem(id: string, level = 1) {
-  const next = [...new Set([...loadRunItems(), id])];
+  const currentItems = loadRunItems();
+  const next = [...new Set([...currentItems, id])];
   saveRunItems(next);
+  if (!currentItems.includes(id) && rhythmicItemIds.has(id)) {
+    saveRhythmicItemStarts({ ...loadRhythmicItemStarts(), [id]: loadRunCombatTurnCount() });
+  }
   applyAcquisitionBonus(id, level);
   window.dispatchEvent(new Event("mathknight-item-choice"));
   return next;
+}
+
+export function rhythmicItemTurn(id: string, combatTurn: number) {
+  const starts = loadRhythmicItemStarts();
+  if (starts[id] === undefined) {
+    starts[id] = Math.max(0, combatTurn - 1);
+    saveRhythmicItemStarts(starts);
+  }
+  return combatTurn - starts[id];
 }
 
 type ItemUsage = { items: Record<string, number>; tags: Record<string, number> };

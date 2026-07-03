@@ -7,6 +7,8 @@ const runHealthKey = "mathknight.dungeon.runHealth.v1";
 const runItemsKey = "mathknight.dungeon.runItems.v1";
 const battleSessionKey = "mathknight.battle.session.v3";
 const levelCheckpointKey = "mathknight.dungeon.levelStart.v1";
+const combatTurnCountKey = "mathknight.dungeon.combatTurnCount.v1";
+const rhythmicItemStartsKey = "mathknight.dungeon.rhythmicItemStarts.v1";
 
 export type LevelStartCheckpoint = {
   level: number;
@@ -14,7 +16,29 @@ export type LevelStartCheckpoint = {
   bottledCard: BattleCard;
   itemIds: string[];
   removalPurchases: number;
+  combatTurnCount: number;
+  rhythmicItemStarts: Record<string, number>;
 };
+
+export function loadRunCombatTurnCount() {
+  return Math.max(0, Number(window.localStorage.getItem(combatTurnCountKey)) || 0);
+}
+
+export function saveRunCombatTurnCount(turnCount: number) {
+  window.localStorage.setItem(combatTurnCountKey, String(Math.max(0, turnCount)));
+}
+
+export function loadRhythmicItemStarts() {
+  try {
+    return JSON.parse(window.localStorage.getItem(rhythmicItemStartsKey) ?? "{}") as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+export function saveRhythmicItemStarts(starts: Record<string, number>) {
+  window.localStorage.setItem(rhythmicItemStartsKey, JSON.stringify(starts));
+}
 
 function cleanDeck(deck: BattleCard[]) {
   return deck.filter((card) => !card.upgrades.includes("card-removal"));
@@ -110,6 +134,8 @@ export function saveLevelStartCheckpoint(level: number) {
     bottledCard: loadRunBottle(),
     itemIds: loadRunItemIds(),
     removalPurchases: loadout.removalPurchases,
+    combatTurnCount: loadRunCombatTurnCount(),
+    rhythmicItemStarts: loadRhythmicItemStarts(),
   };
   window.localStorage.setItem(levelCheckpointKey, JSON.stringify(checkpoint));
   return checkpoint;
@@ -140,6 +166,8 @@ export function restoreLevelStartCheckpoint(level: number) {
   saveRunLoadout(restoredDeck, restoredBottle);
   window.localStorage.setItem(runItemsKey, JSON.stringify(checkpoint.itemIds));
   saveRunHealth(fullHealth);
+  saveRunCombatTurnCount(checkpoint.combatTurnCount ?? 0);
+  saveRhythmicItemStarts(checkpoint.rhythmicItemStarts ?? {});
   clearStoredBattleSession();
 
   const loadout = loadPermanentLoadout();

@@ -7,8 +7,8 @@ import type { GeneratedMonster } from "./monsterGenerator";
 import { loadProgress, saveProgress } from "../game/progressStore";
 import { bottleCapacityCost, characterStatsForLevel, loadPermanentLoadout } from "../quartermaster/quartermasterStore";
 import { formatLevelText } from "./textFormatting";
-import { clearStoredBattleSession, loadRunBottle, loadRunDeck, loadRunHealth, readStoredBattleSession, saveRunBottle, saveRunDeck, saveRunHealth, writeStoredBattleSession } from "../dungeon/runStore";
-import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, queueItemRewardChoice, surfaceBossItems, surfaceItems } from "./itemCatalog";
+import { clearStoredBattleSession, loadRunBottle, loadRunCombatTurnCount, loadRunDeck, loadRunHealth, readStoredBattleSession, saveRunBottle, saveRunCombatTurnCount, saveRunDeck, saveRunHealth, writeStoredBattleSession } from "../dungeon/runStore";
+import { addRunItem, hasItem, itemById, itemSymbol, loadRunItems, markBossItemsShown, queueItemRewardChoice, rhythmicItemTurn, surfaceBossItems, surfaceItems } from "./itemCatalog";
 import { generateCombatRewards } from "./rewardGenerator";
 import { recordAttackResult, recordMonsterSlain } from "../dungeon/runStats";
 import { upgradeIneligibilityReason } from "./upgradeEligibility";
@@ -390,7 +390,14 @@ function createBattle(monster: GeneratedMonster) {
   const normalizedCards = ensureUniqueCardIds([loadRunBottle(), ...loadRunDeck()]);
   const [bottledCard, ...battleDeck] = normalizedCards.cards;
   if (normalizedCards.changed) saveRunDeck(battleDeck);
-  const opening = drawHand(shuffle(battleDeck), [], character.handSize + (hasItem(itemIds, "satchel") ? 2 : 0));
+  const runCombatTurn = loadRunCombatTurnCount() + 1;
+  saveRunCombatTurnCount(runCombatTurn);
+  const openingRhythmicDraw = [
+    hasItem(itemIds, "tabor") && rhythmicItemTurn("tabor", runCombatTurn) % 3 === 0 ? 1 : 0,
+    hasItem(itemIds, "war-drum") && rhythmicItemTurn("war-drum", runCombatTurn) % 4 === 0 ? 2 : 0,
+    hasItem(itemIds, "taiko") && rhythmicItemTurn("taiko", runCombatTurn) % 5 === 0 ? 3 : 0,
+  ].reduce((sum, value) => sum + value, 0);
+  const opening = drawHand(shuffle(battleDeck), [], character.handSize + (hasItem(itemIds, "satchel") ? 2 : 0) + openingRhythmicDraw);
   const maxHealth = Math.max(1, Math.round((character.maxHealth + (hasItem(itemIds, "garlic") ? 50 : 0)) * (hasItem(itemIds, "glass-cannon") ? .85 : 1)));
   const enemyMaxHealth = Math.max(1, Math.round(monster.maxHealth * (hasItem(itemIds, "garlic") ? .8 : 1)));
   const openingAction = monsterAction(monster, 1, [], null);
@@ -440,6 +447,7 @@ function createBattle(monster: GeneratedMonster) {
     discardDamageStacks: 0,
     initiativeInstances: [] as number[],
     phoenixUsed: false,
+    runCombatTurn,
   };
 }
 
@@ -502,8 +510,9 @@ function loadBattleSession(monster: GeneratedMonster, bonusItem: boolean, bossRe
           ...parsed,
           selectedCards: [],
           bottleUsed: false,
-          battle: {
-            ...parsed.battle,
+      battle: {
+        ...parsed.battle,
+        runCombatTurn: parsed.battle.runCombatTurn ?? Math.max(1, loadRunCombatTurnCount(), parsed.turn),
             bottledCard: normalizedCards.cards[0],
             hand: normalizedCards.cards.slice(1, handEnd),
             drawPile: normalizedCards.cards.slice(handEnd, drawEnd),
@@ -594,9 +603,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const energyUsed = useMemo(() => selectedCards.reduce((total, card) => total + effectiveCardEnergy(card, selectedCards), 0), [selectedCards, itemIds]);
   const consumedEnergy = battle.hand.filter((card) => card.consumedThisTurn).length;
   const energyDrainPenalty = battle.energyDrainTurns > 0 ? Math.max(1, Math.round(battle.maxEnergy * 0.25)) : 0;
-  const rhythmicEnergy = hasItem(itemIds, "metronome") && turn % 3 === 0 ? 1
-    : hasItem(itemIds, "pendulum") && turn % 4 === 0 ? 2
-      : hasItem(itemIds, "orrery") && turn % 5 === 0 ? 3 : 0;
+  const rhythmicEnergy = [
+    hasItem(itemIds, "metronome") && rhythmicItemTurn("metronome", battle.runCombatTurn) % 3 === 0 ? 1 : 0,
+    hasItem(itemIds, "pendulum") && rhythmicItemTurn("pendulum", battle.runCombatTurn) % 4 === 0 ? 2 : 0,
+    hasItem(itemIds, "orrery") && rhythmicItemTurn("orrery", battle.runCombatTurn) % 5 === 0 ? 3 : 0,
+  ].reduce((sum, value) => sum + value, 0);
   const availableEnergy = Math.max(1, battle.maxEnergy - energyDrainPenalty) + consumedEnergy + rhythmicEnergy + battle.nextTurnEnergy;
   const upgradeEffects = useMemo(() => expressionUpgradeEffects(selectedCards), [selectedCards]);
   const enemyWeakenInstances = battle.enemyWeakenInstances ?? [];
@@ -715,14 +726,17 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
 
   useEffect(() => {
     const rhythmic = [
-      ...(turn % 3 === 0 ? ["metronome", "tabor"] : []),
-      ...(turn % 4 === 0 ? ["pendulum", "war-drum"] : []),
-      ...(turn % 5 === 0 ? ["orrery", "taiko"] : []),
+      ...(rhythmicItemTurn("metronome", battle.runCombatTurn) % 3 === 0 ? ["metronome"] : []),
+      ...(rhythmicItemTurn("tabor", battle.runCombatTurn) % 3 === 0 ? ["tabor"] : []),
+      ...(rhythmicItemTurn("pendulum", battle.runCombatTurn) % 4 === 0 ? ["pendulum"] : []),
+      ...(rhythmicItemTurn("war-drum", battle.runCombatTurn) % 4 === 0 ? ["war-drum"] : []),
+      ...(rhythmicItemTurn("orrery", battle.runCombatTurn) % 5 === 0 ? ["orrery"] : []),
+      ...(rhythmicItemTurn("taiko", battle.runCombatTurn) % 5 === 0 ? ["taiko"] : []),
       ...(turn === 2 ? ["skene-cleat"] : []),
       ...(turn === 3 ? ["tiller"] : []),
     ];
     flashItems(...rhythmic);
-  }, [turn]);
+  }, [battle.runCombatTurn, turn]);
 
   useEffect(() => {
     const session: BattleSession = { monsterId: monster.id, battle, selectedCards, bottleUsed, phase, message, error, turn, chosenReward, rewards, bonusItemId, bossItemIds, combatLog, turnBriefing };
@@ -1193,6 +1207,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       }
       const advanceToNextIntent = () => {
       const nextTurn = turn + 1;
+      const nextRunCombatTurn = battle.runCombatTurn + 1;
+      saveRunCombatTurnCount(nextRunCombatTurn);
       const nextAction = monsterAction(monster, nextTurn, battle.monsterActionDeck, battle.monsterLastAction);
       const regeneratedHealth = hasBuff(monster, "Regenerating")
         ? Math.min(battle.enemyMaxHealth, enemyHealthAfterCurrentTurn + Math.max(1, Math.round(battle.enemyMaxHealth * 0.03)))
@@ -1213,9 +1229,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         ...cleanDiscardPile,
         ...cleanHand.filter((card) => !card.generatedById && !retainedIds.has(card.id)),
       ];
-      const rhythmicDraw = hasItem(itemIds, "tabor") && nextTurn % 3 === 0 ? 1
-        : hasItem(itemIds, "war-drum") && nextTurn % 4 === 0 ? 2
-          : hasItem(itemIds, "taiko") && nextTurn % 5 === 0 ? 3 : 0;
+      const rhythmicDraw = [
+        hasItem(itemIds, "tabor") && rhythmicItemTurn("tabor", nextRunCombatTurn) % 3 === 0 ? 1 : 0,
+        hasItem(itemIds, "war-drum") && rhythmicItemTurn("war-drum", nextRunCombatTurn) % 4 === 0 ? 2 : 0,
+        hasItem(itemIds, "taiko") && rhythmicItemTurn("taiko", nextRunCombatTurn) % 5 === 0 ? 3 : 0,
+      ].reduce((sum, value) => sum + value, 0);
       const nextHandSize = (pendingSpellResult.battle.addleTurns > 0 ? Math.max(1, Math.round(battle.handSize * 0.8)) : battle.handSize) + rhythmicDraw + pendingSpellResult.battle.nextTurnDraw;
       const drawnCards = drawHand(baseDrawPile, discardSource, Math.max(0, nextHandSize - retainedHand.length));
       const processedDraw = pendingSpellResult.battle.immolationTurns > 0
@@ -1290,6 +1308,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         forcedCardId: forcedCard?.id ?? null,
         nextTurnDraw: 0,
         nextTurnEnergy: batteryCarry + nextBattleBase.queuedNextTurnEnergy,
+        runCombatTurn: nextRunCombatTurn,
         queuedNextTurnEnergy: 0,
         crystalDiscountCardId: hasItem(itemIds, "crystal") ? choice(immolatedDraw.hand)?.id ?? null : null,
         discardDamageStacks: 0,
