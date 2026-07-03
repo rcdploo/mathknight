@@ -870,7 +870,7 @@ function ItemChoiceSelector({ choice, onUpdate }: { choice: PendingItemChoice; o
         <strong>{card.label}</strong><span>{card.kind === "upgrade" ? card.type : `${card.energy} energy`}</span><small>{cardDescription(card.catalogId, card.label, card.effect)}</small>
       </button>)}</div>
       <div className="battle-actions"><button disabled={!chosenReward} onClick={chooseReward}>Choose reward</button></div>
-      {rewardChoice.itemId === "magnet" && <div className="battle-actions"><button onClick={() => finishReward()}>Continue without another card</button></div>}
+      {(rewardChoice.itemId === "magnet" || rewardChoice.itemId === "grab-bag") && <div className="battle-actions"><button onClick={() => finishReward()}>{rewardChoice.itemId === "magnet" ? "Continue without another card" : "Continue without a card"}</button></div>}
     </section></main>;
   }
 
