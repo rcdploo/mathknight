@@ -1,14 +1,23 @@
 import { Grid3X3, Home, KeyRound, Settings, ShoppingBag, Swords, Volume2, VolumeX } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { updateAudioLevels } from "../battle/battleAudio";
 import { loadProgress, setMuted } from "../game/progressStore";
+import { totalStars } from "../game/unlockRules";
+import type { PlayerProgress } from "../game/types";
 import KnightCodePanel from "./KnightCodePanel";
 
 type Destination = "hub" | "memory" | "battle" | "quartermaster" | "settings";
 
 export default function QuickControls({ destination, onNavigate }: { destination: Destination; onNavigate: (destination: Destination) => void }) {
   const [muted, setMutedState] = useState(() => loadProgress().settings.muted);
+  const [progress, setProgress] = useState<PlayerProgress>(loadProgress);
   const [saveOpen, setSaveOpen] = useState(false);
+
+  useEffect(() => {
+    const refreshProgress = (event: Event) => setProgress((event as CustomEvent<PlayerProgress>).detail ?? loadProgress());
+    window.addEventListener("mathknight-progress-changed", refreshProgress);
+    return () => window.removeEventListener("mathknight-progress-changed", refreshProgress);
+  }, []);
 
   function toggleMute() {
     const progress = loadProgress();
@@ -19,6 +28,10 @@ export default function QuickControls({ destination, onNavigate }: { destination
 
   return <>
     <nav className="quick-controls" aria-label="Game controls">
+      <div className="quick-resources" aria-label="Player resources">
+        <span className="star-total" aria-label={`${totalStars(progress)} total stars`}><strong>★</strong> {totalStars(progress)}</span>
+        <span className="coin-pill">${progress.coins}</span>
+      </div>
       <div className="quick-navigation">
         <button className="icon-button" aria-label="Home" title="Home" onClick={() => onNavigate("hub")} disabled={destination === "hub"}><Home size={19} /></button>
         <button className="icon-button" aria-label="Training Grounds" title="Training Grounds" onClick={() => onNavigate("memory")} disabled={destination === "memory"}><Grid3X3 size={19} /></button>

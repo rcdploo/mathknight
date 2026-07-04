@@ -133,7 +133,6 @@ export default function Quartermaster({ onExit, onTraining }: { onExit: () => vo
     <main className="quartermaster-screen">
       <header className="quartermaster-header">
         <div><p>Mathknight</p><h1>Quartermaster</h1></div>
-        <strong>${progress.coins} coins</strong>
       </header>
 
       {selectionMode && (

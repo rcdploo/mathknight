@@ -57,6 +57,7 @@ function isCurrentProgress(progress: PlayerProgress) {
 
 export function saveProgress(progress: PlayerProgress) {
   writeLocalProgress(progress);
+  window.dispatchEvent(new CustomEvent("mathknight-progress-changed", { detail: progress }));
 }
 
 export function exportProgressCode(_progress: PlayerProgress = loadProgress()) {

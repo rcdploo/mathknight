@@ -1,4 +1,4 @@
-import { Coins, HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
+import { HeartPulse, Shield, Swords, X, Zap } from "lucide-react";
 import { BookOpen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { playBattleSound, startCombatMusic, stopCombatMusic, type CombatMusicIntensity } from "./battleAudio";
@@ -1483,7 +1483,6 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         <div><p>Mathknight</p><strong>{monster.name}</strong></div>
         <div className="battle-topbar-actions">
           <span>Turn {turn}</span>
-          <span className="battle-gold"><Coins size={16} /> ${loadProgress().coins}</span>
           <button className="combat-history-button" onClick={() => setHistoryOpen(true)} aria-label="Open combat history"><BookOpen size={17} /> History</button>
         </div>
       </header>
