@@ -611,6 +611,8 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const availableEnergy = Math.max(1, battle.maxEnergy - energyDrainPenalty) + consumedEnergy + rhythmicEnergy + battle.nextTurnEnergy;
   const upgradeEffects = useMemo(() => expressionUpgradeEffects(selectedCards), [selectedCards]);
   const enemyWeakenInstances = battle.enemyWeakenInstances ?? [];
+  const initiativeInstances = battle.initiativeInstances ?? [];
+  const pendingMonsterSpells = battle.pendingMonsterSpells ?? [];
   const weakenStacks = enemyWeakenInstances.length;
   const weakenPerStack = Math.max(1, Math.round(battle.enemyIntent * 0.1));
   const displayedIntent = battle.enemyStunned
@@ -680,7 +682,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     battle.immolationTurns > 0 ? { name: "Immolation", symbol: "I", value: battle.immolationTurns, tone: "debuff" as const, effect: "Digit and variable values are reduced by 1 when drawn." } : null,
   ];
   const activeStatuses = [
-    ...battle.initiativeInstances.map((turns) => ({ name: "Initiative", symbol: "I", value: turns, tone: "buff" as const, effect: "Your damage is multiplied by 1.1. Multiple Initiatives stack multiplicatively." })),
+    ...initiativeInstances.map((turns) => ({ name: "Initiative", symbol: "I", value: turns, tone: "buff" as const, effect: "Your damage is multiplied by 1.1. Multiple Initiatives stack multiplicatively." })),
     ...playerWeakenInstances.map((turns) => ({ name: "Weaken", symbol: "W", value: turns, tone: "debuff" as const, effect: "Your submitted expression deals 10% less damage, rounded up. Multiple Weakens stack." })),
     ...statusTiles.filter((status): status is StatusTile => status !== null),
   ];
@@ -931,7 +933,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const parityBonus = value % 2 !== 0 && hasItem(itemIds, "oddjob") ? 1.15 : 1;
     const healthBonus = hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .25 ? 1.2 : hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? 1.1 : 1;
     const fertilizerBonus = 1 + battle.discardDamageStacks * .1;
-    const initiativeBonus = 1.1 ** battle.initiativeInstances.length;
+    const initiativeBonus = 1.1 ** initiativeInstances.length;
     const boostedDamage = brokeMath ? Infinity : Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * fertilizerBonus * initiativeBonus);
     const outgoingDamage = brokeMath ? Infinity : playerWeakenStackCount > 0 && !countered
       ? applyPlayerWeakness(boostedDamage)
@@ -1005,7 +1007,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       confoundTurns: Math.max(0, battle.confoundTurns - 1),
       energyDrainTurns: Math.max(0, battle.energyDrainTurns - 1),
       immolationTurns: monster.bossId === "karebear" ? battle.immolationTurns : Math.max(0, battle.immolationTurns - 1),
-      initiativeInstances: battle.initiativeInstances
+      initiativeInstances: initiativeInstances
         .map((turns) => Math.max(0, turns - 1))
         .filter((turns) => turns > 0),
       enemyWeakenInstances: enemyWeakenInstances
@@ -1015,7 +1017,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       heroicWillRemaining: battle.heroicWillRemaining - (heroicWillTriggered ? 1 : 0),
     };
     const survivedBattle = heroicWillTriggered ? clearPlayerDebuffs(expiredDebuffs) : expiredDebuffs;
-    const wardBlocked = !monsterEffectsCanceled && battle.pendingMonsterSpells.length > 0 && hasItem(itemIds, "ward") && Math.random() < .2;
+    const wardBlocked = !monsterEffectsCanceled && pendingMonsterSpells.length > 0 && hasItem(itemIds, "ward") && Math.random() < .2;
     if (wardBlocked) flashItems("ward");
     const pendingSpellResult = monsterEffectsCanceled || wardBlocked
       ? { battle: { ...survivedBattle, enemyHealth: reflectedHit.health, playerHealth: playerHit.health }, messages: [] as string[] }
@@ -1023,7 +1025,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           ...survivedBattle,
           enemyHealth: reflectedHit.health,
           playerHealth: playerHit.health,
-        }, monster, battle.pendingMonsterSpells);
+        }, monster, pendingMonsterSpells);
     if (!monsterEffectsCanceled && playerHit.damage > 0 && hasBuff(monster, "Weakening")) {
       pendingSpellResult.battle.playerWeakenInstances = [...(pendingSpellResult.battle.playerWeakenInstances ?? []), 1];
       pendingSpellResult.battle.playerWeakenTurns = Math.max(pendingSpellResult.battle.playerWeakenTurns, 1);
@@ -1044,7 +1046,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       if (hasItem(itemIds, "reverser") && battle.playerHealth <= battle.playerMaxHealth / 2) flashItems("second-wind");
     }
     const enemyHealthAfterCurrentTurn = pendingSpellResult.battle.enemyHealth;
-    const spellLobotomy = battle.pendingMonsterSpells.some((spell) => spellName(spell) === "Lobotomize");
+    const spellLobotomy = pendingMonsterSpells.some((spell) => spellName(spell) === "Lobotomize");
     const turnLobotomy = battle.monsterLastAction === "sloth-lobotomize";
     const lobotomy = !monsterEffectsCanceled && (spellLobotomy || (playerHit.damage > 0 && (hasBuff(monster, "Lobotomizing") || turnLobotomy))) ? removeBestFightCard(runDeck) : null;
     if (lobotomy?.removed) {
@@ -1322,7 +1324,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       };
 
       if (pendingSpellResult.messages.length > 0) {
-        const spellNames = battle.pendingMonsterSpells.map(spellLabel).join(", ");
+        const spellNames = pendingMonsterSpells.map(spellLabel).join(", ");
         setBattle((current) => ({
           ...current,
           enemyIntent: 0,
