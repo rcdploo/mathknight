@@ -1746,6 +1746,10 @@ body { color:var(--mk-paper); background-color:var(--mk-ink); }
 .result-panel,.difficulty-modal,.instructions-modal { animation:surface-arrive .22s ease-out; }
 @keyframes surface-arrive { from{opacity:0;transform:translateY(7px) scale(.99)} to{opacity:1;transform:none} }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } }
+.hex-room:not(:disabled):hover { transform:translate(-50%,-50%) !important; }
+
+/* Preserve the map node's centering transform on hover. */
+.hex-room:not(:disabled):hover { transform: translate(-50%, -50%); }
 
 /* Visual direction: restrained mathematical heraldry */
 :root {
