@@ -66,7 +66,7 @@ export default function App() {
   const instructionsOverlay = activeInstructions
     ? <InstructionsModal guideId={activeInstructions} onClose={closeInstructions} />
     : null;
-  const quickControls = <QuickControls destination={destination} onHome={() => setDestination("hub")} />;
+  const quickControls = <QuickControls destination={destination} onNavigate={setDestination} />;
 
   function startNewGame() {
     setNewGameRequired(false);
