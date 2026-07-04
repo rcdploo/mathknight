@@ -8,7 +8,7 @@ import {
   recordTrainingResult,
 } from "../game/progressStore";
 import { calculateCoins, calculateStars, getUnitValue } from "../game/scoring";
-import { findNextUnlocked, getLevelUnlockState, getStageUnlockState, getUnitUnlockState, totalStars } from "../game/unlockRules";
+import { findNextUnlocked, getLevelUnlockState, getStageUnlockState, getUnitUnlockState } from "../game/unlockRules";
 import type { GeometryVisual, LevelConfig, LevelResult, PlayerProgress, PuzzleCard } from "../game/types";
 import { loadPermanentLoadout } from "../quartermaster/quartermasterStore";
 
@@ -106,7 +106,6 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
   const hasEndedRef = useRef(false);
 
   const allLevelConfigs = useMemo(() => allLevels(), []);
-  const earnedStars = totalStars(progress);
   const matchColorByPair = useMemo(() => {
     const colorByPair = new Map<string, string>();
     cards.forEach((card) => {
@@ -249,12 +248,6 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
         <div className="training-header-title">
           <p>Mathknight</p>
           <h1>Training Grounds</h1>
-        </div>
-        <div className="topbar-actions">
-          <span className="star-total" aria-label={`${earnedStars} total stars`}>
-            <strong>★</strong> {earnedStars} stars
-          </span>
-          <span className="coin-pill">${progress.coins} coins</span>
         </div>
       </header>
 
