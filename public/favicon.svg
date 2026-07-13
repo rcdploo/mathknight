@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Mathknight">
+  <defs>
+    <linearGradient id="mk-favicon-bg" x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff1b8"/>
+      <stop offset="0.42" stop-color="#f2b45b"/>
+      <stop offset="1" stop-color="#7b5cff"/>
+    </linearGradient>
+    <linearGradient id="mk-favicon-ink" x1="18" y1="10" x2="48" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#24162f"/>
+      <stop offset="1" stop-color="#0e1020"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="15" fill="#171223"/>
+  <path d="M32 6 52 14v16c0 14.2-8.4 24.1-20 29-11.6-4.9-20-14.8-20-29V14L32 6Z" fill="url(#mk-favicon-bg)"/>
+  <path d="M32 11.6 47 17.5v12.7c0 10.5-5.7 18.5-15 23-9.3-4.5-15-12.5-15-23V17.5l15-5.9Z" fill="url(#mk-favicon-ink)"/>
+  <path d="M22 27.5h20M32 17.5v29M24.5 42.5h15" fill="none" stroke="#f8d77e" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M24 27.5 32 19l8 8.5" fill="none" stroke="#f8d77e" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="22" cy="27.5" r="2.6" fill="#79e7d4"/>
+  <circle cx="42" cy="27.5" r="2.6" fill="#ff7a9a"/>
+</svg>

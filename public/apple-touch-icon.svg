@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Mathknight">
+  <defs>
+    <linearGradient id="mk-touch-bg" x1="20" y1="12" x2="160" y2="168" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff1b8"/>
+      <stop offset="0.42" stop-color="#f2b45b"/>
+      <stop offset="1" stop-color="#7b5cff"/>
+    </linearGradient>
+    <linearGradient id="mk-touch-ink" x1="50" y1="32" x2="135" y2="150" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#24162f"/>
+      <stop offset="1" stop-color="#0e1020"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="42" fill="#171223"/>
+  <path d="M90 18 146 40v45c0 40-23.5 68-56 81-32.5-13-56-41-56-81V40l56-22Z" fill="url(#mk-touch-bg)"/>
+  <path d="M90 34 132 50v35.5c0 29.5-16 52-42 64.5-26-12.5-42-35-42-64.5V50l42-16Z" fill="url(#mk-touch-ink)"/>
+  <path d="M62 78h56M90 50v82M69 120h42" fill="none" stroke="#f8d77e" stroke-width="13" stroke-linecap="round"/>
+  <path d="M68 78 90 54l22 24" fill="none" stroke="#f8d77e" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="62" cy="78" r="8" fill="#79e7d4"/>
+  <circle cx="118" cy="78" r="8" fill="#ff7a9a"/>
+</svg>

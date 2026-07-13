@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Mathknight</title>
+  <desc id="desc">A lightweight abstract dungeon game where arithmetic, strategy, and card combat meet.</desc>
+  <defs>
+    <radialGradient id="glow" cx="72%" cy="29%" r="64%">
+      <stop offset="0" stop-color="#7b5cff" stop-opacity="0.48"/>
+      <stop offset="0.46" stop-color="#25183d" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#100d1b"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="96" y1="58" x2="1106" y2="572" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff1b8" stop-opacity="0.2"/>
+      <stop offset="0.44" stop-color="#7b5cff" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#79e7d4" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="431" y1="145" x2="960" y2="506" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff1b8"/>
+      <stop offset="0.52" stop-color="#f2b45b"/>
+      <stop offset="1" stop-color="#ff7a9a"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0v48" fill="none" stroke="#fff1b8" stroke-opacity="0.055" stroke-width="2"/>
+      <circle cx="0" cy="0" r="2.5" fill="#79e7d4" fill-opacity="0.12"/>
+    </pattern>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#05040a" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="630" fill="#100d1b"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <rect x="72" y="58" width="1056" height="514" rx="44" fill="url(#panel)" stroke="#fff1b8" stroke-opacity="0.18" stroke-width="2"/>
+  <path d="M930 90 1084 151v121c0 128-62 220-154 268-92-48-154-140-154-268V151l154-61Z" fill="#0e1020" fill-opacity="0.74" stroke="#f8d77e" stroke-opacity="0.8" stroke-width="5" filter="url(#shadow)"/>
+  <path d="M852 273h156M930 168v236M872 386h116" fill="none" stroke="url(#gold)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M874 273 930 185l56 88" fill="none" stroke="url(#gold)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="852" cy="273" r="16" fill="#79e7d4"/>
+  <circle cx="1008" cy="273" r="16" fill="#ff7a9a"/>
+  <g opacity="0.52" fill="none" stroke-linecap="round">
+    <path d="M708 155h48M732 131v48" stroke="#79e7d4" stroke-width="8"/>
+    <path d="M662 447h72M698 411v72" stroke="#ff7a9a" stroke-width="8"/>
+    <path d="M100 484h142" stroke="#f8d77e" stroke-width="8"/>
+    <path d="M148 438h46M148 530h46" stroke="#f8d77e" stroke-width="8"/>
+  </g>
+  <text x="122" y="223" fill="#fff7dd" font-family="Georgia, 'Times New Roman', serif" font-size="96" font-weight="800" letter-spacing="-3">Mathknight</text>
+  <text x="128" y="292" fill="#f8d77e" font-family="Inter, Avenir, Segoe UI, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="5">ARITHMETIC • STRATEGY • DUNGEON RUNS</text>
+  <text x="128" y="384" fill="#efe7cf" font-family="Inter, Avenir, Segoe UI, Arial, sans-serif" font-size="38" font-weight="650">Enter the dungeon, solve the math,</text>
+  <text x="128" y="434" fill="#efe7cf" font-family="Inter, Avenir, Segoe UI, Arial, sans-serif" font-size="38" font-weight="650">and turn numbers into knightly tactics.</text>
+</svg>
