@@ -21,7 +21,7 @@ import {
 
 type BattlePhase = "playing" | "resolving" | "victory" | "defeat" | "reward" | "upgrade";
 type BattleState = ReturnType<typeof createBattle>;
-type CombatLogEntry = { turn: number; expression: string; result: "counter" | "attack"; events: string[] };
+type CombatLogEntry = { turn: number; expression: string; result: "counter" | "attack" | "pass"; events: string[] };
 type BattleSession = {
   monsterId: string;
   battle: BattleState;
@@ -566,6 +566,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
   const [flashingStatuses, setFlashingStatuses] = useState<string[]>([]);
   const [pileView, setPileView] = useState<"deck" | "discard" | null>(null);
   const [runDeck, setRunDeck] = useState<BattleCard[]>(loadRunDeck);
+  const [passHintFlashing, setPassHintFlashing] = useState(false);
   const deckUpgradedCount = useMemo(
     () => runDeck.filter((card) => card.upgrades.length > 0).length + (battle.bottledCard.upgrades.length > 0 ? 1 : 0),
     [battle.bottledCard.upgrades.length, runDeck],
@@ -609,6 +610,32 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     hasItem(itemIds, "orrery") && rhythmicItemTurn("orrery", battle.runCombatTurn) % 5 === 0 ? 3 : 0,
   ].reduce((sum, value) => sum + value, 0);
   const availableEnergy = Math.max(1, battle.maxEnergy - energyDrainPenalty) + consumedEnergy + rhythmicEnergy + battle.nextTurnEnergy;
+  const hasObviousPlayableMove = useMemo(() => {
+    if (phase !== "playing") return true;
+    if (battle.resourcefulnessRemaining > 0 && selectedCards.length === 0) return true;
+    const canPlay = (card: BattleCard, bottled = false) => {
+      if (selectedCards.some((selected) => selected.id === card.id)) return false;
+      if (!bottled && card.consumedThisTurn) return false;
+      if (bottled && bottleUsed) return false;
+      if (battle.confoundTurns > 0) return false;
+      if (cardLockedByPolarizing(card, monster, turn)) return false;
+      const playedCard = card.label === "()" ? { ...card, label: "(", token: "(" } : card;
+      return energyUsed + effectiveCardEnergy(playedCard, [...selectedCards, playedCard]) <= availableEnergy;
+    };
+    return canPlay(battle.bottledCard, true) || battle.hand.some((card) => canPlay(card));
+  }, [availableEnergy, battle.bottledCard, battle.confoundTurns, battle.hand, battle.resourcefulnessRemaining, bottleUsed, energyUsed, monster, phase, selectedCards, turn]);
+
+  useEffect(() => {
+    if (hasObviousPlayableMove || phase !== "playing") {
+      setPassHintFlashing(false);
+      return;
+    }
+    const hintTimer = window.setTimeout(() => {
+      setPassHintFlashing(true);
+      window.setTimeout(() => setPassHintFlashing(false), 1800);
+    }, 5000);
+    return () => window.clearTimeout(hintTimer);
+  }, [hasObviousPlayableMove, phase, turn]);
   const upgradeEffects = useMemo(() => expressionUpgradeEffects(selectedCards), [selectedCards]);
   const enemyWeakenInstances = battle.enemyWeakenInstances ?? [];
   const initiativeInstances = battle.initiativeInstances ?? [];
@@ -878,29 +905,37 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     playBattleSound("card");
   }
 
-  function submitExpression(divisionConfirmed = false) {
+  function passCurrentTurn() {
+    if (phase !== "playing") return;
+    setDivisionWarningOpen(false);
+    submitExpression(false, true);
+  }
+
+  function submitExpression(divisionConfirmed = false, passTurn = false) {
     if (phase !== "playing") return;
     const forcedCard = battle.forcedCardId
       ? battle.hand.find((card) => card.id === battle.forcedCardId && !card.consumedThisTurn)
       : undefined;
-    if (forcedCard && !selectedCards.some((card) => card.id === forcedCard.id)) {
+    if (!passTurn && forcedCard && !selectedCards.some((card) => card.id === forcedCard.id)) {
       setError(`${forcedCard.label} must be used.`);
       return;
     }
     const operatorCount = selectedCards.filter((card) => card.type === "Operator" || card.label === "(" || card.label === ")").length;
-    if (battle.crippleTurns > 0 && operatorCount > 1) {
+    if (!passTurn && battle.crippleTurns > 0 && operatorCount > 1) {
       setError("Cripple allows only 1 operator this turn.");
       return;
     }
-    let value: number;
-    try {
-      value = evaluateExpression(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount, discardPileCount: battle.discardPile.length });
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Try a different expression.");
-      return;
+    let value = 0;
+    if (!passTurn) {
+      try {
+        value = evaluateExpression(selectedCards, { turn, level: dungeonLevel, deckUpgradedCount, discardPileCount: battle.discardPile.length });
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "Try a different expression.");
+        return;
+      }
     }
 
-    const brokeMath = !Number.isFinite(value);
+    const brokeMath = !passTurn && !Number.isFinite(value);
     if (brokeMath) {
       const divisionCard = selectedCards.find((card) => card.label === "/");
       if (!divisionCard) return;
@@ -922,9 +957,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const matchedCounterIntent = counterableIntents.find((intent) =>
       value === intent || (hasItem(itemIds, "oboe") && Math.abs(value - intent) === 1)
     );
-    const countered = matchedCounterIntent !== undefined;
-    if (hasItem(itemIds, "oboe") && value !== displayedIntent && Math.abs(value - displayedIntent) === 1) flashItems("oboe");
-    const criticalHit = !brokeMath && rollAny(upgradeEffects.critAttempts, 0.2);
+    const countered = !passTurn && matchedCounterIntent !== undefined;
+    if (!passTurn && hasItem(itemIds, "oboe") && value !== displayedIntent && Math.abs(value - displayedIntent) === 1) flashItems("oboe");
+    const criticalHit = !passTurn && !brokeMath && rollAny(upgradeEffects.critAttempts, 0.2);
     if (criticalHit) {
       setCombatCallout("Critical Hit! +50% damage");
       window.setTimeout(() => setCombatCallout(null), 800);
@@ -934,23 +969,23 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     const healthBonus = hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .25 ? 1.2 : hasItem(itemIds, "adrenaline") && battle.playerHealth <= battle.playerMaxHealth * .5 ? 1.1 : 1;
     const fertilizerBonus = 1 + battle.discardDamageStacks * .1;
     const initiativeBonus = 1.1 ** initiativeInstances.length;
-    const boostedDamage = brokeMath ? Infinity : Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * fertilizerBonus * initiativeBonus);
-    const outgoingDamage = brokeMath ? Infinity : playerWeakenStackCount > 0 && !countered
+    const boostedDamage = passTurn ? 0 : brokeMath ? Infinity : Math.round(baseDamage * (criticalHit ? 1.5 : 1) * parityBonus * healthBonus * fertilizerBonus * initiativeBonus);
+    const outgoingDamage = passTurn ? 0 : brokeMath ? Infinity : playerWeakenStackCount > 0 && !countered
       ? applyPlayerWeakness(boostedDamage)
       : boostedDamage;
-    if (value % 2 !== 0) flashItems("oddjob");
-    if (value % 2 === 0) flashItems("evensteven");
-    if (healthBonus > 1) flashItems("adrenaline");
-    if (battle.discardDamageStacks > 0) flashItems("fertilizer");
+    if (!passTurn && value % 2 !== 0) flashItems("oddjob");
+    if (!passTurn && value % 2 === 0) flashItems("evensteven");
+    if (!passTurn && healthBonus > 1) flashItems("adrenaline");
+    if (!passTurn && battle.discardDamageStacks > 0) flashItems("fertilizer");
     const enemyArmorForHit = countered ? 0 : battle.enemyArmor;
     const enemyHit = applyDamage(battle.enemyHealth, enemyArmorForHit, outgoingDamage);
     const damageSources = brokeMath ? [] : [
       ...(criticalHit ? ["critical hit"] : []),
-      ...(parityBonus > 1 ? ["oddjob"] : []),
-      ...(healthBonus > 1 ? ["adrenaline"] : []),
-      ...(fertilizerBonus > 1 ? ["fertilizer"] : []),
-      ...(initiativeBonus > 1 ? ["initiative"] : []),
-      ...(playerWeakenStackCount > 0 && !countered ? ["weaken"] : []),
+      ...(!passTurn && parityBonus > 1 ? ["oddjob"] : []),
+      ...(!passTurn && healthBonus > 1 ? ["adrenaline"] : []),
+      ...(!passTurn && fertilizerBonus > 1 ? ["fertilizer"] : []),
+      ...(!passTurn && initiativeBonus > 1 ? ["initiative"] : []),
+      ...(!passTurn && playerWeakenStackCount > 0 && !countered ? ["weaken"] : []),
     ];
     const damageModifier = outgoingDamage - value;
     const damageText = brokeMath
@@ -959,13 +994,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       ? `${value} ${damageModifier >= 0 ? "+" : "-"} ${Math.abs(damageModifier)} (${damageSources.join(", ")})`
       : `${value}`;
     const monsterDefeated = enemyHit.health === 0;
-    const armorAfterExpression = battle.playerArmor + upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.ceil(Math.abs(value) * .15) : 0);
+    const armorAfterExpression = passTurn ? battle.playerArmor : battle.playerArmor + upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.ceil(Math.abs(value) * .15) : 0);
     const healingMultiplier = hasItem(itemIds, "second-wind") && battle.playerHealth <= battle.playerMaxHealth / 2 ? 2 : 1;
-    const expressionHealing = upgradeEffects.healing * monster.level * healingMultiplier;
+    const expressionHealing = passTurn ? 0 : upgradeEffects.healing * monster.level * healingMultiplier;
     const healthAfterUpgradeHealing = Math.min(battle.playerMaxHealth, battle.playerHealth + expressionHealing);
     const upgradeHealingReceived = healthAfterUpgradeHealing - battle.playerHealth;
     const consumedCardsCommitted = battle.hand.some((card) => card.consumedThisTurn);
-    const compostHealing = consumedCardsCommitted && hasItem(itemIds, "compost-juicer") ? monster.level * 3 * healingMultiplier : 0;
+    const compostHealing = !passTurn && consumedCardsCommitted && hasItem(itemIds, "compost-juicer") ? monster.level * 3 * healingMultiplier : 0;
     const healthAfterExpressionHealing = Math.min(battle.playerMaxHealth, healthAfterUpgradeHealing + compostHealing);
     const compostHealingReceived = healthAfterExpressionHealing - healthAfterUpgradeHealing;
     const healingReceived = upgradeHealingReceived + compostHealingReceived;
@@ -993,10 +1028,10 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
           return stolen;
         })()
       : 0;
-    const reflectedDamage = !monsterEffectsCanceled && upgradeEffects.reflecting ? Math.round(playerHit.damage * 0.5) : 0;
+    const reflectedDamage = !passTurn && !monsterEffectsCanceled && upgradeEffects.reflecting ? Math.round(playerHit.damage * 0.5) : 0;
     const reflectedHit = reflectedDamage > 0 ? applyDamage(enemyHit.health, enemyHit.armor, reflectedDamage) : enemyHit;
-    recordAttackResult(enemyHit.damage + (reflectedDamage > 0 ? reflectedHit.damage : 0), countered);
-    const stunnedNext = rollAny(upgradeEffects.bashAttempts, 0.1);
+    if (!passTurn) recordAttackResult(enemyHit.damage + (reflectedDamage > 0 ? reflectedHit.damage : 0), countered);
+    const stunnedNext = !passTurn && rollAny(upgradeEffects.bashAttempts, 0.1);
     const armoredGain = !monsterEffectsCanceled && hasBuff(monster, "Armored") && displayedIntent > 0 ? Math.round(displayedIntent * 0.2) : 0;
     const expiredDebuffs = {
       ...battle,
@@ -1031,12 +1066,12 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       pendingSpellResult.battle.playerWeakenTurns = Math.max(pendingSpellResult.battle.playerWeakenTurns, 1);
     }
     if (heroicWillTriggered) pendingSpellResult.battle = clearPlayerDebuffs(pendingSpellResult.battle);
-    if (countered && hasItem(itemIds, "tripwire")) {
+    if (!passTurn && countered && hasItem(itemIds, "tripwire")) {
       pendingSpellResult.battle.enemyWeakenInstances = [...pendingSpellResult.battle.enemyWeakenInstances, 2];
     }
-    if (countered && hasItem(itemIds, "reverser")) pendingSpellResult.battle.playerHealth = Math.min(pendingSpellResult.battle.playerMaxHealth, pendingSpellResult.battle.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth / 2 ? 2 : 1));
-    if (countered && hasItem(itemIds, "snapshot")) pendingSpellResult.battle.nextTurnDraw += 1;
-    if (countered && hasItem(itemIds, "riposte-charm")) pendingSpellResult.battle = removeOnePlayerDebuff(pendingSpellResult.battle);
+    if (!passTurn && countered && hasItem(itemIds, "reverser")) pendingSpellResult.battle.playerHealth = Math.min(pendingSpellResult.battle.playerMaxHealth, pendingSpellResult.battle.playerHealth + monster.level * 3 * (hasItem(itemIds, "second-wind") && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth / 2 ? 2 : 1));
+    if (!passTurn && countered && hasItem(itemIds, "snapshot")) pendingSpellResult.battle.nextTurnDraw += 1;
+    if (!passTurn && countered && hasItem(itemIds, "riposte-charm")) pendingSpellResult.battle = removeOnePlayerDebuff(pendingSpellResult.battle);
     if (!pendingSpellResult.battle.phoenixUsed && hasItem(itemIds, "phoenix-charm") && pendingSpellResult.battle.playerHealth > 0 && pendingSpellResult.battle.playerHealth <= pendingSpellResult.battle.playerMaxHealth * .25) {
       pendingSpellResult.battle = { ...clearPlayerDebuffs(pendingSpellResult.battle), phoenixUsed: true };
       flashItems("phoenix-charm");
@@ -1052,9 +1087,9 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     if (lobotomy?.removed) {
       setRunDeck(lobotomy.cards);
     }
-    const expressionArmorGain = upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.ceil(Math.abs(value) * .15) : 0);
+    const expressionArmorGain = passTurn ? 0 : upgradeEffects.armor + (value % 2 === 0 && hasItem(itemIds, "evensteven") ? Math.ceil(Math.abs(value) * .15) : 0);
     const monsterDebuffNames = [
-      ...(upgradeEffects.weaken > 0 || (countered && hasItem(itemIds, "tripwire")) ? ["Weaken"] : []),
+      ...(!passTurn && (upgradeEffects.weaken > 0 || (countered && hasItem(itemIds, "tripwire"))) ? ["Weaken"] : []),
       ...(stunnedNext ? ["Stun"] : []),
     ];
     const playerDebuffNames = [
@@ -1068,18 +1103,20 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
     ];
     const upgradeEffectSummary = [
       ...(criticalHit ? ["Critical Hit (+50% damage)"] : []),
-      ...(upgradeEffects.armor > 0 ? [`Armor (+${upgradeEffects.armor})`] : []),
-      ...(upgradeEffects.healing > 0 ? [`Healing (+${upgradeHealingReceived} HP${upgradeHealingReceived === 0 ? ", already full" : ""})`] : []),
-      ...(upgradeEffects.weaken > 0 && enemyHit.health > 0 ? [`Weaken (${upgradeEffects.weaken})`] : []),
+      ...(!passTurn && upgradeEffects.armor > 0 ? [`Armor (+${upgradeEffects.armor})`] : []),
+      ...(!passTurn && upgradeEffects.healing > 0 ? [`Healing (+${upgradeHealingReceived} HP${upgradeHealingReceived === 0 ? ", already full" : ""})`] : []),
+      ...(!passTurn && upgradeEffects.weaken > 0 && enemyHit.health > 0 ? [`Weaken (${upgradeEffects.weaken})`] : []),
       ...(stunnedNext && enemyHit.health > 0 ? ["Bash (Stun)"] : []),
       ...(reflectedDamage > 0 ? [`Reflecting (${reflectedDamage} damage returned)`] : []),
-      ...(upgradeEffects.initiative > 0 && enemyHit.health > 0 ? [`Initiative (+${upgradeEffects.initiative})`] : []),
+      ...(!passTurn && upgradeEffects.initiative > 0 && enemyHit.health > 0 ? [`Initiative (+${upgradeEffects.initiative})`] : []),
     ];
     const expressionLabel = expressionItems.map((item) => item.label).join(" ");
     const enemyArmorAbsorbed = brokeMath ? 0 : Math.max(0, outgoingDamage - enemyHit.damage);
     const attackArmorAbsorbed = Math.max(0, incomingDamage - attackHit.damage);
     const recapEvents = [
-      brokeMath
+      passTurn
+        ? "You braced yourself and passed the turn."
+        : brokeMath
         ? "You dealt ∞ damage and broke math. The / card has been destroyed."
         : `Dealt ${damageText} damage${enemyArmorAbsorbed > 0 ? ` (${enemyArmorAbsorbed} blocked by enemy armor)` : ""}.`,
       ...(upgradeEffectSummary.length > 0 ? [`Upgrade effects: ${upgradeEffectSummary.join(", ")}.`] : []),
@@ -1099,13 +1136,13 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       ...(stolenCoins > 0 ? [`${monster.name} stole $${stolenCoins}.`] : []),
       ...(lobotomy?.removed ? [`${lobotomy.removed.label} was removed for this fight.`] : []),
     ];
-    const recap: CombatLogEntry = { turn, expression: expressionLabel || String(value), result: countered ? "counter" : "attack", events: recapEvents };
+    const recap: CombatLogEntry = { turn, expression: passTurn ? "Passed turn" : expressionLabel || String(value), result: passTurn ? "pass" : countered ? "counter" : "attack", events: recapEvents };
     setLatestRecap(recap);
     setCombatLog((current) => [...current, recap].slice(-12));
     setTurnBriefing([]);
 
     void (async () => {
-      if (!brokeMath && (damageSources.length > 0 || playerWeakenStackCount > 0)) {
+      if (!passTurn && !brokeMath && (damageSources.length > 0 || playerWeakenStackCount > 0)) {
         if (criticalHit) {
           setCombatCallout("Critical Hit! +50% damage");
           window.setTimeout(() => setCombatCallout(null), 850);
@@ -1128,10 +1165,14 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         await wait(500);
       }
 
-      setImpact(countered ? "counter" : "enemy");
-      playBattleSound(countered ? "counter" : "enemy-hit");
+      if (!passTurn) {
+        setImpact(countered ? "counter" : "enemy");
+        playBattleSound(countered ? "counter" : "enemy-hit");
+      }
       setBattle((current) => ({ ...current, enemyHealth: enemyHit.health, enemyArmor: enemyHit.armor }));
-      setMessage(brokeMath
+      setMessage(passTurn
+        ? "You brace yourself and pass the turn."
+        : brokeMath
         ? "You dealt ∞ damage and broke math. The / card has been destroyed."
         : countered
         ? `Perfect counter! You deal ${damageText} damage. ${monster.name}'s turn is canceled${enemyHit.health === 0 ? ` and ${monster.name} falls` : ""}.`
@@ -1248,7 +1289,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
         : drawnCards;
       const immolatedDraw = { ...processedDraw, hand: [...retainedHand, ...processedDraw.hand] };
       const forcedCard = pendingSpellResult.battle.usurpDraws > 0 ? choice(immolatedDraw.hand) : null;
-      const batteryCarry = hasItem(itemIds, "battery") ? Math.max(0, availableEnergy - energyUsed) : 0;
+      const batteryCarry = hasItem(itemIds, "battery") ? Math.max(0, availableEnergy - (passTurn ? 0 : energyUsed)) : 0;
       const nextBattleBase = {
         ...pendingSpellResult.battle,
         ...immolatedDraw,
@@ -1256,11 +1297,11 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
       };
       const nextEnemyWeakenInstances = [
         ...nextBattleBase.enemyWeakenInstances,
-        ...Array.from({ length: upgradeEffects.weaken }, () => 2),
+        ...Array.from({ length: passTurn ? 0 : upgradeEffects.weaken }, () => 2),
       ];
       const nextInitiativeInstances = [
         ...nextBattleBase.initiativeInstances,
-        ...Array.from({ length: upgradeEffects.initiative }, () => 2),
+        ...Array.from({ length: passTurn ? 0 : upgradeEffects.initiative }, () => 2),
       ];
       const nextIntent = Math.round(nextAction.intent * (1 + nextBattleBase.enrageStacks * 0.1));
       const nextSecondaryIntent = Math.round(nextAction.secondaryIntent * (1 + nextBattleBase.enrageStacks * 0.1));
@@ -1499,7 +1540,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
             {combatLog.length === 0 ? <p className="combat-history-empty">Your submissions will appear here.</p> : (
               <div className="combat-history-list">
                 {[...combatLog].reverse().map((entry, index) => <article className={entry.result} key={`${entry.turn}-${index}`}>
-                  <header><strong>Turn {entry.turn}</strong><span>{entry.expression}</span><b>{entry.result === "counter" ? "Counter" : "Attack"}</b></header>
+                  <header><strong>Turn {entry.turn}</strong><span>{entry.expression}</span><b>{entry.result === "counter" ? "Counter" : entry.result === "pass" ? "Pass" : "Attack"}</b></header>
                   <ul>{entry.events.map((event, eventIndex) => <li key={eventIndex}>{event}</li>)}</ul>
                 </article>)}
               </div>
@@ -1630,6 +1671,7 @@ export default function BattleGame({ onExit, onComplete, monster = fallbackMonst
                 <span>=</span><strong className={divisionPreviewUnknown ? "division-unknown-preview" : undefined}>{divisionPreviewUnknown ? "??" : previewResult ?? "?"}</strong>
               </div>
               <button className="submit-attack" onClick={() => submitExpression()} disabled={phase !== "playing"}>Submit Attack</button>
+              <button className={`pass-turn-button ${passHintFlashing ? "pass-turn-flashing" : ""}`} onClick={passCurrentTurn} disabled={phase !== "playing"}>Pass Turn</button>
               {battle.resourcefulnessRemaining > 0 && <button className="resourcefulness-button" onClick={useResourcefulness} disabled={phase !== "playing" || selectedCards.length > 0}>Resourcefulness ({Number(battle.resourcefulnessRemaining)} left)</button>}
             </div>
             {error && <p className="battle-error" role="alert">{error}</p>}
