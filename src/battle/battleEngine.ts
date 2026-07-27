@@ -211,7 +211,7 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
       if (exponent !== null) {
         const previous = tokens[tokens.length - 1];
         const previousCard = cards[index - 1];
-        if (!previous) throw new Error(`${card.label} must be played after a digit card or parenthesized expression.`);
+        if (!previous) throw new Error(`${card.label} must be played after a number or parenthesized expression.`);
         if (previous.kind === "right") {
           let depth = 0;
           let leftIndex = -1;
@@ -236,7 +236,7 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
           continue;
         }
         if (previous.kind !== "number" || previousCard?.kind !== "number") {
-          throw new Error(`${card.label} must be played after a digit card or parenthesized expression.`);
+          throw new Error(`${card.label} must be played after a number or parenthesized expression.`);
         }
         const value = (previous.value ?? 0) ** exponent;
         tokens[tokens.length - 1] = { ...previous, value, sourceIds: [...previous.sourceIds, card.id] };
