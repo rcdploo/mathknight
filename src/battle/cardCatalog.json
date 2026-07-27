@@ -124,7 +124,7 @@
         "Type":  "Combo",
         "Rarity":  "Uncommon",
         "Energy Cost":  "2",
-        "Effect":  "Exponeniates the combined digit to the power of 2",
+        "Effect":  "Exponentiates the previous digit or parenthesized expression to the power of 2",
         "Median Purchase Cost at Shop":  "$200"
     },
     {
@@ -132,7 +132,7 @@
         "Type":  "Combo",
         "Rarity":  "Rare",
         "Energy Cost":  "4",
-        "Effect":  "Exponeniates the combined digit to the power of 3",
+        "Effect":  "Exponentiates the previous digit or parenthesized expression to the power of 3",
         "Median Purchase Cost at Shop":  "$300"
     },
     {

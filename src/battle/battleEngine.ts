@@ -143,6 +143,60 @@ function exponentComboPower(label: string) {
   return null;
 }
 
+function evaluateResolvedExpression(expressionTokens: ResolvedToken[]) {
+  if (expressionTokens.length === 0) throw new Error("Choose some cards first.");
+  const values: number[] = [];
+  const operators: string[] = [];
+  const precedence: Record<string, number> = { "+": 1, "-": 1, "Ã—": 2, "*": 2, "Ã·": 2, "/": 2, "^": 3 };
+  const applyOperator = () => {
+    const operator = operators.pop();
+    const right = values.pop();
+    const left = values.pop();
+    if (operator === undefined || right === undefined || left === undefined) throw new Error("Invalid expression.");
+    if (operator === "+") values.push(left + right);
+    else if (operator === "-") values.push(left - right);
+    else if (operator === "Ã—" || operator === "*") values.push(left * right);
+    else if (operator === "Ã·" || operator === "/") values.push(left / right);
+    else if (operator === "^") values.push(left ** right);
+    else throw new Error("Unknown operator.");
+  };
+
+  let expectsNumber = true;
+  expressionTokens.forEach((token) => {
+    if (token.kind === "number") {
+      if (!expectsNumber) throw new Error("Place an operator between every pair of numbers.");
+      values.push(token.value ?? 0);
+      expectsNumber = false;
+      return;
+    }
+    if (token.kind === "left") {
+      if (!expectsNumber) throw new Error("Place an operator before an opening parenthesis.");
+      operators.push("(");
+      return;
+    }
+    if (token.kind === "right") {
+      if (expectsNumber) throw new Error("A closing parenthesis needs a number before it.");
+      while (operators.length > 0 && operators[operators.length - 1] !== "(") applyOperator();
+      if (operators.pop() !== "(") throw new Error("Parentheses are not balanced.");
+      return;
+    }
+    if (expectsNumber) throw new Error("Expressions cannot begin with an operator.");
+    const cardToken = token.operator ?? "";
+    while (
+      operators.length > 0 && operators[operators.length - 1] !== "(" &&
+      (precedence[operators[operators.length - 1]] > precedence[cardToken] ||
+        (precedence[operators[operators.length - 1]] === precedence[cardToken] && cardToken !== "^"))
+    ) applyOperator();
+    operators.push(cardToken);
+    expectsNumber = true;
+  });
+  if (expectsNumber) throw new Error("Expressions must end with a number.");
+  if (operators.includes("(")) throw new Error("Parentheses are not balanced.");
+  while (operators.length > 0) applyOperator();
+  if (values.length !== 1 || Number.isNaN(values[0])) throw new Error("Invalid expression.");
+  return values[0];
+}
+
 export function resolveExpressionTokens(cards: BattleCard[], context: ExpressionContext): ResolvedToken[] {
   const tokens: ResolvedToken[] = [];
   const resolvedNumbers: number[] = [];
@@ -157,8 +211,32 @@ export function resolveExpressionTokens(cards: BattleCard[], context: Expression
       if (exponent !== null) {
         const previous = tokens[tokens.length - 1];
         const previousCard = cards[index - 1];
-        if (!previous || previous.kind !== "number" || previousCard?.kind !== "number") {
-          throw new Error(`${card.label} must be played after a digit card.`);
+        if (!previous) throw new Error(`${card.label} must be played after a digit card or parenthesized expression.`);
+        if (previous.kind === "right") {
+          let depth = 0;
+          let leftIndex = -1;
+          for (let tokenIndex = tokens.length - 1; tokenIndex >= 0; tokenIndex -= 1) {
+            const token = tokens[tokenIndex];
+            if (token.kind === "right") depth += 1;
+            else if (token.kind === "left") {
+              depth -= 1;
+              if (depth === 0) {
+                leftIndex = tokenIndex;
+                break;
+              }
+            }
+          }
+          if (leftIndex === -1) throw new Error("Parentheses are not balanced.");
+          const groupedTokens = tokens.slice(leftIndex + 1, -1);
+          const sourceIds = [...tokens.slice(leftIndex).flatMap((token) => token.sourceIds), card.id];
+          const replacedNumberCount = groupedTokens.filter((token) => token.kind === "number").length;
+          const value = evaluateResolvedExpression(groupedTokens) ** exponent;
+          tokens.splice(leftIndex, tokens.length - leftIndex, { kind: "number", value, sourceIds });
+          resolvedNumbers.splice(Math.max(0, resolvedNumbers.length - replacedNumberCount), replacedNumberCount, value);
+          continue;
+        }
+        if (previous.kind !== "number" || previousCard?.kind !== "number") {
+          throw new Error(`${card.label} must be played after a digit card or parenthesized expression.`);
         }
         const value = (previous.value ?? 0) ** exponent;
         tokens[tokens.length - 1] = { ...previous, value, sourceIds: [...previous.sourceIds, card.id] };

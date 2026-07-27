@@ -22,6 +22,17 @@ const unitPayoutFactors: Record<Unit, number> = {
   algebra: 15,
 };
 
+const unitPayoutTiers: Record<Unit, number> = {
+  addition: 1,
+  subtraction: 2,
+  multiplication: 3,
+  division: 4,
+  geometry: 5,
+  fractions: 6,
+  perfectSquares: 7,
+  algebra: 8,
+};
+
 export function getUnitValue(unit: Unit) {
   return unitValues[unit];
 }
@@ -61,8 +72,16 @@ export function calculateStars(pairs: number, turnsUsed: number, levelKind?: Lev
   return thresholds.find((threshold) => turnsUsed <= threshold.limit)?.stars ?? 1;
 }
 
-export function calculateCoins(level: LevelConfig, stars: number, winCountIncludingCurrent: number) {
+function getDungeonProgressPayoutMultiplier(level: LevelConfig, dungeonLevel: number) {
+  const tierLag = dungeonLevel - unitPayoutTiers[level.unit];
+  if (tierLag >= 2) return 0;
+  if (tierLag === 1) return 0.5;
+  return 1;
+}
+
+export function calculateCoins(level: LevelConfig, stars: number, winCountIncludingCurrent: number, dungeonLevel = 1) {
   const base = unitPayoutFactors[level.unit] * levelValues[level.kind] * stageValues[level.stage] * stars;
   const previousWins = Math.max(0, winCountIncludingCurrent - 1);
-  return 5 + Math.floor(base / 2 ** previousWins);
+  const reward = 5 + Math.floor(base / 2 ** previousWins);
+  return Math.floor(reward * getDungeonProgressPayoutMultiplier(level, dungeonLevel));
 }

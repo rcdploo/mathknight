@@ -163,7 +163,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
 
     const stars = completed ? calculateStars(selectedLevel.pairs, finalTurnsUsed, selectedLevel.kind) : 0;
     const nextWinCount = currentProgress.wins + (completed ? 1 : 0);
-    const coinsEarned = completed ? calculateCoins(selectedLevel, stars, nextWinCount) : 0;
+    const coinsEarned = completed ? calculateCoins(selectedLevel, stars, nextWinCount, dungeonLevel) : 0;
     const rawResult = { completed, stars, turnsUsed: finalTurnsUsed, coinsEarned };
     const recorded = recordTrainingResult(progress, selectedLevel, rawResult, dungeonLevel);
     const finalResult = { ...rawResult, coinsEarned: recorded.awarded };
@@ -304,8 +304,9 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
                           const entry = progress.puzzles[level.id];
                           const replayLocked = progress.run.difficulty === "impossible" && Boolean(entry?.completed);
                           const nextWinCount = (entry?.wins ?? 0) + 1;
-                          const minimumReward = calculateCoins(level, 1, nextWinCount);
-                          const maximumReward = calculateCoins(level, 5, nextWinCount);
+                          const minimumReward = calculateCoins(level, 1, nextWinCount, dungeonLevel);
+                          const maximumReward = calculateCoins(level, 5, nextWinCount, dungeonLevel);
+                          const rewardLabel = minimumReward === maximumReward ? `$${minimumReward}` : `$${minimumReward}-$${maximumReward}`;
                           return (
                             <button
                               data-testid={`level-${level.id}`}
@@ -334,7 +335,7 @@ export default function TrainingGrounds({ onExit, onDungeon }: { onExit: () => v
                                 {replayLocked
                                   ? "Completed · No replay on Impossible"
                                   : unlocked
-                                  ? `$${minimumReward}-$${maximumReward}`
+                                  ? rewardLabel
                                   : unlockState.reason === "Requires Dungeon Level 3"
                                     ? "Locked: Requires Dungeon Level 3+"
                                     : "Locked"}
